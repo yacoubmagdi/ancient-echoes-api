@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Upload, Sparkles, RotateCcw, AlertCircle } from "lucide-react";
@@ -60,22 +59,21 @@ function Index() {
     try {
       const form = new FormData();
       form.append("photo", file);
-      const { data, error: fnError } = await supabase.functions.invoke("analyze-face", {
+      // Call the edge function directly with fetch — supabase.functions.invoke
+      // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
         body: form,
       });
-      if (fnError) {
-        // Try to extract message from response body
-        let msg = fnError.message;
-        try {
-          const ctx = (fnError as { context?: { json?: () => Promise<{ error?: string }> } }).context;
-          if (ctx?.json) {
-            const body = await ctx.json();
-            if (body?.error) msg = body.error;
-          }
-        } catch { /* ignore */ }
-        throw new Error(msg);
+      const data = await resp.json().catch(() => ({ error: "Invalid server response" }));
+      if (!resp.ok || (data as { error?: string })?.error) {
+        throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
-      if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
       setResult(data as MatchResult);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
