@@ -180,8 +180,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: message }, 422);
   }
 
-  console.log("Luxand response:", JSON.stringify(luxandData).slice(0, 1000));
-
   // Luxand returns an array of matches (sorted by probability desc).
   // Possible "no face" / "no match" responses come back as { status: "failure", ... }
   let matches: LuxandMatch[] = [];
