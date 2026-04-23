@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key, apikey",
 };
 
 const LUXAND_BASE = "https://api.luxand.cloud";
