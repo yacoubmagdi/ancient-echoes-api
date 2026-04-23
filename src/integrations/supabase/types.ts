@@ -14,7 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      personas: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          image_url: string
+          luxand_uuid: string | null
+          name: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          image_url: string
+          luxand_uuid?: string | null
+          name: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          image_url?: string
+          luxand_uuid?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      query_logs: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          ip_hash: string | null
+          matched_persona_id: string | null
+          similarity: number | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          ip_hash?: string | null
+          matched_persona_id?: string | null
+          similarity?: number | null
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          ip_hash?: string | null
+          matched_persona_id?: string | null
+          similarity?: number | null
+          success?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "query_logs_matched_persona_id_fkey"
+            columns: ["matched_persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
