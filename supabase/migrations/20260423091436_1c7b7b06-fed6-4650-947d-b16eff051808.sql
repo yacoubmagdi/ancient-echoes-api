@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Anyone can insert query logs" ON public.query_logs;
