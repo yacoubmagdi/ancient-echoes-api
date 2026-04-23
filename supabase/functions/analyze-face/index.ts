@@ -54,6 +54,14 @@ interface LuxandMatch {
   probability?: number;
 }
 
+// We enrolled each persona with name = "<Persona Name> [<persona uuid>]"
+// so we can recover the persona row id from the search result.
+function extractPersonaId(name?: string): string | null {
+  if (!name) return null;
+  const m = name.match(/\[([0-9a-f-]{36})\]\s*$/i);
+  return m ? m[1] : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -205,19 +213,21 @@ Deno.serve(async (req) => {
 
   // Sort by probability desc just to be safe
   matches.sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
-  const topUuids = matches.slice(0, 3).map((m) => m.uuid).filter(Boolean) as string[];
+  const topMatches = matches.slice(0, 3);
+  const topIds = topMatches
+    .map((m) => extractPersonaId(m.name))
+    .filter((x): x is string => Boolean(x));
 
   const { data: personas } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, luxand_uuid")
-    .in("luxand_uuid", topUuids);
+    .select("id, name, category, description, image_url")
+    .in("id", topIds);
 
-  const personaByUuid = new Map(
-    (personas ?? []).map((p) => [p.luxand_uuid, p]),
-  );
+  const personaById = new Map((personas ?? []).map((p) => [p.id, p]));
 
-  const ranked = matches.slice(0, 3).flatMap((m) => {
-    const persona = m.uuid ? personaByUuid.get(m.uuid) : null;
+  const ranked = topMatches.flatMap((m) => {
+    const pid = extractPersonaId(m.name);
+    const persona = pid ? personaById.get(pid) : null;
     if (!persona) return [];
     return [
       {
@@ -238,9 +248,10 @@ Deno.serve(async (req) => {
   }
 
   const top = ranked[0];
+  const topPid = extractPersonaId(matches[0].name);
   await supabase.from("query_logs").insert({
     ip_hash: ipHash,
-    matched_persona_id: personaByUuid.get(matches[0].uuid!)?.id ?? null,
+    matched_persona_id: topPid ?? null,
     similarity: top.similarity,
     success: true,
   });
