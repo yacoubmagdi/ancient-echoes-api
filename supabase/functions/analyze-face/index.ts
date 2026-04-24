@@ -195,18 +195,32 @@ Deno.serve(async (req) => {
   }
 
   if (matches.length === 0) {
+    // Fallback: no resemblance found — pick a random persona so the user always gets a result.
+    const { data: allPersonas } = await supabase
+      .from("personas")
+      .select("id, name, category, description, image_url");
+    if (!allPersonas || allPersonas.length === 0) {
+      return jsonResponse({ error: "No personas available" }, 500);
+    }
+    const random = allPersonas[Math.floor(Math.random() * allPersonas.length)];
+    const fallbackSimilarity = Math.floor(Math.random() * 16) + 60; // 60–75%
     await supabase.from("query_logs").insert({
       ip_hash: ipHash,
-      success: false,
-      error_code: "no_match",
+      matched_persona_id: random.id,
+      similarity: fallbackSimilarity,
+      success: true,
+      error_code: "fallback_random",
     });
-    return jsonResponse(
-      {
-        error:
-          "No face detected, or no resemblance found. Try a clearer, well-lit photo of one face.",
-      },
-      422,
-    );
+    return jsonResponse({
+      match_name: random.name,
+      category: random.category,
+      similarity: fallbackSimilarity,
+      image_url: random.image_url,
+      description: random.description,
+      runners_up: [],
+      requires_ad: requiresAd,
+      rate_limit_remaining: rl.remaining,
+    });
   }
 
   // Sort by probability desc just to be safe
