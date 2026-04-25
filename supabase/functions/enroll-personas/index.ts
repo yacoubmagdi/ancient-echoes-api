@@ -20,26 +20,45 @@ interface Persona {
 }
 
 async function enrollPersona(token: string, persona: Persona): Promise<string | null> {
-  // Luxand v2: POST /v2/person  with form fields: name, store=1, collections, photos (URL)
-  const form = new FormData();
-  form.append("name", `${persona.name} [${persona.id}]`);
-  form.append("store", "1");
-  form.append("collections", COLLECTION);
-  form.append("photos", persona.image_url);
+  // Strategy: download the image, then upload as multipart file (more reliable than URL)
+  try {
+    const imgResp = await fetch(persona.image_url);
+    if (!imgResp.ok) {
+      console.error(`Failed to fetch image for ${persona.name}: ${imgResp.status}`);
+      return null;
+    }
+    const imgBlob = await imgResp.blob();
 
-  const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
-    method: "POST",
-    headers: { token },
-    body: form,
-  });
+    const form = new FormData();
+    form.append("name", `${persona.name} [${persona.id}]`);
+    form.append("store", "1");
+    form.append("collections", COLLECTION);
+    form.append("photos", imgBlob, `${persona.id}.jpg`);
 
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`Failed to enroll ${persona.name}:`, resp.status, data);
+    const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
+      method: "POST",
+      headers: { token },
+      body: form,
+    });
+
+    const text = await resp.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* not json */ }
+
+    if (!resp.ok) {
+      console.error(`Failed to enroll ${persona.name}: HTTP ${resp.status} body=${text.slice(0, 200)}`);
+      return null;
+    }
+    const uuid = (data as { uuid?: string }).uuid;
+    if (!uuid) {
+      console.error(`No UUID returned for ${persona.name}: ${text.slice(0, 200)}`);
+      return null;
+    }
+    return uuid;
+  } catch (e) {
+    console.error(`Exception enrolling ${persona.name}:`, e);
     return null;
   }
-  // Luxand returns { uuid: "...", ... }
-  return (data as { uuid?: string }).uuid ?? null;
 }
 
 Deno.serve(async (req) => {
