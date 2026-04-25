@@ -20,6 +20,9 @@ export const translations = {
     footer:
       "Powered by Luxand Cloud face recognition · historical personas across 5 civilizations",
     langLabel: "العربية",
+    dobLabel: "Date of birth",
+    dobPlaceholder: "Pick your date of birth",
+    dobRequired: "Please select your date of birth first.",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -37,6 +40,9 @@ export const translations = {
     footer:
       "مدعوم بتقنية Luxand Cloud للتعرف على الوجوه · شخصيات تاريخية من 5 حضارات",
     langLabel: "English",
+    dobLabel: "تاريخ الميلاد",
+    dobPlaceholder: "اختر تاريخ ميلادك",
+    dobRequired: "يرجى تحديد تاريخ ميلادك أولًا.",
   },
 } as const;
 

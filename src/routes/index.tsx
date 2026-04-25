@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { format } from "date-fns";
+import { ar as arLocale } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
@@ -44,6 +49,7 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [dob, setDob] = useState<Date | undefined>(undefined);
   const [lang, setLang] = useState<Lang>(() => {
     if (typeof window === "undefined") return "en";
     const saved = window.localStorage.getItem("lang") as Lang | null;
@@ -70,6 +76,11 @@ function Index() {
   }
 
   async function handleFile(file: File) {
+    if (!dob) {
+      setError(t.dobRequired);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setError(null);
     setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
@@ -77,6 +88,7 @@ function Index() {
     try {
       const form = new FormData();
       form.append("photo", file);
+      form.append("date_of_birth", dob.toISOString().slice(0, 10));
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
@@ -137,6 +149,42 @@ function Index() {
 
         {!result && (
           <Card className="border-border/60 bg-card/60 backdrop-blur p-8 md:p-12">
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.dobLabel}</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-start font-normal",
+                      !dob && "text-muted-foreground",
+                    )}
+                    disabled={loading}
+                  >
+                    <CalendarIcon className="h-4 w-4 opacity-70" />
+                    {dob
+                      ? format(dob, "PPP", { locale: isRtl ? arLocale : undefined })
+                      : t.dobPlaceholder}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dob}
+                    onSelect={setDob}
+                    captionLayout="dropdown"
+                    fromYear={1920}
+                    toYear={new Date().getFullYear()}
+                    defaultMonth={dob ?? new Date(1995, 0, 1)}
+                    disabled={(date) =>
+                      date > new Date() || date < new Date("1920-01-01")
+                    }
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <label
               htmlFor="photo-input"
               className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
