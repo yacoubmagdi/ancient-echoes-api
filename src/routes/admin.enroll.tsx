@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,21 @@ export const Route = createFileRoute("/admin/enroll")({
 
 type Persona = { id: string; name: string; image_url: string; face_descriptor: number[] | null };
 
+// Try to load an image with retries — handles transient network/CORS hiccups.
+async function imageFromUrlWithRetry(url: string, attempts = 3): Promise<HTMLImageElement> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await imageFromUrl(url);
+    } catch (e) {
+      lastErr = e;
+      // Backoff: 400ms, 800ms, 1600ms
+      await new Promise((r) => setTimeout(r, 400 * Math.pow(2, i)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Image load failed");
+}
+
 function EnrollPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -30,6 +45,9 @@ function EnrollPage() {
   const [onlyMissing, setOnlyMissing] = useState(true);
   const [autoStart, setAutoStart] = useState(true);
   const [hasAutoRun, setHasAutoRun] = useState(false);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  // Cumulative totals across auto-resume passes
+  const [totalProcessed, setTotalProcessed] = useState({ ok: 0, failed: 0, passes: 0 });
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -53,6 +71,25 @@ function EnrollPage() {
     setLog((l) => [...l.slice(-200), line]);
   }
 
+  async function acquireWakeLock() {
+    try {
+      const nav = navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinel> };
+      };
+      if (nav.wakeLock?.request) {
+        wakeLockRef.current = await nav.wakeLock.request("screen");
+        append("Screen wake lock acquired (tab will stay awake).");
+      }
+    } catch {
+      // Wake lock not critical — continue without it.
+    }
+  }
+
+  function releaseWakeLock() {
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
+  }
+
   // Auto-start enrollment when the page loads if there are missing descriptors.
   useEffect(() => {
     if (loading || running || hasAutoRun || !autoStart || !isAdmin) return;
@@ -66,81 +103,128 @@ function EnrollPage() {
   async function run() {
     setRunning(true);
     setLog([]);
+    setTotalProcessed({ ok: 0, failed: 0, passes: 0 });
+    await acquireWakeLock();
     append("Loading face-api models...");
     await loadFaceModels();
     append("Models ready.");
-
-    const targets = onlyMissing
-      ? personas.filter((p) => !p.face_descriptor)
-      : personas;
-    setProgress({ done: 0, total: targets.length, ok: 0, failed: 0 });
-    append(`Processing ${targets.length} personas...`);
 
     const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
     if (!accessToken) {
       append("ERROR: not authenticated");
       setRunning(false);
+      releaseWakeLock();
       return;
     }
 
-    let ok = 0, failed = 0;
-    const batchItems: { id: string; descriptor: number[] | null }[] = [];
+    // Auto-resume loop: keep processing missing personas until none remain
+    // (or until a pass yields no new successes — meaning the rest are unfixable).
+    let cumOk = 0;
+    let cumFailed = 0;
+    let pass = 0;
+    const maxPasses = 5;
 
-    async function flushBatch() {
-      if (batchItems.length === 0) return;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-face-descriptor`;
-      try {
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ items: batchItems }),
-        });
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) append(`Save batch failed: ${(data as { error?: string }).error ?? resp.status}`);
-      } catch (e) {
-        append(`Save error: ${(e as Error).message}`);
+    while (pass < maxPasses) {
+      pass++;
+      // Re-fetch latest personas list each pass so already-saved ones are skipped
+      const { data: latest } = await supabase
+        .from("personas")
+        .select("id, name, image_url, face_descriptor")
+        .order("category")
+        .order("name")
+        .limit(2000);
+      const fresh = (latest as Persona[]) ?? [];
+      setPersonas(fresh);
+
+      const targets = onlyMissing ? fresh.filter((p) => !p.face_descriptor) : fresh;
+      if (targets.length === 0) {
+        append(`Pass ${pass}: nothing to do — all personas enrolled. ✓`);
+        break;
       }
-      batchItems.length = 0;
-    }
 
-    for (let i = 0; i < targets.length; i++) {
-      const p = targets[i];
-      try {
-        const img = await imageFromUrl(p.image_url);
-        const desc = await extractDescriptor(img);
-        if (desc) {
-          batchItems.push({ id: p.id, descriptor: desc });
-          ok++;
-        } else {
-          batchItems.push({ id: p.id, descriptor: null });
-          failed++;
-          append(`No face: ${p.name}`);
+      setProgress({ done: 0, total: targets.length, ok: 0, failed: 0 });
+      append(`Pass ${pass}: processing ${targets.length} personas...`);
+
+      let ok = 0;
+      let failed = 0;
+      const batchItems: { id: string; descriptor: number[] | null }[] = [];
+
+      async function flushBatch() {
+        if (batchItems.length === 0) return;
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-face-descriptor`;
+        // Retry the save call up to 3 times for transient errors
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const resp = await fetch(url, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                Authorization: `Bearer ${accessToken}`,
+              },
+              body: JSON.stringify({ items: batchItems }),
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok) break;
+            const errMsg = (data as { error?: string }).error ?? `HTTP ${resp.status}`;
+            if (attempt === 2) append(`Save batch failed after retries: ${errMsg}`);
+            else await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          } catch (e) {
+            if (attempt === 2) append(`Save error: ${(e as Error).message}`);
+            else await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          }
         }
-      } catch (e) {
-        failed++;
-        append(`Error ${p.name}: ${(e as Error).message}`);
+        batchItems.length = 0;
       }
-      setProgress({ done: i + 1, total: targets.length, ok, failed });
-      // Flush every 10 items
-      if (batchItems.length >= 10) await flushBatch();
-    }
-    await flushBatch();
-    append(`Done. ${ok} succeeded, ${failed} failed.`);
-    setRunning(false);
 
-    // Refresh persona list to reflect new descriptors
-    const { data } = await supabase
+      for (let i = 0; i < targets.length; i++) {
+        const p = targets[i];
+        try {
+          const img = await imageFromUrlWithRetry(p.image_url, 3);
+          const desc = await extractDescriptor(img);
+          if (desc) {
+            batchItems.push({ id: p.id, descriptor: desc });
+            ok++;
+          } else {
+            // Don't write null on first pass — leave it so we can retry next pass
+            failed++;
+            append(`No face: ${p.name}`);
+          }
+        } catch (e) {
+          failed++;
+          append(`Error ${p.name}: ${(e as Error).message}`);
+        }
+        setProgress({ done: i + 1, total: targets.length, ok, failed });
+        if (batchItems.length >= 10) await flushBatch();
+      }
+      await flushBatch();
+
+      cumOk += ok;
+      cumFailed = failed; // last pass's unrecoverable count
+      setTotalProcessed({ ok: cumOk, failed: cumFailed, passes: pass });
+      append(`Pass ${pass} complete: ${ok} succeeded, ${failed} failed.`);
+
+      // If this pass produced no successes, the remaining items are stuck — stop.
+      if (ok === 0) {
+        append(`No new successes on pass ${pass}. Remaining ${failed} personas have no detectable face. Stopping.`);
+        break;
+      }
+    }
+
+    // Final refresh + summary
+    const { data: final } = await supabase
       .from("personas")
       .select("id, name, image_url, face_descriptor")
       .order("category")
       .order("name")
       .limit(2000);
-    setPersonas((data as Persona[]) ?? []);
+    const finalList = (final as Persona[]) ?? [];
+    setPersonas(finalList);
+    const finalEnrolled = finalList.filter((p) => p.face_descriptor).length;
+    append(`✅ DONE. ${finalEnrolled}/${finalList.length} enrolled (${cumOk} added in ${pass} pass${pass > 1 ? "es" : ""}, ${finalList.length - finalEnrolled} unrecoverable).`);
+    setRunning(false);
+    releaseWakeLock();
   }
 
   if (authLoading || loading) {
