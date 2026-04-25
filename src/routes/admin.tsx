@@ -456,82 +456,21 @@ function PersonaDialog({
 function PreviewDialog({
   persona, onClose, flash,
 }: { persona: Persona | null; onClose: () => void; flash: (m: string) => void }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{ scoped: number | null; matches: Array<{ uuid: string; name: string; probability: number }> } | null>(null);
-
-  useEffect(() => { setFile(null); setResult(null); }, [persona?.id]);
   if (!persona) return null;
-
-  async function runSimilarity() {
-    if (!file || !persona) return;
-    setRunning(true); setResult(null);
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const b64 = (reader.result as string) ?? "";
-      const { data, error } = await supabase.functions.invoke("persona-admin", {
-        body: { action: "similarity", imageBase64: b64, personaId: persona!.id },
-      });
-      setRunning(false);
-      if (error || (data as any)?.error) { flash(error?.message || (data as any).error); return; }
-      setResult({
-        scoped: (data as any).scopedMatch?.probability ?? null,
-        matches: (data as any).matches ?? [],
-      });
-    };
-    reader.readAsDataURL(file);
-  }
 
   return (
     <Dialog open={!!persona} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{persona.name}</DialogTitle>
           <DialogDescription>{persona.category} · {persona.role} · {persona.gender}</DialogDescription>
         </DialogHeader>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div>
-            <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
-            <p className="text-xs text-muted-foreground mt-2 break-all">
-              <strong>Luxand UUID:</strong> {persona.luxand_uuid ?? "— not enrolled —"}
-            </p>
-            {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="flex items-center gap-1"><Sparkles className="h-3 w-3" /> Similarity test</Label>
-              <p className="text-xs text-muted-foreground">Upload a face photo to see how it scores against this persona's embedding.</p>
-              <Input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              <Button onClick={runSimilarity} disabled={!file || running} className="w-full">
-                {running ? "Comparing…" : "Run similarity test"}
-              </Button>
-            </div>
-            {result && (
-              <div className="space-y-2 text-sm">
-                <div className="rounded-md border border-border p-3">
-                  <p className="font-medium">Match against this persona</p>
-                  <p className="text-2xl font-bold">
-                    {result.scoped !== null ? `${(result.scoped * 100).toFixed(1)}%` : "—"}
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium mb-1">Top matches in collection</p>
-                  {result.matches.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No matches.</p>
-                  ) : (
-                    <ul className="space-y-1">
-                      {result.matches.map((m) => (
-                        <li key={m.uuid} className="flex justify-between text-xs">
-                          <span className="truncate">{m.name || m.uuid.slice(0, 8)}</span>
-                          <span className="font-mono">{(m.probability * 100).toFixed(1)}%</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+        <div>
+          <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
+          <p className="text-xs text-muted-foreground mt-2 break-all">
+            <strong>Luxand UUID:</strong> {persona.luxand_uuid ?? "— not enrolled —"}
+          </p>
+          {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
         </div>
       </DialogContent>
     </Dialog>
