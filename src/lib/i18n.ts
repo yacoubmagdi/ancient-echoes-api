@@ -40,6 +40,9 @@ export const translations = {
     footer:
       "مدعوم بتقنية Luxand Cloud للتعرف على الوجوه · شخصيات تاريخية من 5 حضارات",
     langLabel: "English",
+    dobLabel: "تاريخ الميلاد",
+    dobPlaceholder: "اختر تاريخ ميلادك",
+    dobRequired: "يرجى تحديد تاريخ ميلادك أولًا.",
   },
 } as const;
 
