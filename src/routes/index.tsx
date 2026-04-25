@@ -447,6 +447,9 @@ function Index() {
 
         <footer className="mt-20 text-center text-xs text-muted-foreground">
           {t.footer}
+          <div className="mt-2">
+            <a href="/admin" className="hover:text-foreground transition-colors">Admin</a>
+          </div>
         </footer>
       </div>
     </main>
