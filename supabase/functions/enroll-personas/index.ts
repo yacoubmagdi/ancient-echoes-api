@@ -20,26 +20,80 @@ interface Persona {
 }
 
 async function enrollPersona(token: string, persona: Persona): Promise<string | null> {
-  // Luxand v2: POST /v2/person  with form fields: name, store=1, collections, photos (URL)
-  const form = new FormData();
-  form.append("name", `${persona.name} [${persona.id}]`);
-  form.append("store", "1");
-  form.append("collections", COLLECTION);
-  form.append("photos", persona.image_url);
-
-  const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
-    method: "POST",
-    headers: { token },
-    body: form,
-  });
-
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`Failed to enroll ${persona.name}:`, resp.status, data);
+  // Download the image as bytes, then upload as multipart file (more reliable than URL)
+  let bytes: Uint8Array;
+  try {
+    const imgResp = await fetch(persona.image_url);
+    if (!imgResp.ok) {
+      console.error(`Failed to fetch image for ${persona.name}: ${imgResp.status}`);
+      return null;
+    }
+    const buf = await imgResp.arrayBuffer();
+    bytes = new Uint8Array(buf);
+  } catch (e) {
+    console.error(`Image download error for ${persona.name}:`, (e as Error).message);
     return null;
   }
-  // Luxand returns { uuid: "...", ... }
-  return (data as { uuid?: string }).uuid ?? null;
+
+  // First, verify the image actually contains a detectable face
+  try {
+    const detectForm = new FormData();
+    const detectBlob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
+    detectForm.append("photo", detectBlob, `${persona.id}.jpg`);
+    const detectResp = await fetch(`${LUXAND_BASE}/photo/detect`, {
+      method: "POST",
+      headers: { token },
+      body: detectForm,
+    });
+    const detectText = await detectResp.text();
+    if (!detectResp.ok) {
+      console.error(`No face detected in ${persona.name} (HTTP ${detectResp.status}): ${detectText.slice(0, 200)}`);
+      return null;
+    }
+    let detectData: unknown = null;
+    try { detectData = JSON.parse(detectText); } catch { /* */ }
+    const faces = (detectData as { faces?: unknown[] })?.faces ?? [];
+    if (!Array.isArray(faces) || faces.length === 0) {
+      console.error(`Zero faces in ${persona.name}: ${detectText.slice(0, 200)}`);
+      return null;
+    }
+  } catch (e) {
+    console.error(`Face detect error for ${persona.name}:`, (e as Error).message);
+    return null;
+  }
+
+  try {
+    const form = new FormData();
+    form.append("name", `${persona.name} [${persona.id}]`);
+    form.append("store", "1");
+    form.append("collections", COLLECTION);
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
+    form.append("photos", blob, `${persona.id}.jpg`);
+
+    const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
+      method: "POST",
+      headers: { token },
+      body: form,
+    });
+
+    const text = await resp.text();
+    let data: Record<string, unknown> = {};
+    try { data = JSON.parse(text); } catch { /* not json */ }
+
+    if (!resp.ok) {
+      console.error(`Failed to enroll ${persona.name}: HTTP ${resp.status} body=${text.slice(0, 300)}`);
+      return null;
+    }
+    const uuid = (data as { uuid?: string }).uuid;
+    if (!uuid) {
+      console.error(`No UUID for ${persona.name}: ${text.slice(0, 300)}`);
+      return null;
+    }
+    return uuid;
+  } catch (e) {
+    console.error(`Luxand request error for ${persona.name}:`, (e as Error).message);
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
