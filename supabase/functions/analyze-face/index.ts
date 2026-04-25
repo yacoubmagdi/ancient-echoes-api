@@ -544,6 +544,60 @@ function extractPersonaId(name?: string): string | null {
   return m ? m[1] : null;
 }
 
+// Build localized name/category/description, enriched with a real
+// historical figure when one matches the persona's category + role + gender.
+function buildLocalized(
+  p: {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    gender?: string | null;
+    role?: string | null;
+  },
+  lang: "en" | "ar",
+): {
+  name: string;
+  category: string;
+  description: string;
+  figure: { name: string; bio: string } | null;
+} {
+  const role = p.role ?? "noble";
+  const gender = p.gender ?? "any";
+  const figure = figureFor(p.id, p.category, role, gender);
+
+  const archetypeName = lang === "ar"
+    ? arabicNameFor(p.name, p.category, role, gender)
+    : p.name;
+  const localCategory = lang === "ar" ? arabicCategoryFor(p.category) : p.category;
+  const archetypeDesc = lang === "ar"
+    ? arabicDescriptionFor(p.category, role, gender)
+    : p.description;
+
+  if (!figure) {
+    return {
+      name: archetypeName,
+      category: localCategory,
+      description: archetypeDesc,
+      figure: null,
+    };
+  }
+
+  const figName = lang === "ar" ? figure.name_ar : figure.name_en;
+  const figBio = lang === "ar" ? figure.bio_ar : figure.bio_en;
+  const intro = lang === "ar"
+    ? `تشبه ملامحك ${figName} — ${archetypeName}.`
+    : `Your features echo ${figName} — the ${archetypeName}.`;
+  const achievementsLabel = lang === "ar" ? "أبرز إنجازاتها/إنجازاته" : "Notable achievements";
+
+  return {
+    name: lang === "ar" ? `${figName} — ${archetypeName}` : `${figName} — ${archetypeName}`,
+    category: localCategory,
+    description: `${intro}\n\n${achievementsLabel}: ${figBio}`,
+    figure: { name: figName, bio: figBio },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
