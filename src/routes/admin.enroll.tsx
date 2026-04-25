@@ -301,7 +301,9 @@ function EnrollPage() {
         {progress.total > 0 && (
           <div className="mt-4 space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="font-medium">{running ? "Processing…" : "Run complete"}</span>
+              <span className="font-medium">
+                {running ? `Processing… (pass ${totalProcessed.passes || 1})` : "Run complete"}
+              </span>
               <span className="text-muted-foreground">{pct}%</span>
             </div>
             <Progress value={pct} />
@@ -313,6 +315,11 @@ function EnrollPage() {
                 <span className="text-red-600">✗ {progress.failed}</span>
               </span>
             </div>
+            {totalProcessed.passes > 0 && (
+              <div className="text-xs text-muted-foreground pt-1 border-t">
+                Cumulative: <span className="text-green-600">+{totalProcessed.ok} enrolled</span> across {totalProcessed.passes} pass{totalProcessed.passes > 1 ? "es" : ""}
+              </div>
+            )}
           </div>
         )}
       </Card>
