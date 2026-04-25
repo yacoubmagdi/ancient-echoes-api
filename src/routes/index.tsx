@@ -206,6 +206,25 @@ function Index() {
                 </PopoverContent>
               </Popover>
             </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.nationalityLabel}</label>
+              <Select value={nationality} onValueChange={setNationality} disabled={loading}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.nationalityPlaceholder} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {NATIONALITIES.slice()
+                    .sort((a, b) =>
+                      (isRtl ? a.ar : a.en).localeCompare(isRtl ? b.ar : b.en, isRtl ? "ar" : "en"),
+                    )
+                    .map((n) => (
+                      <SelectItem key={n.code} value={n.code}>
+                        {isRtl ? n.ar : n.en}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
             <label
               htmlFor="photo-input"
               className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
