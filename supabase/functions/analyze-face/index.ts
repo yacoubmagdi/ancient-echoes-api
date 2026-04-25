@@ -2082,3 +2082,295 @@ function buildLocalized(
   };
 }
 
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+  if (req.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  const t0 = performance.now();
+  const debug: {
+    enabled: boolean;
+    timings_ms: Record<string, number>;
+    descriptor_len: number | null;
+    candidates_with_descriptor: number;
+    fallback_used: string | null;
+    rate_limit_remaining: number;
+  } = {
+    enabled: false,
+    timings_ms: {},
+    descriptor_len: null,
+    candidates_with_descriptor: 0,
+    fallback_used: null,
+    rate_limit_remaining: 0,
+  };
+  const mark = (label: string) => {
+    debug.timings_ms[label] = Math.round(performance.now() - t0);
+  };
+
+  // Optional API-key gate
+  const requiredApiKey = Deno.env.get("ANALYZE_API_KEY");
+  if (requiredApiKey && req.headers.get("x-api-key") !== requiredApiKey) {
+    return jsonResponse({ error: "Invalid API key" }, 401);
+  }
+
+  // Rate limit
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
+    req.headers.get("cf-connecting-ip") ??
+    "unknown";
+  const rl = checkRateLimit(ip);
+  if (!rl.allowed) {
+    return jsonResponse({ error: "Rate limit exceeded. Try again in a minute." }, 429);
+  }
+  debug.rate_limit_remaining = rl.remaining;
+
+  // Parse JSON payload
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = await req.json();
+  } catch {
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
+  }
+  mark("parse_body");
+
+  const debugEnabled = payload.debug === true || payload.debug === "1";
+  debug.enabled = debugEnabled;
+
+  const userDescriptor = payload.descriptor;
+  if (!Array.isArray(userDescriptor) || userDescriptor.length !== DESCRIPTOR_LEN) {
+    return jsonResponse(
+      { error: `Missing or invalid 'descriptor' (need ${DESCRIPTOR_LEN}-float array)` },
+      400,
+    );
+  }
+  // Validate every element is a finite number.
+  for (const v of userDescriptor) {
+    if (typeof v !== "number" || !isFinite(v)) {
+      return jsonResponse({ error: "Descriptor must contain only finite numbers" }, 400);
+    }
+  }
+  debug.descriptor_len = userDescriptor.length;
+
+  const nationalityCode = ((payload.nationality as string) ?? "").toUpperCase();
+  const gender = ((payload.gender as string) ?? "").toLowerCase();
+  const roleFilter = ((payload.role as string) ?? "").toLowerCase().trim();
+  const civilizationFilter = ((payload.civilization as string) ?? "").trim();
+  const dobRaw = ((payload.date_of_birth as string) ?? "").toString();
+  const langRaw = ((payload.lang as string) ?? "en").toString().toLowerCase();
+  const lang: "en" | "ar" = langRaw === "ar" ? "ar" : "en";
+  const dob = dobRaw ? new Date(dobRaw) : null;
+  const zodiac = dob && !isNaN(dob.getTime()) ? getZodiac(dob) : null;
+  const traitLine = zodiac ? personalityLine(zodiac, lang) : "";
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  // Resolve eligible civilization categories from nationality.
+  let eligibleCategories: string[] | null = null;
+  if (nationalityCode) {
+    const { data: natRow } = await supabase
+      .from("nationality_categories")
+      .select("categories")
+      .eq("nationality_code", nationalityCode)
+      .maybeSingle();
+    if (natRow?.categories?.length) eligibleCategories = natRow.categories;
+  }
+  if (civilizationFilter && civilizationFilter.toLowerCase() !== "any") {
+    eligibleCategories = [civilizationFilter];
+  }
+
+  const allowedGenders = gender === "male" || gender === "female"
+    ? [gender, "any"]
+    : ["male", "female", "any"];
+
+  function personaPasses(p: { gender?: string | null; category: string; role?: string | null }) {
+    if (!allowedGenders.includes(p.gender ?? "any")) return false;
+    if (eligibleCategories && !eligibleCategories.includes(p.category)) return false;
+    if (roleFilter && (p.role ?? "") !== roleFilter) return false;
+    return true;
+  }
+
+  const ipHash = await hashIp(ip);
+
+  // Free-tier hook: count successful queries this IP has had in 24h
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: priorQueryCount } = await supabase
+    .from("query_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("ip_hash", ipHash)
+    .eq("success", true)
+    .gte("created_at", since);
+  const requiresAd = (priorQueryCount ?? 0) >= 1;
+
+  // Fetch every persona that has a descriptor and rank by Euclidean distance.
+  const { data: allPersonas, error: fetchErr } = await supabase
+    .from("personas")
+    .select("id, name, category, description, image_url, gender, role, face_descriptor")
+    .not("face_descriptor", "is", null)
+    .limit(2000);
+
+  if (fetchErr) {
+    console.error("Failed to load personas:", fetchErr);
+    return jsonResponse({ error: "Database error" }, 500);
+  }
+  mark("load_personas");
+
+  const enrolled = (allPersonas ?? []).filter(
+    (p) => Array.isArray(p.face_descriptor) && p.face_descriptor.length === DESCRIPTOR_LEN,
+  );
+  debug.candidates_with_descriptor = enrolled.length;
+
+  type Scored = {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    image_url: string;
+    gender: string | null;
+    role: string | null;
+    distance: number;
+    similarity: number;
+  };
+
+  const scored: Scored[] = enrolled.map((p) => {
+    const distance = euclideanDistance(userDescriptor as number[], p.face_descriptor as number[]);
+    return {
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      description: p.description,
+      image_url: p.image_url,
+      gender: p.gender,
+      role: p.role,
+      distance,
+      similarity: distanceToSimilarity(distance),
+    };
+  });
+  // Sort by distance ascending (closest first).
+  scored.sort((a, b) => a.distance - b.distance);
+  mark("scored");
+
+  // Tiered selection — try to return 3 results.
+  type Ranked = {
+    match_name: string;
+    category: string;
+    similarity: number;
+    image_url: string;
+    description: string;
+    historical_figure: { name: string; bio: string } | null;
+    persona_id: string;
+  };
+
+  const TARGET = 3;
+  const ranked: Ranked[] = [];
+  const usedIds = new Set<string>();
+
+  function pushFromScored(
+    predicate: (p: { gender: string | null; category: string; role: string | null }) => boolean,
+  ) {
+    for (const s of scored) {
+      if (ranked.length >= TARGET) return;
+      if (usedIds.has(s.id)) continue;
+      if (!predicate(s)) continue;
+      const loc = buildLocalized(
+        { id: s.id, name: s.name, category: s.category, description: s.description, gender: s.gender, role: s.role },
+        lang,
+      );
+      ranked.push({
+        match_name: loc.name,
+        category: loc.category,
+        similarity: s.similarity,
+        image_url: s.image_url,
+        description: loc.description,
+        historical_figure: loc.figure,
+        persona_id: s.id,
+      });
+      usedIds.add(s.id);
+    }
+  }
+
+  // Tier 1: strict gender + nationality + role
+  pushFromScored(personaPasses);
+  // Tier 2: drop role, keep gender + civilization
+  if (ranked.length < TARGET) {
+    pushFromScored(
+      (p) =>
+        allowedGenders.includes(p.gender ?? "any") &&
+        (!eligibleCategories || eligibleCategories.includes(p.category)),
+    );
+  }
+  // Tier 3: gender only
+  if (ranked.length < TARGET) {
+    pushFromScored((p) => allowedGenders.includes(p.gender ?? "any"));
+  }
+  // Tier 4: anyone with a descriptor
+  if (ranked.length < TARGET) {
+    pushFromScored(() => true);
+  }
+
+  // If nothing has descriptors yet, fall back to a random persona so the user
+  // still gets a result. (Should not happen once enrollment is complete.)
+  if (ranked.length === 0) {
+    debug.fallback_used = "no_enrolled_personas";
+    const { data: anyPersonas } = await supabase
+      .from("personas")
+      .select("id, name, category, description, image_url, gender, role")
+      .limit(2000);
+    const pool = (anyPersonas ?? []).filter(personaPasses);
+    const finalPool = pool.length > 0 ? pool : (anyPersonas ?? []);
+    if (finalPool.length === 0) {
+      return jsonResponse({ error: "No personas available" }, 500);
+    }
+    const random = finalPool[Math.floor(Math.random() * finalPool.length)];
+    const fallbackSimilarity = Math.floor(Math.random() * 16) + 60;
+    await supabase.from("query_logs").insert({
+      ip_hash: ipHash,
+      matched_persona_id: random.id,
+      similarity: fallbackSimilarity,
+      success: true,
+      error_code: "fallback_no_enrollment",
+    });
+    const loc = buildLocalized(random, lang);
+    mark("total");
+    return jsonResponse({
+      match_name: loc.name,
+      category: loc.category,
+      similarity: fallbackSimilarity,
+      image_url: random.image_url,
+      description: traitLine ? `${loc.description}\n\n${traitLine}` : loc.description,
+      historical_figure: loc.figure,
+      runners_up: [],
+      requires_ad: requiresAd,
+      rate_limit_remaining: rl.remaining,
+      ...(debugEnabled ? { _debug: debug } : {}),
+    });
+  }
+
+  const top = ranked[0];
+  if (traitLine) {
+    top.description = `${top.description}\n\n${traitLine}`;
+  }
+  await supabase.from("query_logs").insert({
+    ip_hash: ipHash,
+    matched_persona_id: top.persona_id,
+    similarity: top.similarity,
+    success: true,
+  });
+
+  const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
+  mark("total");
+
+  return jsonResponse({
+    ...stripId(top),
+    runners_up: ranked.slice(1).map(stripId),
+    requires_ad: requiresAd,
+    rate_limit_remaining: rl.remaining,
+    ...(debugEnabled ? { _debug: debug } : {}),
+  });
+});
