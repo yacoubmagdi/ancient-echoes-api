@@ -81,6 +81,7 @@ const CATEGORY_AR: Record<string, string> = {
   Persian: "الفرس",
   Samurai: "الساموراي",
   Viking: "الفايكنج",
+  Chinese: "الصينيون",
 };
 
 const ROLE_AR: Record<string, { male: string; female: string; neutral: string }> = {
