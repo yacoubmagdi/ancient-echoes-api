@@ -332,14 +332,25 @@ Deno.serve(async (req) => {
   debug.luxand.status = luxandResp.status;
   debug.luxand.ok = luxandResp.ok;
 
-  const rawText = await luxandResp.text();
+  let rawText = "";
   let luxandData: unknown;
   try {
-    luxandData = JSON.parse(rawText);
-    debug.luxand.parse_ok = true;
-  } catch {
-    luxandData = rawText;
+    rawText = await luxandResp.text();
+  } catch (err) {
+    console.error("Luxand response read error:", err);
+    debug.luxand.network_error = err instanceof Error ? err.message : String(err);
     debug.luxand.parse_ok = false;
+    luxandData = { message: "Unreadable response from face recognition service" };
+  }
+
+  if (rawText) {
+    try {
+      luxandData = JSON.parse(rawText);
+      debug.luxand.parse_ok = true;
+    } catch {
+      luxandData = rawText;
+      debug.luxand.parse_ok = false;
+    }
   }
 
   if (!luxandResp.ok) {
