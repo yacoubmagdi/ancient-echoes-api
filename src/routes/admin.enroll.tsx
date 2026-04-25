@@ -28,6 +28,8 @@ function EnrollPage() {
   const [progress, setProgress] = useState({ done: 0, total: 0, ok: 0, failed: 0 });
   const [log, setLog] = useState<string[]>([]);
   const [onlyMissing, setOnlyMissing] = useState(true);
+  const [autoStart, setAutoStart] = useState(true);
+  const [hasAutoRun, setHasAutoRun] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -50,6 +52,16 @@ function EnrollPage() {
   function append(line: string) {
     setLog((l) => [...l.slice(-200), line]);
   }
+
+  // Auto-start enrollment when the page loads if there are missing descriptors.
+  useEffect(() => {
+    if (loading || running || hasAutoRun || !autoStart || !isAdmin) return;
+    const missing = personas.filter((p) => !p.face_descriptor).length;
+    if (missing === 0) return;
+    setHasAutoRun(true);
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, personas, autoStart, isAdmin]);
 
   async function run() {
     setRunning(true);
@@ -186,6 +198,16 @@ function EnrollPage() {
             disabled={running}
           />
           Only process personas without a descriptor
+        </label>
+
+        <label className="flex items-center gap-2 mb-4 text-sm">
+          <input
+            type="checkbox"
+            checked={autoStart}
+            onChange={(e) => setAutoStart(e.target.checked)}
+            disabled={running}
+          />
+          Auto-start enrollment when this page opens
         </label>
 
         <Button onClick={run} disabled={running} className="w-full">
