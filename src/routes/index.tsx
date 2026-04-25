@@ -18,6 +18,7 @@ import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon } fro
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
+import { compressImage } from "@/lib/image-compress";
 
 export const Route = createFileRoute("/")({
   head: () => ({
