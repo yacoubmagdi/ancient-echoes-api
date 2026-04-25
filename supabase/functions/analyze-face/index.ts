@@ -227,8 +227,14 @@ Deno.serve(async (req) => {
   const requiresAd = (priorQueryCount ?? 0) >= 1;
 
   // Call Luxand /photo/search restricted to our personas collection
+  // IMPORTANT: re-materialize the photo into a fresh Blob backed by an
+  // ArrayBuffer. The File we get out of req.formData() is sometimes a
+  // single-use stream — passing it directly into another FormData triggers
+  // "error reading a body from connection" when fetch tries to serialize it.
+  const photoBuffer = await photo.arrayBuffer();
+  const photoBlob = new Blob([photoBuffer], { type: photo.type });
   const luxandForm = new FormData();
-  luxandForm.append("photo", photo, photo.name || "upload.jpg");
+  luxandForm.append("photo", photoBlob, photo.name || "upload.jpg");
   luxandForm.append("collections", COLLECTION);
 
   let luxandResp: Response;
