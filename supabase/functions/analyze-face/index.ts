@@ -351,7 +351,11 @@ Deno.serve(async (req) => {
   const usedIds = new Set<string>();
 
   function pushFromMatches(
-    predicate: (p: { gender?: string | null; category: string }) => boolean,
+    predicate: (p: {
+      gender?: string | null;
+      category: string;
+      role?: string | null;
+    }) => boolean,
   ) {
     for (const m of candidateMatches) {
       if (ranked.length >= TARGET) return;
