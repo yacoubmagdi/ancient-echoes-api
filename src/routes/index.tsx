@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -59,6 +60,7 @@ function Index() {
   const [result, setResult] = useState<MatchResult | null>(null);
   const [dob, setDob] = useState<Date | undefined>(undefined);
   const [nationality, setNationality] = useState<string>("");
+  const [gender, setGender] = useState<"male" | "female" | "">("");
   // Always start with "en" on the server AND first client render to avoid
   // hydration mismatch; load saved language in an effect after mount.
   const [lang, setLang] = useState<Lang>("en");
@@ -102,6 +104,11 @@ function Index() {
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    if (!gender) {
+      setError(t.genderRequired);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setError(null);
     setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
@@ -111,6 +118,7 @@ function Index() {
       form.append("photo", file);
       form.append("date_of_birth", dob.toISOString().slice(0, 10));
       form.append("nationality", nationality);
+      form.append("gender", gender);
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
@@ -224,6 +232,24 @@ function Index() {
                     ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.genderLabel}</label>
+              <RadioGroup
+                value={gender}
+                onValueChange={(v) => setGender(v as "male" | "female")}
+                disabled={loading}
+                className="flex gap-6"
+              >
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <RadioGroupItem value="male" id="gender-male" />
+                  <span className="text-sm">{t.genderMale}</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <RadioGroupItem value="female" id="gender-female" />
+                  <span className="text-sm">{t.genderFemale}</span>
+                </label>
+              </RadioGroup>
             </div>
             <label
               htmlFor="photo-input"
