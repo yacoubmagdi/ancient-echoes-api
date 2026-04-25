@@ -1,1 +1,4 @@
 project_id = "kfycwzfhyermjhupyrpk"
+
+[functions.persona-admin]
+verify_jwt = true
