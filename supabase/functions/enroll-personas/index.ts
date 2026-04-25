@@ -35,6 +35,33 @@ async function enrollPersona(token: string, persona: Persona): Promise<string | 
     return null;
   }
 
+  // First, verify the image actually contains a detectable face
+  try {
+    const detectForm = new FormData();
+    const detectBlob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
+    detectForm.append("photo", detectBlob, `${persona.id}.jpg`);
+    const detectResp = await fetch(`${LUXAND_BASE}/photo/detect`, {
+      method: "POST",
+      headers: { token },
+      body: detectForm,
+    });
+    const detectText = await detectResp.text();
+    if (!detectResp.ok) {
+      console.error(`No face detected in ${persona.name} (HTTP ${detectResp.status}): ${detectText.slice(0, 200)}`);
+      return null;
+    }
+    let detectData: unknown = null;
+    try { detectData = JSON.parse(detectText); } catch { /* */ }
+    const faces = (detectData as { faces?: unknown[] })?.faces ?? [];
+    if (!Array.isArray(faces) || faces.length === 0) {
+      console.error(`Zero faces in ${persona.name}: ${detectText.slice(0, 200)}`);
+      return null;
+    }
+  } catch (e) {
+    console.error(`Face detect error for ${persona.name}:`, (e as Error).message);
+    return null;
+  }
+
   try {
     const form = new FormData();
     form.append("name", `${persona.name} [${persona.id}]`);
