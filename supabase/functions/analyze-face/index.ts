@@ -2011,18 +2011,21 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-interface LuxandMatch {
-  name?: string;
-  uuid?: string;
-  probability?: number;
+// Euclidean distance between two equal-length vectors.
+function euclideanDistance(a: number[], b: number[]): number {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
 }
 
-// We enrolled each persona with name = "<Persona Name> [<persona uuid>]"
-// so we can recover the persona row id from the search result.
-function extractPersonaId(name?: string): string | null {
-  if (!name) return null;
-  const m = name.match(/\[([0-9a-f-]{36})\]\s*$/i);
-  return m ? m[1] : null;
+// face-api.js descriptor distance is typically 0.3 (very similar) – 1.0+ (different).
+// Map to a 5–98% resemblance score.
+function distanceToSimilarity(distance: number): number {
+  const pct = Math.round((1 - distance) * 100);
+  return Math.max(5, Math.min(98, pct));
 }
 
 // Build localized name/category/description, enriched with a real
