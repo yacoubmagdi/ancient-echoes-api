@@ -14,11 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      nationality_categories: {
+        Row: {
+          categories: string[]
+          nationality_code: string
+        }
+        Insert: {
+          categories: string[]
+          nationality_code: string
+        }
+        Update: {
+          categories?: string[]
+          nationality_code?: string
+        }
+        Relationships: []
+      }
       personas: {
         Row: {
           category: string
           created_at: string
           description: string
+          gender: string
           id: string
           image_url: string
           luxand_uuid: string | null
@@ -28,6 +44,7 @@ export type Database = {
           category: string
           created_at?: string
           description: string
+          gender?: string
           id?: string
           image_url: string
           luxand_uuid?: string | null
@@ -37,6 +54,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          gender?: string
           id?: string
           image_url?: string
           luxand_uuid?: string | null
