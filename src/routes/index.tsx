@@ -291,6 +291,7 @@ function Index() {
                   <SelectItem value="Persian">{t.civPersian}</SelectItem>
                   <SelectItem value="Samurai">{t.civSamurai}</SelectItem>
                   <SelectItem value="Viking">{t.civViking}</SelectItem>
+                  <SelectItem value="Chinese">{t.civChinese}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
