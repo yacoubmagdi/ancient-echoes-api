@@ -40,8 +40,8 @@ async function enrollPersona(token: string, persona: Persona): Promise<string | 
     form.append("name", `${persona.name} [${persona.id}]`);
     form.append("store", "1");
     form.append("collections", COLLECTION);
-    const file = new File([bytes], `${persona.id}.jpg`, { type: "image/jpeg" });
-    form.append("photos", file);
+    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
+    form.append("photos", blob, `${persona.id}.jpg`);
 
     const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
       method: "POST",
