@@ -20,20 +20,28 @@ interface Persona {
 }
 
 async function enrollPersona(token: string, persona: Persona): Promise<string | null> {
-  // Strategy: download the image, then upload as multipart file (more reliable than URL)
+  // Download the image as bytes, then upload as multipart file (more reliable than URL)
+  let bytes: Uint8Array;
   try {
     const imgResp = await fetch(persona.image_url);
     if (!imgResp.ok) {
       console.error(`Failed to fetch image for ${persona.name}: ${imgResp.status}`);
       return null;
     }
-    const imgBlob = await imgResp.blob();
+    const buf = await imgResp.arrayBuffer();
+    bytes = new Uint8Array(buf);
+  } catch (e) {
+    console.error(`Image download error for ${persona.name}:`, (e as Error).message);
+    return null;
+  }
 
+  try {
     const form = new FormData();
     form.append("name", `${persona.name} [${persona.id}]`);
     form.append("store", "1");
     form.append("collections", COLLECTION);
-    form.append("photos", imgBlob, `${persona.id}.jpg`);
+    const file = new File([bytes], `${persona.id}.jpg`, { type: "image/jpeg" });
+    form.append("photos", file);
 
     const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
       method: "POST",
@@ -46,17 +54,17 @@ async function enrollPersona(token: string, persona: Persona): Promise<string | 
     try { data = JSON.parse(text); } catch { /* not json */ }
 
     if (!resp.ok) {
-      console.error(`Failed to enroll ${persona.name}: HTTP ${resp.status} body=${text.slice(0, 200)}`);
+      console.error(`Failed to enroll ${persona.name}: HTTP ${resp.status} body=${text.slice(0, 300)}`);
       return null;
     }
     const uuid = (data as { uuid?: string }).uuid;
     if (!uuid) {
-      console.error(`No UUID returned for ${persona.name}: ${text.slice(0, 200)}`);
+      console.error(`No UUID for ${persona.name}: ${text.slice(0, 300)}`);
       return null;
     }
     return uuid;
   } catch (e) {
-    console.error(`Exception enrolling ${persona.name}:`, e);
+    console.error(`Luxand request error for ${persona.name}:`, (e as Error).message);
     return null;
   }
 }
