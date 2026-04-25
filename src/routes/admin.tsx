@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, Sparkles, LogOut } from "lucide-react";
+import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -155,16 +156,28 @@ function AdminPage() {
 
   async function reenroll(p: Persona) {
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("persona-admin", {
-      body: { action: "reenroll", personaId: p.id },
-    });
-    setBusy(false);
-    if (error || (data as any)?.error) {
-      flash(error?.message || (data as any).error || "Re-enroll failed");
-      return;
+    try {
+      const img = await imageFromUrl(p.image_url);
+      const descriptor = await extractDescriptor(img);
+      if (!descriptor) {
+        setBusy(false);
+        flash("No face detected in this portrait.");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke("save-face-descriptor", {
+        body: { id: p.id, descriptor },
+      });
+      setBusy(false);
+      if (error || (data as { error?: string })?.error) {
+        flash(error?.message || (data as { error?: string }).error || "Save failed");
+        return;
+      }
+      flash("Face descriptor saved.");
+      loadPersonas();
+    } catch (e) {
+      setBusy(false);
+      flash((e as Error).message || "Re-enroll failed");
     }
-    flash(`Re-enrolled. UUID: ${(data as any).luxand_uuid?.slice(0, 8)}…`);
-    loadPersonas();
   }
 
   const filtered = useMemo(() => {
