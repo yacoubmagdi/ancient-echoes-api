@@ -161,6 +161,7 @@ Deno.serve(async (req) => {
   }
   const nationalityCode = (formData.get("nationality") ?? "").toString().toUpperCase();
   const gender = (formData.get("gender") ?? "").toString().toLowerCase();
+  const roleFilter = (formData.get("role") ?? "").toString().toLowerCase().trim();
   const dobRaw = (formData.get("date_of_birth") ?? "").toString();
   const langRaw = (formData.get("lang") ?? "en").toString().toLowerCase();
   const lang: "en" | "ar" = langRaw === "ar" ? "ar" : "en";
@@ -206,9 +207,10 @@ Deno.serve(async (req) => {
     ? [gender, "any"]
     : ["male", "female", "any"];
 
-  function personaPasses(p: { gender?: string | null; category: string }) {
+  function personaPasses(p: { gender?: string | null; category: string; role?: string | null }) {
     if (!allowedGenders.includes(p.gender ?? "any")) return false;
     if (eligibleCategories && !eligibleCategories.includes(p.category)) return false;
+    if (roleFilter && (p.role ?? "") !== roleFilter) return false;
     return true;
   }
 
@@ -286,7 +288,7 @@ Deno.serve(async (req) => {
     // Fallback: no resemblance found — pick a random persona so the user always gets a result.
     const { data: allPersonas } = await supabase
       .from("personas")
-      .select("id, name, category, description, image_url, gender");
+      .select("id, name, category, description, image_url, gender, role");
     const pool = (allPersonas ?? []).filter(personaPasses);
     const finalPool = pool.length > 0 ? pool : (allPersonas ?? []);
     if (finalPool.length === 0) {
@@ -323,7 +325,7 @@ Deno.serve(async (req) => {
 
   const { data: personas } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, gender")
+    .select("id, name, category, description, image_url, gender, role")
     .in("id", candidateIds);
 
   const personaById = new Map((personas ?? []).map((p) => [p.id, p]));
@@ -371,7 +373,15 @@ Deno.serve(async (req) => {
 
   // Tier 1: strict gender + nationality
   pushFromMatches(personaPasses);
-  // Tier 2: gender only
+  // Tier 2: drop nationality, keep gender + role
+  if (ranked.length < TARGET) {
+    pushFromMatches(
+      (p) =>
+        allowedGenders.includes(p.gender ?? "any") &&
+        (!roleFilter || (p.role ?? "") === roleFilter),
+    );
+  }
+  // Tier 2.5: gender only (drop role too)
   if (ranked.length < TARGET) {
     pushFromMatches((p) => allowedGenders.includes(p.gender ?? "any"));
   }
@@ -384,10 +394,15 @@ Deno.serve(async (req) => {
   if (ranked.length < TARGET) {
     const { data: allPersonas } = await supabase
       .from("personas")
-      .select("id, name, category, description, image_url, gender");
+      .select("id, name, category, description, image_url, gender, role");
     const all = allPersonas ?? [];
     const tieredPools = [
       all.filter(personaPasses),
+      all.filter(
+        (p) =>
+          allowedGenders.includes(p.gender ?? "any") &&
+          (!roleFilter || (p.role ?? "") === roleFilter),
+      ),
       all.filter((p) => allowedGenders.includes(p.gender ?? "any")),
       all,
     ];
