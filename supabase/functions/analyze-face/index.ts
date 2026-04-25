@@ -126,6 +126,50 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
+  // Debug mode: enabled via ?debug=1 query param or `debug` form field.
+  // When on, the response includes a `_debug` block with Luxand status,
+  // timing breakdown, and whether photo stream re-materialization succeeded.
+  const debugUrl = (() => {
+    try {
+      const u = new URL(req.url);
+      const v = u.searchParams.get("debug");
+      return v === "1" || v === "true";
+    } catch {
+      return false;
+    }
+  })();
+  const t0 = performance.now();
+  const debug: {
+    enabled: boolean;
+    timings_ms: Record<string, number>;
+    luxand: {
+      status: number | null;
+      ok: boolean | null;
+      match_count: number | null;
+      network_error: string | null;
+      parse_ok: boolean | null;
+    };
+    stream: {
+      photo_size: number | null;
+      photo_type: string | null;
+      buffer_bytes: number | null;
+      rematerialized: boolean;
+      error: string | null;
+    };
+    rate_limit_remaining: number;
+    fallback_used: string | null;
+  } = {
+    enabled: false, // set true once we confirm the form field too
+    timings_ms: {},
+    luxand: { status: null, ok: null, match_count: null, network_error: null, parse_ok: null },
+    stream: { photo_size: null, photo_type: null, buffer_bytes: null, rematerialized: false, error: null },
+    rate_limit_remaining: 0,
+    fallback_used: null,
+  };
+  const mark = (label: string) => {
+    debug.timings_ms[label] = Math.round(performance.now() - t0);
+  };
+
   // Optional API key gate
   const requiredApiKey = Deno.env.get("ANALYZE_API_KEY");
   if (requiredApiKey && req.headers.get("x-api-key") !== requiredApiKey) {
@@ -141,6 +185,7 @@ Deno.serve(async (req) => {
   if (!rl.allowed) {
     return jsonResponse({ error: "Rate limit exceeded. Try again in a minute." }, 429);
   }
+  debug.rate_limit_remaining = rl.remaining;
 
   const luxandToken = Deno.env.get("LUXAND_API_TOKEN");
   if (!luxandToken) {
@@ -154,6 +199,11 @@ Deno.serve(async (req) => {
   } catch {
     return jsonResponse({ error: "Invalid multipart/form-data body" }, 400);
   }
+  mark("parse_form");
+
+  const debugForm = (formData.get("debug") ?? "").toString().toLowerCase();
+  const debugEnabled = debugUrl || debugForm === "1" || debugForm === "true";
+  debug.enabled = debugEnabled;
 
   const photo = formData.get("photo");
   if (!(photo instanceof File)) {
@@ -184,6 +234,8 @@ Deno.serve(async (req) => {
   if (photo.size < 1024) {
     return jsonResponse({ error: "File too small to contain a face" }, 400);
   }
+  debug.stream.photo_size = photo.size;
+  debug.stream.photo_type = photo.type;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -231,13 +283,29 @@ Deno.serve(async (req) => {
   // ArrayBuffer. The File we get out of req.formData() is sometimes a
   // single-use stream — passing it directly into another FormData triggers
   // "error reading a body from connection" when fetch tries to serialize it.
-  const photoBuffer = await photo.arrayBuffer();
-  const photoBlob = new Blob([photoBuffer], { type: photo.type });
+  let photoBlob: Blob;
+  try {
+    const photoBuffer = await photo.arrayBuffer();
+    photoBlob = new Blob([photoBuffer], { type: photo.type });
+    debug.stream.buffer_bytes = photoBuffer.byteLength;
+    debug.stream.rematerialized = true;
+  } catch (err) {
+    debug.stream.error = err instanceof Error ? err.message : String(err);
+    console.error("Photo re-materialization failed:", err);
+    return jsonResponse(
+      debugEnabled
+        ? { error: "Failed to read uploaded photo", _debug: debug }
+        : { error: "Failed to read uploaded photo" },
+      400,
+    );
+  }
   const luxandForm = new FormData();
   luxandForm.append("photo", photoBlob, photo.name || "upload.jpg");
   luxandForm.append("collections", COLLECTION);
+  mark("photo_buffered");
 
   let luxandResp: Response;
+  const luxandStart = performance.now();
   try {
     luxandResp = await fetch(`${LUXAND_BASE}/photo/search`, {
       method: "POST",
@@ -246,20 +314,32 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("Luxand network error:", err);
+    debug.luxand.network_error = err instanceof Error ? err.message : String(err);
+    debug.timings_ms.luxand = Math.round(performance.now() - luxandStart);
     await supabase.from("query_logs").insert({
       ip_hash: ipHash,
       success: false,
       error_code: "luxand_network",
     });
-    return jsonResponse({ error: "Face recognition service unavailable" }, 502);
+    return jsonResponse(
+      debugEnabled
+        ? { error: "Face recognition service unavailable", _debug: debug }
+        : { error: "Face recognition service unavailable" },
+      502,
+    );
   }
+  debug.timings_ms.luxand = Math.round(performance.now() - luxandStart);
+  debug.luxand.status = luxandResp.status;
+  debug.luxand.ok = luxandResp.ok;
 
   const rawText = await luxandResp.text();
   let luxandData: unknown;
   try {
     luxandData = JSON.parse(rawText);
+    debug.luxand.parse_ok = true;
   } catch {
     luxandData = rawText;
+    debug.luxand.parse_ok = false;
   }
 
   if (!luxandResp.ok) {
@@ -297,6 +377,8 @@ Deno.serve(async (req) => {
   }
 
   if (matches.length === 0) {
+    debug.luxand.match_count = 0;
+    debug.fallback_used = "random_no_matches";
     // Fallback: no resemblance found — pick a random persona so the user always gets a result.
     const { data: allPersonas } = await supabase
       .from("personas")
@@ -315,6 +397,7 @@ Deno.serve(async (req) => {
       success: true,
       error_code: "fallback_random",
     });
+    mark("total");
     return jsonResponse({
       match_name: random.name,
       category: random.category,
@@ -324,8 +407,10 @@ Deno.serve(async (req) => {
       runners_up: [],
       requires_ad: requiresAd,
       rate_limit_remaining: rl.remaining,
+      ...(debugEnabled ? { _debug: debug } : {}),
     });
   }
+  debug.luxand.match_count = matches.length;
 
   // Sort by probability desc just to be safe
   matches.sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
@@ -465,10 +550,17 @@ Deno.serve(async (req) => {
   // Strip internal persona_id from the response payload.
   const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
 
+  if (ranked.length < TARGET || ranked.some((r) => r.similarity <= 75 && r.similarity >= 60)) {
+    // Heuristic: if any rows came from the DB top-up, mark fallback.
+    debug.fallback_used = debug.fallback_used ?? "tiered_topup";
+  }
+  mark("total");
+
   return jsonResponse({
     ...stripId(top),
     runners_up: ranked.slice(1).map(stripId),
     requires_ad: requiresAd,
     rate_limit_remaining: rl.remaining,
+    ...(debugEnabled ? { _debug: debug } : {}),
   });
 });
