@@ -39,6 +39,7 @@ export type Database = {
           image_url: string
           luxand_uuid: string | null
           name: string
+          role: string
         }
         Insert: {
           category: string
@@ -49,6 +50,7 @@ export type Database = {
           image_url: string
           luxand_uuid?: string | null
           name: string
+          role?: string
         }
         Update: {
           category?: string
@@ -59,6 +61,7 @@ export type Database = {
           image_url?: string
           luxand_uuid?: string | null
           name?: string
+          role?: string
         }
         Relationships: []
       }
