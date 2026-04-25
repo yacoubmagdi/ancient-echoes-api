@@ -112,11 +112,13 @@ function Index() {
     }
     setError(null);
     setResult(null);
-    setPreviewUrl(URL.createObjectURL(file));
     setLoading(true);
     try {
+      // Compress/resize image client-side to stay under server's 8 MB limit.
+      const uploadFile = await compressImage(file, 7 * 1024 * 1024);
+      setPreviewUrl(URL.createObjectURL(uploadFile));
       const form = new FormData();
-      form.append("photo", file);
+      form.append("photo", uploadFile);
       form.append("date_of_birth", dob.toISOString().slice(0, 10));
       form.append("nationality", nationality);
       form.append("gender", gender);
