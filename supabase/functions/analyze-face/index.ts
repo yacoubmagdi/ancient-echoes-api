@@ -70,6 +70,146 @@ function personalityLine(zodiac: ZodiacKey, lang: "en" | "ar"): string {
     : `Your nature tends to be ${t} — traits that make this persona resonate uniquely with you.`;
 }
 
+// --- Arabic localization for personas ---
+// We translate category, role, and the persona name on the fly so the
+// final output can be fully Arabic when the user picks lang=ar without
+// requiring per-row translations in the database.
+
+const CATEGORY_AR: Record<string, string> = {
+  Pharaoh: "الفراعنة",
+  Greek: "الإغريق",
+  Persian: "الفرس",
+  Samurai: "الساموراي",
+  Viking: "الفايكنج",
+};
+
+const ROLE_AR: Record<string, { male: string; female: string; neutral: string }> = {
+  royalty:   { male: "أمير من البلاط الملكي", female: "أميرة من البلاط الملكي", neutral: "شخصية ملكية" },
+  warrior:   { male: "محارب شجاع",            female: "محاربة شجاعة",          neutral: "محارب" },
+  scholar:   { male: "عالِم حكيم",            female: "عالمة حكيمة",            neutral: "عالم" },
+  priest:    { male: "كاهن مقدّس",            female: "كاهنة مقدّسة",          neutral: "كاهن" },
+  artist:    { male: "فنان مبدع",             female: "فنانة مبدعة",           neutral: "فنان" },
+  craftsman: { male: "حِرَفي ماهر",           female: "حِرَفية ماهرة",         neutral: "حِرَفي" },
+  explorer:  { male: "مستكشف جسور",           female: "مستكشفة جسورة",         neutral: "مستكشف" },
+  noble:     { male: "نبيل من العِلية",       female: "نبيلة من العِلية",       neutral: "نبيل" },
+};
+
+// Curated translations for specific persona names. Anything not listed here
+// falls back to a generated "{role_ar} من حضارة {category_ar}" name.
+const NAME_AR: Record<string, string> = {
+  // Pharaoh
+  "Queen of the Nile": "ملكة النيل",
+  "Queen Consort": "الملكة القرينة",
+  "Princess of Thebes": "أميرة طيبة",
+  "Desert Pharaoh": "فرعون الصحراء",
+  "Boy Pharaoh": "الفرعون الصبي",
+  "High Priest of Amun": "كبير كهنة آمون",
+  "High Priest of Ra": "كبير كهنة رع",
+  "Falconer of Horus": "صقّار حورس",
+  "Royal Scribe": "الكاتب الملكي",
+  "Royal Physician": "الطبيب الملكي",
+  "Court Astronomer": "فلكي البلاط",
+  "Court Musician": "موسيقي البلاط",
+  "Master Architect": "كبير المعماريين",
+  "Master Goldsmith": "كبير الصاغة",
+  "Tomb Architect": "مهندس المقابر",
+  "Cartouche Carver": "نقّاش الخراطيش",
+  "Granary Overseer": "مشرف الأهراء",
+  "Embalmer": "المُحَنِّط",
+  "Vizier": "الوزير",
+  "Pharaoh's General": "قائد جيش الفرعون",
+  "Nubian General": "القائد النوبي",
+  "Chariot Captain": "قائد العجلات الحربية",
+  "Sphinx Guardian": "حارس أبو الهول",
+  "Temple Dancer": "راقصة المعبد",
+  // Greek
+  "Spartan Hoplite": "محارب إسبرطي",
+  "Olympic Champion": "بطل أولمبي",
+  "Aegean Captain": "قبطان بحر إيجة",
+  "Greek Philosopher": "فيلسوف إغريقي",
+  "Geometer of Alexandria": "مهندس الإسكندرية",
+  "Lyric Poet": "شاعر غنائي",
+  "Daughter of Athens": "ابنة أثينا",
+  "Priestess of Athena": "كاهنة أثينا",
+  // Persian
+  "Persian King of Kings": "ملك الملوك الفارسي",
+  "Achaemenid Queen": "ملكة الأخمينيين",
+  "Satrap of the Provinces": "والي الأقاليم",
+  "Nobleman of Shiraz": "نبيل من شيراز",
+  "Persian Court Poet": "شاعر البلاط الفارسي",
+  "Magi Astronomer": "فلكي المجوس",
+  "Veiled Scholar": "العالمة المحجّبة",
+  "Cavalry of Cyrus": "فارس قورش",
+  "Immortal Guardian": "حارس الخالدين",
+  // Samurai
+  "Samurai Lord": "سيد الساموراي",
+  "Daimyo Lord": "السيد الدايميو",
+  "Daimyo of the Mountain": "دايميو الجبل",
+  "Lady of the Court": "سيدة البلاط",
+  "Onna-Bugeisha": "أونّا بوغيشا (المحاربة)",
+  "Ronin Master": "سيد الرونين",
+  "Ronin Wanderer": "الرونين الجوّال",
+  "Samurai Archer": "رامي الساموراي",
+  "Imperial Archer": "الرامي الإمبراطوري",
+  "Warrior Monk": "الراهب المحارب",
+  "Young Ashigaru": "الأشيغارو الشاب",
+  "Tea Master": "سيد الشاي",
+  // Viking
+  "Old Jarl": "اليارل العجوز",
+  "Shieldmaiden": "حاملة الترس",
+  "Northern Berserker": "البيرسيركر الشمالي",
+  "Axe Champion": "بطل الفأس",
+  "Forge Mistress": "سيدة الكير",
+  "Blacksmith": "الحدّاد",
+  "Boatbuilder": "بنّاء السفن",
+  "Dragon-Prow Carver": "نقّاش رؤوس التنانين",
+  "Falconer of the North": "صقّار الشمال",
+  "Forest Hunter": "صياد الغابات",
+  "Forest Tracker": "متعقّب الغابات",
+  "Fur Trader": "تاجر الفراء",
+  "Greenland Explorer": "مستكشف غرينلاند",
+};
+
+function arabicNameFor(
+  enName: string,
+  category: string,
+  role: string,
+  gender: string,
+): string {
+  const direct = NAME_AR[enName.trim()];
+  if (direct) return direct;
+  const cat = CATEGORY_AR[category] ?? category;
+  const r = ROLE_AR[role] ?? ROLE_AR.noble;
+  const g = gender === "female" ? r.female : gender === "male" ? r.male : r.neutral;
+  return `${g} من حضارة ${cat}`;
+}
+
+function arabicCategoryFor(category: string): string {
+  return CATEGORY_AR[category] ?? category;
+}
+
+function arabicDescriptionFor(
+  category: string,
+  role: string,
+  gender: string,
+): string {
+  const cat = CATEGORY_AR[category] ?? category;
+  const r = ROLE_AR[role] ?? ROLE_AR.noble;
+  const g = gender === "female" ? r.female : gender === "male" ? r.male : r.neutral;
+  const verbs: Record<string, string> = {
+    royalty: "يحمل في ملامحه هيبة العرش وحكمة الحكم",
+    warrior: "تظهر في عينيه شجاعة الميدان وعزيمة المعركة",
+    scholar: "تنبض ملامحه بحكمة الكتب وفضول العقول الكبرى",
+    priest: "يشعّ من حضوره وقار المعابد وسكينة المقدّس",
+    artist: "يحمل روح الجمال وحسّ الإبداع في كل تفصيلة",
+    craftsman: "تشهد يداه على إتقان الحرفة وصبر الصنّاع المهرة",
+    explorer: "تتقد في عينيه روح المغامرة وحبّ اكتشاف المجهول",
+    noble: "يحمل وقار النبلاء وحضور أصحاب المكانة",
+  };
+  const verb = verbs[role] ?? verbs.noble;
+  return `${g} من حضارة ${cat}. ${verb}، ويجسّد روح عصره وعبق تاريخ أمته.`;
+}
+
 // In-memory rate limit (per IP). Resets when the function instance recycles.
 // This is best-effort only — for production, back this with Redis/DB.
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -409,12 +549,19 @@ Deno.serve(async (req) => {
       error_code: "fallback_random",
     });
     mark("total");
+    const r_name = lang === "ar"
+      ? arabicNameFor(random.name, random.category, random.role ?? "noble", random.gender ?? "any")
+      : random.name;
+    const r_category = lang === "ar" ? arabicCategoryFor(random.category) : random.category;
+    const r_desc = lang === "ar"
+      ? arabicDescriptionFor(random.category, random.role ?? "noble", random.gender ?? "any")
+      : random.description;
     return jsonResponse({
-      match_name: random.name,
-      category: random.category,
+      match_name: r_name,
+      category: r_category,
       similarity: fallbackSimilarity,
       image_url: random.image_url,
-      description: traitLine ? `${random.description}\n\n${traitLine}` : random.description,
+      description: traitLine ? `${r_desc}\n\n${traitLine}` : r_desc,
       runners_up: [],
       requires_ad: requiresAd,
       rate_limit_remaining: rl.remaining,
@@ -471,12 +618,19 @@ Deno.serve(async (req) => {
       if (!pid || usedIds.has(pid)) continue;
       const persona = personaById.get(pid);
       if (!persona || !predicate(persona)) continue;
+      const localName = lang === "ar"
+        ? arabicNameFor(persona.name, persona.category, persona.role ?? "noble", persona.gender ?? "any")
+        : persona.name;
+      const localCategory = lang === "ar" ? arabicCategoryFor(persona.category) : persona.category;
+      const localDesc = lang === "ar"
+        ? arabicDescriptionFor(persona.category, persona.role ?? "noble", persona.gender ?? "any")
+        : persona.description;
       ranked.push({
-        match_name: persona.name,
-        category: persona.category,
+        match_name: localName,
+        category: localCategory,
         similarity: Math.round((m.probability ?? 0) * 100),
         image_url: persona.image_url,
-        description: persona.description,
+        description: localDesc,
         persona_id: pid,
       });
       usedIds.add(pid);
@@ -525,12 +679,19 @@ Deno.serve(async (req) => {
         .sort(() => Math.random() - 0.5);
       for (const p of shuffled) {
         if (ranked.length >= TARGET) break;
+        const localName = lang === "ar"
+          ? arabicNameFor(p.name, p.category, p.role ?? "noble", p.gender ?? "any")
+          : p.name;
+        const localCategory = lang === "ar" ? arabicCategoryFor(p.category) : p.category;
+        const localDesc = lang === "ar"
+          ? arabicDescriptionFor(p.category, p.role ?? "noble", p.gender ?? "any")
+          : p.description;
         ranked.push({
-          match_name: p.name,
-          category: p.category,
+          match_name: localName,
+          category: localCategory,
           similarity: Math.floor(Math.random() * 16) + 60, // 60–75% filler
           image_url: p.image_url,
-          description: p.description,
+          description: localDesc,
           persona_id: p.id,
         });
         usedIds.add(p.id);
