@@ -4,7 +4,11 @@
 // target the browser ESM build.
 type FaceApi = typeof import("@vladmandic/face-api/dist/face-api.esm.js");
 
-const MODEL_DIR = "models";
+// Load models from a public CDN to avoid issues with authenticated preview
+// environments where /models/* requires session cookies and falls through to
+// the SSR 404 handler. The @vladmandic/face-api models are mirrored on jsdelivr.
+const MODEL_URL =
+  "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model";
 let loadingPromise: Promise<FaceApi> | null = null;
 
 function ensureBrowser() {
@@ -22,7 +26,7 @@ async function getFaceApi(): Promise<FaceApi> {
 
 function getModelUrl(): string {
   ensureBrowser();
-  return new URL(`${MODEL_DIR}/`, window.location.origin).toString().replace(/\/$/, "");
+  return MODEL_URL;
 }
 
 export async function loadFaceModels(): Promise<void> {
