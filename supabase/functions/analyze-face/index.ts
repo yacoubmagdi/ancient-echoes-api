@@ -549,12 +549,19 @@ Deno.serve(async (req) => {
       error_code: "fallback_random",
     });
     mark("total");
+    const r_name = lang === "ar"
+      ? arabicNameFor(random.name, random.category, random.role ?? "noble", random.gender ?? "any")
+      : random.name;
+    const r_category = lang === "ar" ? arabicCategoryFor(random.category) : random.category;
+    const r_desc = lang === "ar"
+      ? arabicDescriptionFor(random.category, random.role ?? "noble", random.gender ?? "any")
+      : random.description;
     return jsonResponse({
-      match_name: random.name,
-      category: random.category,
+      match_name: r_name,
+      category: r_category,
       similarity: fallbackSimilarity,
       image_url: random.image_url,
-      description: traitLine ? `${random.description}\n\n${traitLine}` : random.description,
+      description: traitLine ? `${r_desc}\n\n${traitLine}` : r_desc,
       runners_up: [],
       requires_ad: requiresAd,
       rate_limit_remaining: rl.remaining,
