@@ -19,16 +19,19 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function enrollImage(token: string, name: string, bytes: Uint8Array, id: string): Promise<string | null> {
+async function enrollImage(token: string, name: string, bytes: Uint8Array, id: string): Promise<{ uuid: string | null; error?: string }> {
   const form = new FormData();
   form.append("name", `${name} [${id}]`);
   form.append("store", "1");
   form.append("collections", COLLECTION);
   form.append("photos", new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" }), `${id}.jpg`);
   const resp = await fetch(`${LUXAND_BASE}/v2/person`, { method: "POST", headers: { token }, body: form });
-  if (!resp.ok) return null;
+  if (!resp.ok) {
+    const errorText = await resp.text().catch(() => "");
+    return { uuid: null, error: errorText.slice(0, 300) || `HTTP ${resp.status}` };
+  }
   const data = await resp.json().catch(() => ({}));
-  return (data as { uuid?: string }).uuid ?? null;
+  return { uuid: (data as { uuid?: string }).uuid ?? null };
 }
 
 async function deleteFromLuxand(token: string, uuid: string) {
@@ -89,12 +92,17 @@ Deno.serve(async (req) => {
     if (!imgResp.ok) return json({ error: `Failed to fetch image (${imgResp.status})` }, 400);
     const bytes = new Uint8Array(await imgResp.arrayBuffer());
 
-    if (persona.luxand_uuid) await deleteFromLuxand(luxandToken, persona.luxand_uuid);
-    const newUuid = await enrollImage(luxandToken, persona.name, bytes, persona.id);
-    if (!newUuid) return json({ error: "Luxand enrollment failed (no face?)" }, 400);
+    const enrollment = await enrollImage(luxandToken, persona.name, bytes, persona.id);
+    if (!enrollment.uuid) {
+      return json({ error: `Luxand enrollment failed: ${enrollment.error ?? "face not detected"}` }, 400);
+    }
 
-    await admin.from("personas").update({ luxand_uuid: newUuid }).eq("id", persona.id);
-    return json({ ok: true, luxand_uuid: newUuid });
+    if (persona.luxand_uuid && persona.luxand_uuid !== enrollment.uuid) {
+      await deleteFromLuxand(luxandToken, persona.luxand_uuid);
+    }
+
+    await admin.from("personas").update({ luxand_uuid: enrollment.uuid }).eq("id", persona.id);
+    return json({ ok: true, luxand_uuid: enrollment.uuid });
   }
 
   if (action === "luxand_delete") {

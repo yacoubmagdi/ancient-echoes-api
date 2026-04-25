@@ -1,9 +1,10 @@
 // Browser-side face-api.js wrapper.
 // IMPORTANT: face-api auto-detects Node and tries to require @tensorflow/tfjs-node
-// during SSR. We must keep all imports lazy and client-only.
-type FaceApi = typeof import("@vladmandic/face-api");
+// during SSR. We must keep all imports lazy and client-only, and explicitly
+// target the browser ESM build.
+type FaceApi = typeof import("@vladmandic/face-api/dist/face-api.esm.js");
 
-const MODEL_URL = "/models";
+const MODEL_DIR = "models";
 let loadingPromise: Promise<FaceApi> | null = null;
 
 function ensureBrowser() {
@@ -15,7 +16,13 @@ function ensureBrowser() {
 async function getFaceApi(): Promise<FaceApi> {
   ensureBrowser();
   // Dynamic import — only evaluated in the browser, never during SSR.
-  return await import("@vladmandic/face-api");
+  // Import the browser bundle directly so Vite/SSR never resolves the Node entry.
+  return await import("@vladmandic/face-api/dist/face-api.esm.js");
+}
+
+function getModelUrl(): string {
+  ensureBrowser();
+  return new URL(`${MODEL_DIR}/`, window.location.origin).toString().replace(/\/$/, "");
 }
 
 export async function loadFaceModels(): Promise<void> {
@@ -25,13 +32,17 @@ export async function loadFaceModels(): Promise<void> {
   }
   loadingPromise = (async () => {
     const faceapi = await getFaceApi();
+    const modelUrl = getModelUrl();
     await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+      faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+      faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+      faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
     ]);
     return faceapi;
-  })();
+  })().catch((error) => {
+    loadingPromise = null;
+    throw error;
+  });
   await loadingPromise;
 }
 
