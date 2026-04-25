@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Upload, Sparkles, RotateCcw, AlertCircle } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages } from "lucide-react";
+import { translations, type Lang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,6 +44,23 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [lang, setLang] = useState<Lang>(() => {
+    if (typeof window === "undefined") return "en";
+    const saved = window.localStorage.getItem("lang") as Lang | null;
+    if (saved === "ar" || saved === "en") return saved;
+    return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
+  });
+  const t = useMemo(() => translations[lang], [lang]);
+  const isRtl = lang === "ar";
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl ? "rtl" : "ltr";
+    window.localStorage.setItem("lang", lang);
+  }, [lang, isRtl]);
+
+  const toggleLang = () => setLang((l) => (l === "ar" ? "en" : "ar"));
 
   function reset() {
     setPreviewUrl(null);
@@ -86,22 +104,34 @@ function Index() {
     <main
       className="min-h-screen text-foreground"
       style={{ background: "var(--gradient-hero)" }}
+      dir={isRtl ? "rtl" : "ltr"}
     >
       <div className="mx-auto max-w-4xl px-6 py-16 md:py-24">
+        <div className="mb-6 flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLang}
+            className="gap-2"
+            aria-label="Toggle language"
+          >
+            <Languages className="h-4 w-4" />
+            {t.langLabel}
+          </Button>
+        </div>
         <header className="text-center mb-12">
           <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
             <Sparkles className="h-3 w-3" style={{ color: "var(--color-gold)" }} />
-            AI Face Matching
+            {t.badge}
           </div>
           <h1
             className="mt-6 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent"
             style={{ backgroundImage: "var(--gradient-gold)" }}
           >
-            Echoes of the Ancients
+            {t.title}
           </h1>
           <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
-            Upload your portrait. Discover which legendary persona — pharaoh, viking,
-            samurai, philosopher, or emperor — your face echoes through history.
+            {t.subtitle}
           </p>
         </header>
 
@@ -127,10 +157,10 @@ function Index() {
               )}
               <div className="text-center">
                 <p className="text-lg font-medium">
-                  {loading ? "Consulting the ancients…" : "Upload a clear face photo"}
+                  {loading ? t.consulting : t.uploadCta}
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  JPG, PNG or WEBP · max 8 MB · one face, well-lit
+                  {t.uploadHint}
                 </p>
               </div>
               <input
@@ -156,7 +186,7 @@ function Index() {
                     onClick={reset}
                     className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
                   >
-                    Try another photo
+                    {t.tryAnother}
                   </button>
                 </div>
               </div>
@@ -180,7 +210,7 @@ function Index() {
                 </div>
                 <div className="p-8 md:p-10 flex flex-col justify-center">
                   <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    You echo
+                    {t.youEcho}
                   </p>
                   <h2
                     className="mt-2 text-3xl md:text-4xl font-bold bg-clip-text text-transparent"
@@ -190,7 +220,7 @@ function Index() {
                   </h2>
                   <div className="mt-6">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-sm text-muted-foreground">Resemblance</span>
+                      <span className="text-sm text-muted-foreground">{t.resemblance}</span>
                       <span
                         className="text-2xl font-bold"
                         style={{ color: "var(--color-gold)" }}
@@ -213,8 +243,7 @@ function Index() {
                   </p>
                   {result.requires_ad && (
                     <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-                      ✨ Ad would play here on additional reads (free first reading per
-                      day).
+                      {t.adNote}
                     </div>
                   )}
                 </div>
@@ -224,7 +253,7 @@ function Index() {
             {result.runners_up.length > 0 && (
               <div>
                 <h3 className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-4">
-                  You also resemble
+                  {t.alsoResemble}
                 </h3>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {result.runners_up.map((r) => (
@@ -252,15 +281,14 @@ function Index() {
             <div className="flex justify-center">
               <Button onClick={reset} variant="secondary" size="lg" className="gap-2">
                 <RotateCcw className="h-4 w-4" />
-                Try another photo
+                {t.tryAnother}
               </Button>
             </div>
           </div>
         )}
 
         <footer className="mt-20 text-center text-xs text-muted-foreground">
-          Powered by Luxand Cloud face recognition · 20 historical personas across 5
-          civilizations
+          {t.footer}
         </footer>
       </div>
     </main>
