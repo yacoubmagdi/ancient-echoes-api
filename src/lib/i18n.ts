@@ -26,6 +26,10 @@ export const translations = {
     nationalityLabel: "Nationality",
     nationalityPlaceholder: "Select your nationality",
     nationalityRequired: "Please select your nationality first.",
+    genderLabel: "Gender",
+    genderMale: "Male",
+    genderFemale: "Female",
+    genderRequired: "Please select your gender first.",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -49,6 +53,10 @@ export const translations = {
     nationalityLabel: "الجنسية",
     nationalityPlaceholder: "اختر جنسيتك",
     nationalityRequired: "يرجى تحديد جنسيتك أولًا.",
+    genderLabel: "النوع",
+    genderMale: "ذكر",
+    genderFemale: "أنثى",
+    genderRequired: "يرجى تحديد النوع أولًا.",
   },
 } as const;
 
