@@ -49,6 +49,7 @@ export const translations = {
     civPersian: "Persian",
     civSamurai: "Samurai (Japan)",
     civViking: "Viking",
+    civChinese: "Chinese (Imperial China)",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -95,6 +96,7 @@ export const translations = {
     civPersian: "الفرس",
     civSamurai: "الساموراي (اليابان)",
     civViking: "الفايكنج",
+    civChinese: "الصينيون (الصين الإمبراطورية)",
   },
 } as const;
 
