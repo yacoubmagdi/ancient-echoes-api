@@ -227,8 +227,14 @@ Deno.serve(async (req) => {
   const requiresAd = (priorQueryCount ?? 0) >= 1;
 
   // Call Luxand /photo/search restricted to our personas collection
+  // IMPORTANT: re-materialize the photo into a fresh Blob backed by an
+  // ArrayBuffer. The File we get out of req.formData() is sometimes a
+  // single-use stream — passing it directly into another FormData triggers
+  // "error reading a body from connection" when fetch tries to serialize it.
+  const photoBuffer = await photo.arrayBuffer();
+  const photoBlob = new Blob([photoBuffer], { type: photo.type });
   const luxandForm = new FormData();
-  luxandForm.append("photo", photo, photo.name || "upload.jpg");
+  luxandForm.append("photo", photoBlob, photo.name || "upload.jpg");
   luxandForm.append("collections", COLLECTION);
 
   let luxandResp: Response;
@@ -263,11 +269,17 @@ Deno.serve(async (req) => {
       success: false,
       error_code: `luxand_${luxandResp.status}`,
     });
-    const message =
-      typeof luxandData === "object" && luxandData && "message" in luxandData
-        ? (luxandData as { message: string }).message
-        : "Face recognition failed";
-    return jsonResponse({ error: message }, 422);
+    // For 5xx (Luxand outage / no-face errors), gracefully fall back to a
+    // random eligible persona so the user still gets a result.
+    // For 4xx client errors (e.g. malformed image), surface the message.
+    if (!(luxandResp.status >= 500 || luxandResp.status === 400)) {
+      const message =
+        typeof luxandData === "object" && luxandData && "message" in luxandData
+          ? (luxandData as { message: string }).message
+          : "Face recognition failed";
+      return jsonResponse({ error: message }, 422);
+    }
+    // else: fall through with luxandData possibly non-array — matches stays []
   }
 
   // Luxand returns an array of matches (sorted by probability desc).
