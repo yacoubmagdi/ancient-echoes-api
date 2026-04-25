@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, Sparkles, LogOut } from "lucide-react";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 
 export const Route = createFileRoute("/admin")({
@@ -348,7 +348,6 @@ function AdminPage() {
       <PreviewDialog
         persona={previewing}
         onClose={() => setPreviewing(null)}
-        flash={flash}
       />
     </main>
   );
@@ -454,8 +453,8 @@ function PersonaDialog({
 }
 
 function PreviewDialog({
-  persona, onClose, flash,
-}: { persona: Persona | null; onClose: () => void; flash: (m: string) => void }) {
+  persona, onClose,
+}: { persona: Persona | null; onClose: () => void }) {
   if (!persona) return null;
 
   return (
