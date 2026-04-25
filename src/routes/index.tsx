@@ -63,6 +63,7 @@ function Index() {
   const [nationality, setNationality] = useState<string>("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [role, setRole] = useState<string>("any");
+  const [civilization, setCivilization] = useState<string>("any");
   // Always start with "en" on the server AND first client render to avoid
   // hydration mismatch; load saved language in an effect after mount.
   const [lang, setLang] = useState<Lang>("en");
@@ -125,6 +126,7 @@ function Index() {
       form.append("gender", gender);
       form.append("lang", lang);
       if (role && role !== "any") form.append("role", role);
+      if (civilization && civilization !== "any") form.append("civilization", civilization);
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
@@ -273,6 +275,22 @@ function Index() {
                   <SelectItem value="craftsman">{t.roleCraftsman}</SelectItem>
                   <SelectItem value="explorer">{t.roleExplorer}</SelectItem>
                   <SelectItem value="noble">{t.roleNoble}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.civilizationLabel}</label>
+              <Select value={civilization} onValueChange={setCivilization} disabled={loading}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.civilizationPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t.civilizationAny}</SelectItem>
+                  <SelectItem value="Pharaoh">{t.civPharaoh}</SelectItem>
+                  <SelectItem value="Greek">{t.civGreek}</SelectItem>
+                  <SelectItem value="Persian">{t.civPersian}</SelectItem>
+                  <SelectItem value="Samurai">{t.civSamurai}</SelectItem>
+                  <SelectItem value="Viking">{t.civViking}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
