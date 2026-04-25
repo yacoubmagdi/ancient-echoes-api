@@ -119,6 +119,7 @@ function Index() {
       form.append("date_of_birth", dob.toISOString().slice(0, 10));
       form.append("nationality", nationality);
       form.append("gender", gender);
+      form.append("lang", lang);
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
