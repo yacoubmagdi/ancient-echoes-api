@@ -1,6 +1,6 @@
-// POST /analyze-face — accepts a user image (multipart/form-data, field "photo"),
-// validates it, calls Luxand /photo/search restricted to our personas collection,
-// and returns the top match plus the next two runners-up.
+// POST /analyze-face — accepts a face descriptor (JSON, 128-float array)
+// extracted in the browser by face-api.js, computes Euclidean distance against
+// every stored persona descriptor, and returns the top match plus runners-up.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
@@ -9,10 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key, apikey",
 };
 
-const LUXAND_BASE = "https://api.luxand.cloud";
-const COLLECTION = "historical_personas";
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const DESCRIPTOR_LEN = 128;
 
 // --- Zodiac-based personality traits (English + Arabic).
 // We never name the sign in the output — only weave the traits into the
@@ -2014,18 +2011,21 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-interface LuxandMatch {
-  name?: string;
-  uuid?: string;
-  probability?: number;
+// Euclidean distance between two equal-length vectors.
+function euclideanDistance(a: number[], b: number[]): number {
+  let sum = 0;
+  for (let i = 0; i < a.length; i++) {
+    const d = a[i] - b[i];
+    sum += d * d;
+  }
+  return Math.sqrt(sum);
 }
 
-// We enrolled each persona with name = "<Persona Name> [<persona uuid>]"
-// so we can recover the persona row id from the search result.
-function extractPersonaId(name?: string): string | null {
-  if (!name) return null;
-  const m = name.match(/\[([0-9a-f-]{36})\]\s*$/i);
-  return m ? m[1] : null;
+// face-api.js descriptor distance is typically 0.3 (very similar) – 1.0+ (different).
+// Map to a 5–98% resemblance score.
+function distanceToSimilarity(distance: number): number {
+  const pct = Math.round((1 - distance) * 100);
+  return Math.max(5, Math.min(98, pct));
 }
 
 // Build localized name/category/description, enriched with a real
@@ -2082,6 +2082,7 @@ function buildLocalized(
   };
 }
 
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
@@ -2090,51 +2091,27 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  // Debug mode: enabled via ?debug=1 query param or `debug` form field.
-  // When on, the response includes a `_debug` block with Luxand status,
-  // timing breakdown, and whether photo stream re-materialization succeeded.
-  const debugUrl = (() => {
-    try {
-      const u = new URL(req.url);
-      const v = u.searchParams.get("debug");
-      return v === "1" || v === "true";
-    } catch {
-      return false;
-    }
-  })();
   const t0 = performance.now();
   const debug: {
     enabled: boolean;
     timings_ms: Record<string, number>;
-    luxand: {
-      status: number | null;
-      ok: boolean | null;
-      match_count: number | null;
-      network_error: string | null;
-      parse_ok: boolean | null;
-    };
-    stream: {
-      photo_size: number | null;
-      photo_type: string | null;
-      buffer_bytes: number | null;
-      rematerialized: boolean;
-      error: string | null;
-    };
-    rate_limit_remaining: number;
+    descriptor_len: number | null;
+    candidates_with_descriptor: number;
     fallback_used: string | null;
+    rate_limit_remaining: number;
   } = {
-    enabled: false, // set true once we confirm the form field too
+    enabled: false,
     timings_ms: {},
-    luxand: { status: null, ok: null, match_count: null, network_error: null, parse_ok: null },
-    stream: { photo_size: null, photo_type: null, buffer_bytes: null, rematerialized: false, error: null },
-    rate_limit_remaining: 0,
+    descriptor_len: null,
+    candidates_with_descriptor: 0,
     fallback_used: null,
+    rate_limit_remaining: 0,
   };
   const mark = (label: string) => {
     debug.timings_ms[label] = Math.round(performance.now() - t0);
   };
 
-  // Optional API key gate
+  // Optional API-key gate
   const requiredApiKey = Deno.env.get("ANALYZE_API_KEY");
   if (requiredApiKey && req.headers.get("x-api-key") !== requiredApiKey) {
     return jsonResponse({ error: "Invalid API key" }, 401);
@@ -2151,56 +2128,43 @@ Deno.serve(async (req) => {
   }
   debug.rate_limit_remaining = rl.remaining;
 
-  const luxandToken = Deno.env.get("LUXAND_API_TOKEN");
-  if (!luxandToken) {
-    return jsonResponse({ error: "Face recognition service not configured" }, 500);
-  }
-
-  // Parse multipart upload
-  let formData: FormData;
+  // Parse JSON payload
+  let payload: Record<string, unknown> = {};
   try {
-    formData = await req.formData();
+    payload = await req.json();
   } catch {
-    return jsonResponse({ error: "Invalid multipart/form-data body" }, 400);
+    return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
-  mark("parse_form");
+  mark("parse_body");
 
-  const debugForm = (formData.get("debug") ?? "").toString().toLowerCase();
-  const debugEnabled = debugUrl || debugForm === "1" || debugForm === "true";
+  const debugEnabled = payload.debug === true || payload.debug === "1";
   debug.enabled = debugEnabled;
 
-  const photo = formData.get("photo");
-  if (!(photo instanceof File)) {
-    return jsonResponse({ error: "Missing 'photo' file field" }, 400);
+  const userDescriptor = payload.descriptor;
+  if (!Array.isArray(userDescriptor) || userDescriptor.length !== DESCRIPTOR_LEN) {
+    return jsonResponse(
+      { error: `Missing or invalid 'descriptor' (need ${DESCRIPTOR_LEN}-float array)` },
+      400,
+    );
   }
-  const nationalityCode = (formData.get("nationality") ?? "").toString().toUpperCase();
-  const gender = (formData.get("gender") ?? "").toString().toLowerCase();
-  const roleFilter = (formData.get("role") ?? "").toString().toLowerCase().trim();
-  const civilizationFilter = (formData.get("civilization") ?? "").toString().trim();
-  const dobRaw = (formData.get("date_of_birth") ?? "").toString();
-  const langRaw = (formData.get("lang") ?? "en").toString().toLowerCase();
+  // Validate every element is a finite number.
+  for (const v of userDescriptor) {
+    if (typeof v !== "number" || !isFinite(v)) {
+      return jsonResponse({ error: "Descriptor must contain only finite numbers" }, 400);
+    }
+  }
+  debug.descriptor_len = userDescriptor.length;
+
+  const nationalityCode = ((payload.nationality as string) ?? "").toUpperCase();
+  const gender = ((payload.gender as string) ?? "").toLowerCase();
+  const roleFilter = ((payload.role as string) ?? "").toLowerCase().trim();
+  const civilizationFilter = ((payload.civilization as string) ?? "").trim();
+  const dobRaw = ((payload.date_of_birth as string) ?? "").toString();
+  const langRaw = ((payload.lang as string) ?? "en").toString().toLowerCase();
   const lang: "en" | "ar" = langRaw === "ar" ? "ar" : "en";
   const dob = dobRaw ? new Date(dobRaw) : null;
   const zodiac = dob && !isNaN(dob.getTime()) ? getZodiac(dob) : null;
   const traitLine = zodiac ? personalityLine(zodiac, lang) : "";
-
-  if (!ALLOWED_TYPES.has(photo.type)) {
-    return jsonResponse(
-      { error: `Unsupported file type: ${photo.type}. Use JPG, PNG, or WEBP.` },
-      400,
-    );
-  }
-  if (photo.size > MAX_BYTES) {
-    return jsonResponse(
-      { error: `File too large (${Math.round(photo.size / 1024)} KB). Max 8 MB.` },
-      400,
-    );
-  }
-  if (photo.size < 1024) {
-    return jsonResponse({ error: "File too small to contain a face" }, 400);
-  }
-  debug.stream.photo_size = photo.size;
-  debug.stream.photo_type = photo.type;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -2208,7 +2172,6 @@ Deno.serve(async (req) => {
   );
 
   // Resolve eligible civilization categories from nationality.
-  // If unmapped, all categories are eligible.
   let eligibleCategories: string[] | null = null;
   if (nationalityCode) {
     const { data: natRow } = await supabase
@@ -2218,13 +2181,10 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (natRow?.categories?.length) eligibleCategories = natRow.categories;
   }
-
-  // Explicit civilization choice overrides nationality-based eligibility.
   if (civilizationFilter && civilizationFilter.toLowerCase() !== "any") {
     eligibleCategories = [civilizationFilter];
   }
 
-  // Gender filter: allow personas matching user gender OR 'any'.
   const allowedGenders = gender === "male" || gender === "female"
     ? [gender, "any"]
     : ["male", "female", "any"];
@@ -2238,7 +2198,7 @@ Deno.serve(async (req) => {
 
   const ipHash = await hashIp(ip);
 
-  // Free-tier hook: count how many successful queries this IP has had in 24h
+  // Free-tier hook: count successful queries this IP has had in 24h
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: priorQueryCount } = await supabase
     .from("query_logs")
@@ -2248,175 +2208,55 @@ Deno.serve(async (req) => {
     .gte("created_at", since);
   const requiresAd = (priorQueryCount ?? 0) >= 1;
 
-  // Call Luxand /photo/search restricted to our personas collection
-  // IMPORTANT: re-materialize the photo into a fresh Blob backed by an
-  // ArrayBuffer. The File we get out of req.formData() is sometimes a
-  // single-use stream — passing it directly into another FormData triggers
-  // "error reading a body from connection" when fetch tries to serialize it.
-  let photoBlob: Blob;
-  try {
-    const photoBuffer = await photo.arrayBuffer();
-    photoBlob = new Blob([photoBuffer], { type: photo.type });
-    debug.stream.buffer_bytes = photoBuffer.byteLength;
-    debug.stream.rematerialized = true;
-  } catch (err) {
-    debug.stream.error = err instanceof Error ? err.message : String(err);
-    console.error("Photo re-materialization failed:", err);
-    return jsonResponse(
-      debugEnabled
-        ? { error: "Failed to read uploaded photo", _debug: debug }
-        : { error: "Failed to read uploaded photo" },
-      400,
-    );
-  }
-  const luxandForm = new FormData();
-  luxandForm.append("photo", photoBlob, photo.name || "upload.jpg");
-  luxandForm.append("collections", COLLECTION);
-  mark("photo_buffered");
-
-  let luxandResp: Response;
-  const luxandStart = performance.now();
-  try {
-    luxandResp = await fetch(`${LUXAND_BASE}/photo/search`, {
-      method: "POST",
-      headers: { token: luxandToken },
-      body: luxandForm,
-    });
-  } catch (err) {
-    console.error("Luxand network error:", err);
-    debug.luxand.network_error = err instanceof Error ? err.message : String(err);
-    debug.timings_ms.luxand = Math.round(performance.now() - luxandStart);
-    await supabase.from("query_logs").insert({
-      ip_hash: ipHash,
-      success: false,
-      error_code: "luxand_network",
-    });
-    return jsonResponse(
-      debugEnabled
-        ? { error: "Face recognition service unavailable", _debug: debug }
-        : { error: "Face recognition service unavailable" },
-      502,
-    );
-  }
-  debug.timings_ms.luxand = Math.round(performance.now() - luxandStart);
-  debug.luxand.status = luxandResp.status;
-  debug.luxand.ok = luxandResp.ok;
-
-  let rawText = "";
-  let luxandData: unknown;
-  try {
-    rawText = await luxandResp.text();
-  } catch (err) {
-    console.error("Luxand response read error:", err);
-    debug.luxand.network_error = err instanceof Error ? err.message : String(err);
-    debug.luxand.parse_ok = false;
-    luxandData = { message: "Unreadable response from face recognition service" };
-  }
-
-  if (rawText) {
-    try {
-      luxandData = JSON.parse(rawText);
-      debug.luxand.parse_ok = true;
-    } catch {
-      luxandData = rawText;
-      debug.luxand.parse_ok = false;
-    }
-  }
-
-  if (!luxandResp.ok) {
-    console.error("Luxand error:", luxandResp.status, luxandData);
-    await supabase.from("query_logs").insert({
-      ip_hash: ipHash,
-      success: false,
-      error_code: `luxand_${luxandResp.status}`,
-    });
-    // For 5xx (Luxand outage / no-face errors), gracefully fall back to a
-    // random eligible persona so the user still gets a result.
-    // For 4xx client errors (e.g. malformed image), surface the message.
-    if (!(luxandResp.status >= 500 || luxandResp.status === 400)) {
-      const message =
-        typeof luxandData === "object" && luxandData && "message" in luxandData
-          ? (luxandData as { message: string }).message
-          : "Face recognition failed";
-      return jsonResponse({ error: message }, 422);
-    }
-    // else: fall through with luxandData possibly non-array — matches stays []
-  }
-
-  // Luxand returns an array of matches (sorted by probability desc).
-  // Possible "no face" / "no match" responses come back as { status: "failure", ... }
-  let matches: LuxandMatch[] = [];
-  if (Array.isArray(luxandData)) {
-    matches = luxandData as LuxandMatch[];
-  } else if (
-    typeof luxandData === "object" &&
-    luxandData &&
-    "matches" in luxandData &&
-    Array.isArray((luxandData as { matches: unknown }).matches)
-  ) {
-    matches = (luxandData as { matches: LuxandMatch[] }).matches;
-  }
-
-  if (matches.length === 0) {
-    debug.luxand.match_count = 0;
-    debug.fallback_used = "random_no_matches";
-    // Fallback: no resemblance found — pick a random persona so the user always gets a result.
-    const { data: allPersonas } = await supabase
-      .from("personas")
-      .select("id, name, category, description, image_url, gender, role");
-    const pool = (allPersonas ?? []).filter(personaPasses);
-    const finalPool = pool.length > 0 ? pool : (allPersonas ?? []);
-    if (finalPool.length === 0) {
-      return jsonResponse({ error: "No personas available" }, 500);
-    }
-    const random = finalPool[Math.floor(Math.random() * finalPool.length)];
-    const fallbackSimilarity = Math.floor(Math.random() * 16) + 60; // 60–75%
-    await supabase.from("query_logs").insert({
-      ip_hash: ipHash,
-      matched_persona_id: random.id,
-      similarity: fallbackSimilarity,
-      success: true,
-      error_code: "fallback_random",
-    });
-    mark("total");
-    const loc = buildLocalized(random, lang);
-    return jsonResponse({
-      match_name: loc.name,
-      category: loc.category,
-      similarity: fallbackSimilarity,
-      image_url: random.image_url,
-      description: traitLine ? `${loc.description}\n\n${traitLine}` : loc.description,
-      historical_figure: loc.figure,
-      runners_up: [],
-      requires_ad: requiresAd,
-      rate_limit_remaining: rl.remaining,
-      ...(debugEnabled ? { _debug: debug } : {}),
-    });
-  }
-  debug.luxand.match_count = matches.length;
-
-  // Sort by probability desc just to be safe
-  matches.sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
-  // Pull a wider slice so we have candidates left after gender/nationality filtering.
-  const candidateMatches = matches.slice(0, 20);
-  const candidateIds = candidateMatches
-    .map((m) => extractPersonaId(m.name))
-    .filter((x): x is string => Boolean(x));
-
-  const { data: personas } = await supabase
+  // Fetch every persona that has a descriptor and rank by Euclidean distance.
+  const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, gender, role")
-    .in("id", candidateIds);
+    .select("id, name, category, description, image_url, gender, role, face_descriptor")
+    .not("face_descriptor", "is", null)
+    .limit(2000);
 
-  const personaById = new Map((personas ?? []).map((p) => [p.id, p]));
+  if (fetchErr) {
+    console.error("Failed to load personas:", fetchErr);
+    return jsonResponse({ error: "Database error" }, 500);
+  }
+  mark("load_personas");
 
-  // Build ranked results with a tiered fallback so we ALWAYS try to return 3:
-  //   tier 1: gender + nationality match
-  //   tier 2: gender match only (drop nationality)
-  //   tier 3: any persona (drop both filters)
-  // Within each tier we walk Luxand matches in order (preserving similarity).
-  // If Luxand still doesn't yield 3 after all tiers, we top up with random personas
-  // from the most-restrictive non-empty pool.
+  const enrolled = (allPersonas ?? []).filter(
+    (p) => Array.isArray(p.face_descriptor) && p.face_descriptor.length === DESCRIPTOR_LEN,
+  );
+  debug.candidates_with_descriptor = enrolled.length;
+
+  type Scored = {
+    id: string;
+    name: string;
+    category: string;
+    description: string;
+    image_url: string;
+    gender: string | null;
+    role: string | null;
+    distance: number;
+    similarity: number;
+  };
+
+  const scored: Scored[] = enrolled.map((p) => {
+    const distance = euclideanDistance(userDescriptor as number[], p.face_descriptor as number[]);
+    return {
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      description: p.description,
+      image_url: p.image_url,
+      gender: p.gender,
+      role: p.role,
+      distance,
+      similarity: distanceToSimilarity(distance),
+    };
+  });
+  // Sort by distance ascending (closest first).
+  scored.sort((a, b) => a.distance - b.distance);
+  mark("scored");
+
+  // Tiered selection — try to return 3 results.
   type Ranked = {
     match_name: string;
     category: string;
@@ -2431,127 +2271,99 @@ Deno.serve(async (req) => {
   const ranked: Ranked[] = [];
   const usedIds = new Set<string>();
 
-  function pushFromMatches(
-    predicate: (p: {
-      gender?: string | null;
-      category: string;
-      role?: string | null;
-    }) => boolean,
+  function pushFromScored(
+    predicate: (p: { gender: string | null; category: string; role: string | null }) => boolean,
   ) {
-    for (const m of candidateMatches) {
+    for (const s of scored) {
       if (ranked.length >= TARGET) return;
-      const pid = extractPersonaId(m.name);
-      if (!pid || usedIds.has(pid)) continue;
-      const persona = personaById.get(pid);
-      if (!persona || !predicate(persona)) continue;
-      const loc = buildLocalized(persona, lang);
+      if (usedIds.has(s.id)) continue;
+      if (!predicate(s)) continue;
+      const loc = buildLocalized(
+        { id: s.id, name: s.name, category: s.category, description: s.description, gender: s.gender, role: s.role },
+        lang,
+      );
       ranked.push({
         match_name: loc.name,
         category: loc.category,
-        similarity: Math.round((m.probability ?? 0) * 100),
-        image_url: persona.image_url,
+        similarity: s.similarity,
+        image_url: s.image_url,
         description: loc.description,
         historical_figure: loc.figure,
-        persona_id: pid,
+        persona_id: s.id,
       });
-      usedIds.add(pid);
+      usedIds.add(s.id);
     }
   }
 
-  // Tier 1: strict gender + nationality
-  pushFromMatches(personaPasses);
-  // Tier 2: drop nationality, keep gender + role + civilization (if chosen)
+  // Tier 1: strict gender + nationality + role
+  pushFromScored(personaPasses);
+  // Tier 2: drop role, keep gender + civilization
   if (ranked.length < TARGET) {
-    pushFromMatches(
-      (p) =>
-        allowedGenders.includes(p.gender ?? "any") &&
-        (!eligibleCategories || eligibleCategories.includes(p.category)) &&
-        (!roleFilter || (p.role ?? "") === roleFilter),
-    );
-  }
-  // Tier 2.5: gender + civilization only (drop role too)
-  if (ranked.length < TARGET) {
-    pushFromMatches(
+    pushFromScored(
       (p) =>
         allowedGenders.includes(p.gender ?? "any") &&
         (!eligibleCategories || eligibleCategories.includes(p.category)),
     );
   }
-  // Tier 3: any persona returned by Luxand
+  // Tier 3: gender only
   if (ranked.length < TARGET) {
-    pushFromMatches(() => true);
+    pushFromScored((p) => allowedGenders.includes(p.gender ?? "any"));
+  }
+  // Tier 4: anyone with a descriptor
+  if (ranked.length < TARGET) {
+    pushFromScored(() => true);
   }
 
-  // Top-up from the database if Luxand didn't supply enough usable matches.
-  if (ranked.length < TARGET) {
-    const { data: allPersonas } = await supabase
-      .from("personas")
-      .select("id, name, category, description, image_url, gender, role");
-    const all = allPersonas ?? [];
-    const tieredPools = [
-      all.filter(personaPasses),
-      all.filter(
-        (p) =>
-          allowedGenders.includes(p.gender ?? "any") &&
-          (!eligibleCategories || eligibleCategories.includes(p.category)) &&
-          (!roleFilter || (p.role ?? "") === roleFilter),
-      ),
-      all.filter(
-        (p) =>
-          allowedGenders.includes(p.gender ?? "any") &&
-          (!eligibleCategories || eligibleCategories.includes(p.category)),
-      ),
-      all,
-    ];
-    for (const pool of tieredPools) {
-      if (ranked.length >= TARGET) break;
-      const shuffled = pool
-        .filter((p) => !usedIds.has(p.id))
-        .sort(() => Math.random() - 0.5);
-      for (const p of shuffled) {
-        if (ranked.length >= TARGET) break;
-        const loc = buildLocalized(p, lang);
-        ranked.push({
-          match_name: loc.name,
-          category: loc.category,
-          similarity: Math.floor(Math.random() * 16) + 60, // 60–75% filler
-          image_url: p.image_url,
-          description: loc.description,
-          historical_figure: loc.figure,
-          persona_id: p.id,
-        });
-        usedIds.add(p.id);
-      }
-    }
-  }
-
+  // If nothing has descriptors yet, fall back to a random persona so the user
+  // still gets a result. (Should not happen once enrollment is complete.)
   if (ranked.length === 0) {
-    return jsonResponse(
-      { error: "Match found but persona record missing. Try again." },
-      500,
-    );
+    debug.fallback_used = "no_enrolled_personas";
+    const { data: anyPersonas } = await supabase
+      .from("personas")
+      .select("id, name, category, description, image_url, gender, role")
+      .limit(2000);
+    const pool = (anyPersonas ?? []).filter(personaPasses);
+    const finalPool = pool.length > 0 ? pool : (anyPersonas ?? []);
+    if (finalPool.length === 0) {
+      return jsonResponse({ error: "No personas available" }, 500);
+    }
+    const random = finalPool[Math.floor(Math.random() * finalPool.length)];
+    const fallbackSimilarity = Math.floor(Math.random() * 16) + 60;
+    await supabase.from("query_logs").insert({
+      ip_hash: ipHash,
+      matched_persona_id: random.id,
+      similarity: fallbackSimilarity,
+      success: true,
+      error_code: "fallback_no_enrollment",
+    });
+    const loc = buildLocalized(random, lang);
+    mark("total");
+    return jsonResponse({
+      match_name: loc.name,
+      category: loc.category,
+      similarity: fallbackSimilarity,
+      image_url: random.image_url,
+      description: traitLine ? `${loc.description}\n\n${traitLine}` : loc.description,
+      historical_figure: loc.figure,
+      runners_up: [],
+      requires_ad: requiresAd,
+      rate_limit_remaining: rl.remaining,
+      ...(debugEnabled ? { _debug: debug } : {}),
+    });
   }
 
   const top = ranked[0];
-  // Append zodiac-derived personality line to the top result's description.
   if (traitLine) {
     top.description = `${top.description}\n\n${traitLine}`;
   }
-  const topPid = top.persona_id;
   await supabase.from("query_logs").insert({
     ip_hash: ipHash,
-    matched_persona_id: topPid ?? null,
+    matched_persona_id: top.persona_id,
     similarity: top.similarity,
     success: true,
   });
 
-  // Strip internal persona_id from the response payload.
   const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
-
-  if (ranked.length < TARGET || ranked.some((r) => r.similarity <= 75 && r.similarity >= 60)) {
-    // Heuristic: if any rows came from the DB top-up, mark fallback.
-    debug.fallback_used = debug.fallback_used ?? "tiered_topup";
-  }
   mark("total");
 
   return jsonResponse({

@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
 import { compressImage } from "@/lib/image-compress";
+import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -116,27 +117,38 @@ function Index() {
     setResult(null);
     setLoading(true);
     try {
-      // Compress/resize image client-side to stay under server's 8 MB limit.
-      const uploadFile = await compressImage(file, 7 * 1024 * 1024);
+      // Compress/resize for preview, then extract a 128-float face descriptor
+      // in the browser using face-api.js. Only the descriptor is sent to the
+      // server — the user's photo never leaves their device.
+      const uploadFile = await compressImage(file, 4 * 1024 * 1024);
       setPreviewUrl(URL.createObjectURL(uploadFile));
-      const form = new FormData();
-      form.append("photo", uploadFile);
-      form.append("date_of_birth", dob.toISOString().slice(0, 10));
-      form.append("nationality", nationality);
-      form.append("gender", gender);
-      form.append("lang", lang);
-      if (role && role !== "any") form.append("role", role);
-      if (civilization && civilization !== "any") form.append("civilization", civilization);
-      // Call the edge function directly with fetch — supabase.functions.invoke
-      // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
+      await loadFaceModels();
+      const img = await imageFromFile(uploadFile);
+      const descriptor = await extractDescriptor(img);
+      if (!descriptor) {
+        throw new Error(
+          lang === "ar"
+            ? "تعذّر اكتشاف وجه في الصورة. حاول صورة أوضح للوجه."
+            : "No face detected in the image. Please try a clearer face photo.",
+        );
+      }
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
       const resp = await fetch(url, {
         method: "POST",
         headers: {
           apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "Content-Type": "application/json",
         },
-        body: form,
+        body: JSON.stringify({
+          descriptor,
+          date_of_birth: dob.toISOString().slice(0, 10),
+          nationality,
+          gender,
+          lang,
+          ...(role && role !== "any" ? { role } : {}),
+          ...(civilization && civilization !== "any" ? { civilization } : {}),
+        }),
       });
       const data = await resp.json().catch(() => ({ error: "Invalid server response" }));
       if (!resp.ok || (data as { error?: string })?.error) {
