@@ -278,6 +278,22 @@ function Index() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.civilizationLabel}</label>
+              <Select value={civilization} onValueChange={setCivilization} disabled={loading}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.civilizationPlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t.civilizationAny}</SelectItem>
+                  <SelectItem value="Pharaoh">{t.civPharaoh}</SelectItem>
+                  <SelectItem value="Greek">{t.civGreek}</SelectItem>
+                  <SelectItem value="Persian">{t.civPersian}</SelectItem>
+                  <SelectItem value="Samurai">{t.civSamurai}</SelectItem>
+                  <SelectItem value="Viking">{t.civViking}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <label
               htmlFor="photo-input"
               className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
