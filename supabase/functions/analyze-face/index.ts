@@ -1918,6 +1918,7 @@ Deno.serve(async (req) => {
   const nationalityCode = (formData.get("nationality") ?? "").toString().toUpperCase();
   const gender = (formData.get("gender") ?? "").toString().toLowerCase();
   const roleFilter = (formData.get("role") ?? "").toString().toLowerCase().trim();
+  const civilizationFilter = (formData.get("civilization") ?? "").toString().trim();
   const dobRaw = (formData.get("date_of_birth") ?? "").toString();
   const langRaw = (formData.get("lang") ?? "en").toString().toLowerCase();
   const lang: "en" | "ar" = langRaw === "ar" ? "ar" : "en";
@@ -1958,6 +1959,11 @@ Deno.serve(async (req) => {
       .eq("nationality_code", nationalityCode)
       .maybeSingle();
     if (natRow?.categories?.length) eligibleCategories = natRow.categories;
+  }
+
+  // Explicit civilization choice overrides nationality-based eligibility.
+  if (civilizationFilter && civilizationFilter.toLowerCase() !== "any") {
+    eligibleCategories = [civilizationFilter];
   }
 
   // Gender filter: allow personas matching user gender OR 'any'.
@@ -2196,17 +2202,22 @@ Deno.serve(async (req) => {
 
   // Tier 1: strict gender + nationality
   pushFromMatches(personaPasses);
-  // Tier 2: drop nationality, keep gender + role
+  // Tier 2: drop nationality, keep gender + role + civilization (if chosen)
   if (ranked.length < TARGET) {
     pushFromMatches(
       (p) =>
         allowedGenders.includes(p.gender ?? "any") &&
+        (!eligibleCategories || eligibleCategories.includes(p.category)) &&
         (!roleFilter || (p.role ?? "") === roleFilter),
     );
   }
-  // Tier 2.5: gender only (drop role too)
+  // Tier 2.5: gender + civilization only (drop role too)
   if (ranked.length < TARGET) {
-    pushFromMatches((p) => allowedGenders.includes(p.gender ?? "any"));
+    pushFromMatches(
+      (p) =>
+        allowedGenders.includes(p.gender ?? "any") &&
+        (!eligibleCategories || eligibleCategories.includes(p.category)),
+    );
   }
   // Tier 3: any persona returned by Luxand
   if (ranked.length < TARGET) {
@@ -2224,9 +2235,14 @@ Deno.serve(async (req) => {
       all.filter(
         (p) =>
           allowedGenders.includes(p.gender ?? "any") &&
+          (!eligibleCategories || eligibleCategories.includes(p.category)) &&
           (!roleFilter || (p.role ?? "") === roleFilter),
       ),
-      all.filter((p) => allowedGenders.includes(p.gender ?? "any")),
+      all.filter(
+        (p) =>
+          allowedGenders.includes(p.gender ?? "any") &&
+          (!eligibleCategories || eligibleCategories.includes(p.category)),
+      ),
       all,
     ];
     for (const pool of tieredPools) {
