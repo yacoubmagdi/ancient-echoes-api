@@ -328,65 +328,88 @@ Deno.serve(async (req) => {
 
   const personaById = new Map((personas ?? []).map((p) => [p.id, p]));
 
-  // First pass: keep only personas that match gender + nationality.
-  let ranked = candidateMatches.flatMap((m) => {
-    const pid = extractPersonaId(m.name);
-    const persona = pid ? personaById.get(pid) : null;
-    if (!persona || !personaPasses(persona)) return [];
-    return [
-      {
+  // Build ranked results with a tiered fallback so we ALWAYS try to return 3:
+  //   tier 1: gender + nationality match
+  //   tier 2: gender match only (drop nationality)
+  //   tier 3: any persona (drop both filters)
+  // Within each tier we walk Luxand matches in order (preserving similarity).
+  // If Luxand still doesn't yield 3 after all tiers, we top up with random personas
+  // from the most-restrictive non-empty pool.
+  type Ranked = {
+    match_name: string;
+    category: string;
+    similarity: number;
+    image_url: string;
+    description: string;
+    persona_id: string;
+  };
+
+  const TARGET = 3;
+  const ranked: Ranked[] = [];
+  const usedIds = new Set<string>();
+
+  function pushFromMatches(
+    predicate: (p: { gender?: string | null; category: string }) => boolean,
+  ) {
+    for (const m of candidateMatches) {
+      if (ranked.length >= TARGET) return;
+      const pid = extractPersonaId(m.name);
+      if (!pid || usedIds.has(pid)) continue;
+      const persona = personaById.get(pid);
+      if (!persona || !predicate(persona)) continue;
+      ranked.push({
         match_name: persona.name,
         category: persona.category,
         similarity: Math.round((m.probability ?? 0) * 100),
         image_url: persona.image_url,
         description: persona.description,
-      },
-    ];
-  });
-
-  // Fallback: if filtering removed everything, drop nationality filter but keep gender.
-  if (ranked.length === 0) {
-    ranked = candidateMatches.flatMap((m) => {
-      const pid = extractPersonaId(m.name);
-      const persona = pid ? personaById.get(pid) : null;
-      if (!persona) return [];
-      if (!allowedGenders.includes(persona.gender ?? "any")) return [];
-      return [
-        {
-          match_name: persona.name,
-          category: persona.category,
-          similarity: Math.round((m.probability ?? 0) * 100),
-          image_url: persona.image_url,
-          description: persona.description,
-        },
-      ];
-    });
-  }
-
-  // Last resort: pick a random persona that passes gender + nationality (or just gender).
-  if (ranked.length === 0) {
-    const { data: allPersonas } = await supabase
-      .from("personas")
-      .select("id, name, category, description, image_url, gender");
-    const pool = (allPersonas ?? []).filter(personaPasses);
-    const finalPool = pool.length > 0
-      ? pool
-      : (allPersonas ?? []).filter((p) => allowedGenders.includes(p.gender ?? "any"));
-    if (finalPool.length > 0) {
-      const random = finalPool[Math.floor(Math.random() * finalPool.length)];
-      const fallbackSimilarity = Math.floor(Math.random() * 16) + 60;
-      ranked = [{
-        match_name: random.name,
-        category: random.category,
-        similarity: fallbackSimilarity,
-        image_url: random.image_url,
-        description: random.description,
-      }];
+        persona_id: pid,
+      });
+      usedIds.add(pid);
     }
   }
 
-  // Keep top 3 after filtering.
-  ranked = ranked.slice(0, 3);
+  // Tier 1: strict gender + nationality
+  pushFromMatches(personaPasses);
+  // Tier 2: gender only
+  if (ranked.length < TARGET) {
+    pushFromMatches((p) => allowedGenders.includes(p.gender ?? "any"));
+  }
+  // Tier 3: any persona returned by Luxand
+  if (ranked.length < TARGET) {
+    pushFromMatches(() => true);
+  }
+
+  // Top-up from the database if Luxand didn't supply enough usable matches.
+  if (ranked.length < TARGET) {
+    const { data: allPersonas } = await supabase
+      .from("personas")
+      .select("id, name, category, description, image_url, gender");
+    const all = allPersonas ?? [];
+    const tieredPools = [
+      all.filter(personaPasses),
+      all.filter((p) => allowedGenders.includes(p.gender ?? "any")),
+      all,
+    ];
+    for (const pool of tieredPools) {
+      if (ranked.length >= TARGET) break;
+      const shuffled = pool
+        .filter((p) => !usedIds.has(p.id))
+        .sort(() => Math.random() - 0.5);
+      for (const p of shuffled) {
+        if (ranked.length >= TARGET) break;
+        ranked.push({
+          match_name: p.name,
+          category: p.category,
+          similarity: Math.floor(Math.random() * 16) + 60, // 60–75% filler
+          image_url: p.image_url,
+          description: p.description,
+          persona_id: p.id,
+        });
+        usedIds.add(p.id);
+      }
+    }
+  }
 
   if (ranked.length === 0) {
     return jsonResponse(
@@ -400,10 +423,7 @@ Deno.serve(async (req) => {
   if (traitLine) {
     top.description = `${top.description}\n\n${traitLine}`;
   }
-  const topPid =
-    candidateMatches
-      .map((m) => extractPersonaId(m.name))
-      .find((id) => id && personaById.get(id)?.name === top.match_name) ?? null;
+  const topPid = top.persona_id;
   await supabase.from("query_logs").insert({
     ip_hash: ipHash,
     matched_persona_id: topPid ?? null,
@@ -411,9 +431,12 @@ Deno.serve(async (req) => {
     success: true,
   });
 
+  // Strip internal persona_id from the response payload.
+  const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
+
   return jsonResponse({
-    ...top,
-    runners_up: ranked.slice(1),
+    ...stripId(top),
+    runners_up: ranked.slice(1).map(stripId),
     requires_ad: requiresAd,
     rate_limit_remaining: rl.remaining,
   });
