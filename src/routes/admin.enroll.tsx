@@ -144,6 +144,7 @@ function EnrollPage() {
 
   const enrolled = personas.filter((p) => p.face_descriptor).length;
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+  const enrolledPct = personas.length > 0 ? Math.round((enrolled / personas.length) * 100) : 0;
 
   return (
     <main className="min-h-screen p-8 mx-auto max-w-3xl">
@@ -153,10 +154,28 @@ function EnrollPage() {
       </div>
 
       <Card className="p-6 mb-6">
-        <div className="space-y-2 mb-4">
-          <p className="text-sm">Total personas: <strong>{personas.length}</strong></p>
-          <p className="text-sm">Already enrolled: <strong>{enrolled}</strong></p>
-          <p className="text-sm">Missing descriptor: <strong>{personas.length - enrolled}</strong></p>
+        <div className="space-y-3 mb-4">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-lg font-semibold">{personas.length}</div>
+            </div>
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">Enrolled</div>
+              <div className="text-lg font-semibold text-green-600">{enrolled}</div>
+            </div>
+            <div className="rounded-md border p-2">
+              <div className="text-xs text-muted-foreground">Missing</div>
+              <div className="text-lg font-semibold text-orange-600">{personas.length - enrolled}</div>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Overall enrollment</span>
+              <span>{enrolledPct}%</span>
+            </div>
+            <Progress value={enrolledPct} />
+          </div>
         </div>
 
         <label className="flex items-center gap-2 mb-4 text-sm">
@@ -175,21 +194,62 @@ function EnrollPage() {
 
         {progress.total > 0 && (
           <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="font-medium">{running ? "Processing…" : "Run complete"}</span>
+              <span className="text-muted-foreground">{pct}%</span>
+            </div>
             <Progress value={pct} />
-            <p className="text-xs text-muted-foreground text-center">
-              {progress.done} / {progress.total} — ✅ {progress.ok} · ❌ {progress.failed}
-            </p>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{progress.done} / {progress.total}</span>
+              <span>
+                <span className="text-green-600">✓ {progress.ok}</span>
+                {"  "}
+                <span className="text-red-600">✗ {progress.failed}</span>
+              </span>
+            </div>
           </div>
         )}
       </Card>
 
-      {log.length > 0 && (
-        <Card className="p-4 max-h-96 overflow-auto font-mono text-xs">
-          {log.map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </Card>
-      )}
+      <Card className="p-0 overflow-hidden">
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          <h2 className="text-sm font-semibold">Status log</h2>
+          {log.length > 0 && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline disabled:opacity-50"
+              onClick={() => setLog([])}
+              disabled={running}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="max-h-96 overflow-auto p-4 font-mono text-xs bg-muted/30">
+          {log.length === 0 ? (
+            <p className="text-muted-foreground">No activity yet. Click "Start enrollment" to begin.</p>
+          ) : (
+            log.map((line, i) => {
+              const isError = /error|failed|no face/i.test(line);
+              const isDone = /^done\./i.test(line);
+              return (
+                <div
+                  key={i}
+                  className={
+                    isError
+                      ? "text-red-600"
+                      : isDone
+                        ? "text-green-600 font-semibold"
+                        : ""
+                  }
+                >
+                  {line}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </Card>
     </main>
   );
 }
