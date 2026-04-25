@@ -933,6 +933,7 @@ Deno.serve(async (req) => {
     similarity: number;
     image_url: string;
     description: string;
+    historical_figure: { name: string; bio: string } | null;
     persona_id: string;
   };
 
@@ -953,19 +954,14 @@ Deno.serve(async (req) => {
       if (!pid || usedIds.has(pid)) continue;
       const persona = personaById.get(pid);
       if (!persona || !predicate(persona)) continue;
-      const localName = lang === "ar"
-        ? arabicNameFor(persona.name, persona.category, persona.role ?? "noble", persona.gender ?? "any")
-        : persona.name;
-      const localCategory = lang === "ar" ? arabicCategoryFor(persona.category) : persona.category;
-      const localDesc = lang === "ar"
-        ? arabicDescriptionFor(persona.category, persona.role ?? "noble", persona.gender ?? "any")
-        : persona.description;
+      const loc = buildLocalized(persona, lang);
       ranked.push({
-        match_name: localName,
-        category: localCategory,
+        match_name: loc.name,
+        category: loc.category,
         similarity: Math.round((m.probability ?? 0) * 100),
         image_url: persona.image_url,
-        description: localDesc,
+        description: loc.description,
+        historical_figure: loc.figure,
         persona_id: pid,
       });
       usedIds.add(pid);
@@ -1014,19 +1010,14 @@ Deno.serve(async (req) => {
         .sort(() => Math.random() - 0.5);
       for (const p of shuffled) {
         if (ranked.length >= TARGET) break;
-        const localName = lang === "ar"
-          ? arabicNameFor(p.name, p.category, p.role ?? "noble", p.gender ?? "any")
-          : p.name;
-        const localCategory = lang === "ar" ? arabicCategoryFor(p.category) : p.category;
-        const localDesc = lang === "ar"
-          ? arabicDescriptionFor(p.category, p.role ?? "noble", p.gender ?? "any")
-          : p.description;
+        const loc = buildLocalized(p, lang);
         ranked.push({
-          match_name: localName,
-          category: localCategory,
+          match_name: loc.name,
+          category: loc.category,
           similarity: Math.floor(Math.random() * 16) + 60, // 60–75% filler
           image_url: p.image_url,
-          description: localDesc,
+          description: loc.description,
+          historical_figure: loc.figure,
           persona_id: p.id,
         });
         usedIds.add(p.id);
