@@ -420,34 +420,6 @@ function Index() {
               </div>
             </Card>
 
-            {result.runners_up.length > 0 && (
-              <div>
-                <h3 className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-4">
-                  {t.alsoResemble}
-                </h3>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {result.runners_up.map((r) => (
-                    <Card
-                      key={r.match_name}
-                      className="flex items-center gap-4 border-border/60 bg-card/40 backdrop-blur p-4"
-                    >
-                      <img
-                        src={r.image_url}
-                        alt={r.match_name}
-                        className="h-16 w-16 rounded-full object-cover ring-2 ring-border"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{r.match_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {r.category} · {r.similarity}%
-                        </p>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="flex justify-center">
               <Button onClick={reset} variant="secondary" size="lg" className="gap-2">
                 <RotateCcw className="h-4 w-4" />
