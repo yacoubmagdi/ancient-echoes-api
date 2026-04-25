@@ -1,22 +1,38 @@
 // Browser-side face-api.js wrapper.
-// Loads the TinyFaceDetector + FaceLandmark68 + FaceRecognition models once,
-// then exposes a helper that converts an image (File or HTMLImageElement)
-// into a 128-float face descriptor.
-import * as faceapi from "@vladmandic/face-api";
+// IMPORTANT: face-api auto-detects Node and tries to require @tensorflow/tfjs-node
+// during SSR. We must keep all imports lazy and client-only.
+type FaceApi = typeof import("@vladmandic/face-api");
 
 const MODEL_URL = "/models";
-let loadingPromise: Promise<void> | null = null;
+let loadingPromise: Promise<FaceApi> | null = null;
+
+function ensureBrowser() {
+  if (typeof window === "undefined") {
+    throw new Error("face-api can only be used in the browser");
+  }
+}
+
+async function getFaceApi(): Promise<FaceApi> {
+  ensureBrowser();
+  // Dynamic import — only evaluated in the browser, never during SSR.
+  return await import("@vladmandic/face-api");
+}
 
 export async function loadFaceModels(): Promise<void> {
-  if (loadingPromise) return loadingPromise;
+  if (loadingPromise) {
+    await loadingPromise;
+    return;
+  }
   loadingPromise = (async () => {
+    const faceapi = await getFaceApi();
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
     ]);
+    return faceapi;
   })();
-  return loadingPromise;
+  await loadingPromise;
 }
 
 export async function imageFromFile(file: File): Promise<HTMLImageElement> {
@@ -55,6 +71,7 @@ export async function extractDescriptor(
   input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
 ): Promise<number[] | null> {
   await loadFaceModels();
+  const faceapi = await getFaceApi();
   const options = new faceapi.TinyFaceDetectorOptions({
     inputSize: 416,
     scoreThreshold: 0.5,
