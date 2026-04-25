@@ -61,6 +61,7 @@ function Index() {
   const [dob, setDob] = useState<Date | undefined>(undefined);
   const [nationality, setNationality] = useState<string>("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [role, setRole] = useState<string>("any");
   // Always start with "en" on the server AND first client render to avoid
   // hydration mismatch; load saved language in an effect after mount.
   const [lang, setLang] = useState<Lang>("en");
@@ -120,6 +121,7 @@ function Index() {
       form.append("nationality", nationality);
       form.append("gender", gender);
       form.append("lang", lang);
+      if (role && role !== "any") form.append("role", role);
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
@@ -251,6 +253,25 @@ function Index() {
                   <span className="text-sm">{t.genderFemale}</span>
                 </label>
               </RadioGroup>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.roleLabel}</label>
+              <Select value={role} onValueChange={setRole} disabled={loading}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.rolePlaceholder} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="any">{t.roleAny}</SelectItem>
+                  <SelectItem value="royalty">{t.roleRoyalty}</SelectItem>
+                  <SelectItem value="warrior">{t.roleWarrior}</SelectItem>
+                  <SelectItem value="priest">{t.rolePriest}</SelectItem>
+                  <SelectItem value="scholar">{t.roleScholar}</SelectItem>
+                  <SelectItem value="artist">{t.roleArtist}</SelectItem>
+                  <SelectItem value="craftsman">{t.roleCraftsman}</SelectItem>
+                  <SelectItem value="explorer">{t.roleExplorer}</SelectItem>
+                  <SelectItem value="noble">{t.roleNoble}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <label
               htmlFor="photo-input"
