@@ -173,13 +173,12 @@ function Index() {
                     selected={dob}
                     onSelect={setDob}
                     captionLayout="dropdown"
-                    fromYear={1920}
-                    toYear={new Date().getFullYear()}
+                    startMonth={new Date(1920, 0)}
+                    endMonth={new Date(new Date().getFullYear(), 11)}
                     defaultMonth={dob ?? new Date(1995, 0, 1)}
                     disabled={(date) =>
                       date > new Date() || date < new Date("1920-01-01")
                     }
-                    initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
                 </PopoverContent>
