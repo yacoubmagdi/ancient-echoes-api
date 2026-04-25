@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
+import { NATIONALITIES } from "@/lib/nationalities";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -50,14 +58,22 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [dob, setDob] = useState<Date | undefined>(undefined);
-  const [lang, setLang] = useState<Lang>(() => {
-    if (typeof window === "undefined") return "en";
-    const saved = window.localStorage.getItem("lang") as Lang | null;
-    if (saved === "ar" || saved === "en") return saved;
-    return navigator.language?.toLowerCase().startsWith("ar") ? "ar" : "en";
-  });
+  const [nationality, setNationality] = useState<string>("");
+  // Always start with "en" on the server AND first client render to avoid
+  // hydration mismatch; load saved language in an effect after mount.
+  const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => translations[lang], [lang]);
   const isRtl = lang === "ar";
+
+  // After mount: read saved language preference (client-only).
+  useEffect(() => {
+    const saved = window.localStorage.getItem("lang") as Lang | null;
+    if (saved === "ar" || saved === "en") {
+      setLang(saved);
+    } else if (navigator.language?.toLowerCase().startsWith("ar")) {
+      setLang("ar");
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -81,6 +97,11 @@ function Index() {
       if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    if (!nationality) {
+      setError(t.nationalityRequired);
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     setError(null);
     setResult(null);
     setPreviewUrl(URL.createObjectURL(file));
@@ -89,6 +110,7 @@ function Index() {
       const form = new FormData();
       form.append("photo", file);
       form.append("date_of_birth", dob.toISOString().slice(0, 10));
+      form.append("nationality", nationality);
       // Call the edge function directly with fetch — supabase.functions.invoke
       // doesn't handle multipart/form-data bodies reliably (it forces JSON content-type).
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
@@ -183,6 +205,25 @@ function Index() {
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-2">{t.nationalityLabel}</label>
+              <Select value={nationality} onValueChange={setNationality} disabled={loading}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.nationalityPlaceholder} />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {NATIONALITIES.slice()
+                    .sort((a, b) =>
+                      (isRtl ? a.ar : a.en).localeCompare(isRtl ? b.ar : b.en, isRtl ? "ar" : "en"),
+                    )
+                    .map((n) => (
+                      <SelectItem key={n.code} value={n.code}>
+                        {isRtl ? n.ar : n.en}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
             <label
               htmlFor="photo-input"

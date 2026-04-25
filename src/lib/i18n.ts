@@ -23,6 +23,9 @@ export const translations = {
     dobLabel: "Date of birth",
     dobPlaceholder: "Pick your date of birth",
     dobRequired: "Please select your date of birth first.",
+    nationalityLabel: "Nationality",
+    nationalityPlaceholder: "Select your nationality",
+    nationalityRequired: "Please select your nationality first.",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -43,6 +46,9 @@ export const translations = {
     dobLabel: "تاريخ الميلاد",
     dobPlaceholder: "اختر تاريخ ميلادك",
     dobRequired: "يرجى تحديد تاريخ ميلادك أولًا.",
+    nationalityLabel: "الجنسية",
+    nationalityPlaceholder: "اختر جنسيتك",
+    nationalityRequired: "يرجى تحديد جنسيتك أولًا.",
   },
 } as const;
 
