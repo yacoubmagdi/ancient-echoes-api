@@ -1,6 +1,6 @@
-// POST /analyze-face — accepts a user image (multipart/form-data, field "photo"),
-// validates it, calls Luxand /photo/search restricted to our personas collection,
-// and returns the top match plus the next two runners-up.
+// POST /analyze-face — accepts a face descriptor (JSON, 128-float array)
+// extracted in the browser by face-api.js, computes Euclidean distance against
+// every stored persona descriptor, and returns the top match plus runners-up.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
 const corsHeaders = {
@@ -9,10 +9,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, x-api-key, apikey",
 };
 
-const LUXAND_BASE = "https://api.luxand.cloud";
-const COLLECTION = "historical_personas";
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
+const DESCRIPTOR_LEN = 128;
 
 // --- Zodiac-based personality traits (English + Arabic).
 // We never name the sign in the output — only weave the traits into the
