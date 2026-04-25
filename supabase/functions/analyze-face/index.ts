@@ -266,19 +266,19 @@ Deno.serve(async (req) => {
     // For 5xx (Luxand outage / no-face errors), gracefully fall back to a
     // random eligible persona so the user still gets a result.
     // For 4xx client errors (e.g. malformed image), surface the message.
-    if (luxandResp.status >= 500 || luxandResp.status === 400) {
-      matches = []; // triggers fallback path below
-    } else {
+    if (!(luxandResp.status >= 500 || luxandResp.status === 400)) {
       const message =
         typeof luxandData === "object" && luxandData && "message" in luxandData
           ? (luxandData as { message: string }).message
           : "Face recognition failed";
       return jsonResponse({ error: message }, 422);
     }
+    // else: fall through with luxandData possibly non-array — matches stays []
   }
 
   // Luxand returns an array of matches (sorted by probability desc).
   // Possible "no face" / "no match" responses come back as { status: "failure", ... }
+  let matches: LuxandMatch[] = [];
   if (Array.isArray(luxandData)) {
     matches = luxandData as LuxandMatch[];
   } else if (
