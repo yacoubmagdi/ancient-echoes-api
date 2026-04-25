@@ -46,6 +46,9 @@ export const translations = {
     dobLabel: "تاريخ الميلاد",
     dobPlaceholder: "اختر تاريخ ميلادك",
     dobRequired: "يرجى تحديد تاريخ ميلادك أولًا.",
+    nationalityLabel: "الجنسية",
+    nationalityPlaceholder: "اختر جنسيتك",
+    nationalityRequired: "يرجى تحديد جنسيتك أولًا.",
   },
 } as const;
 
