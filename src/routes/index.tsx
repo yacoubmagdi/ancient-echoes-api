@@ -25,6 +25,7 @@ import {
 import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
@@ -548,6 +549,15 @@ function ShareButtons({
     window.localStorage.setItem("tiktok_campaign", campaign);
   }, [campaign]);
 
+  const [includeLink, setIncludeLink] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("tiktok_include_link") !== "0";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("tiktok_include_link", includeLink ? "1" : "0");
+  }, [includeLink]);
+
   // Build hashtags from name + category, plus a few brand staples.
   function toHashtag(s: string) {
     // Keep letters/digits across scripts (incl. Arabic), strip everything else.
@@ -566,7 +576,9 @@ function ShareButtons({
   const hashtags = Array.from(
     new Set([...baseTags, campaignTag].filter(Boolean)),
   ).join(" ");
-  const tiktokCaption = `${shareText}\n${shareUrl}\n\n${hashtags}`;
+  const tiktokCaption = includeLink
+    ? `${shareText}\n${shareUrl}\n\n${hashtags}`
+    : `${shareText}\n\n${hashtags}`;
 
   const links = [
     {
@@ -653,6 +665,16 @@ function ShareButtons({
           className="h-9"
         />
         <p className="mt-1 text-[11px] text-muted-foreground">{t.campaignHint}</p>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <label htmlFor="tiktok-include-link" className="text-xs text-muted-foreground">
+            {t.includeLinkLabel}
+          </label>
+          <Switch
+            id="tiktok-include-link"
+            checked={includeLink}
+            onCheckedChange={setIncludeLink}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap gap-2">
         {links.map(({ key, label, Icon, href }) => (

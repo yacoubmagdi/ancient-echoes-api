@@ -60,6 +60,7 @@ export const translations = {
     campaignLabel: "Campaign tag",
     campaignPlaceholder: "e.g. EchoesLaunch",
     campaignHint: "Added as #YourTag at the end of the TikTok caption.",
+    includeLinkLabel: "Include link in TikTok caption",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
@@ -118,6 +119,7 @@ export const translations = {
     campaignLabel: "وسم الحملة",
     campaignPlaceholder: "مثال: EchoesLaunch",
     campaignHint: "يُضاف كـ #وسمك في نهاية تسمية تيك توك.",
+    includeLinkLabel: "تضمين الرابط في تسمية تيك توك",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
