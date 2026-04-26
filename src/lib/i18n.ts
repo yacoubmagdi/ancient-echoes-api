@@ -55,6 +55,8 @@ export const translations = {
     shareTitle: "Share your result",
     shareCopy: "Copy link",
     shareCopied: "Copied!",
+    shareTiktok: "Copy for TikTok",
+    shareTiktokCopied: "Caption copied — paste it into TikTok!",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
@@ -108,6 +110,8 @@ export const translations = {
     shareTitle: "شارك نتيجتك",
     shareCopy: "نسخ الرابط",
     shareCopied: "تم النسخ!",
+    shareTiktok: "نسخ للنشر على تيك توك",
+    shareTiktokCopied: "تم نسخ التسمية — الصقها في تيك توك!",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
