@@ -61,6 +61,8 @@ export const translations = {
     campaignPlaceholder: "e.g. EchoesLaunch",
     campaignHint: "Added as #YourTag at the end of the TikTok caption.",
     includeLinkLabel: "Include link in TikTok caption",
+    shareInstagram: "Copy for Instagram",
+    shareInstagramCopied: "Caption copied — paste it into Instagram!",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
@@ -120,6 +122,8 @@ export const translations = {
     campaignPlaceholder: "مثال: EchoesLaunch",
     campaignHint: "يُضاف كـ #وسمك في نهاية تسمية تيك توك.",
     includeLinkLabel: "تضمين الرابط في تسمية تيك توك",
+    shareInstagram: "نسخ للنشر على إنستغرام",
+    shareInstagramCopied: "تم نسخ التسمية — الصقها في إنستغرام!",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
