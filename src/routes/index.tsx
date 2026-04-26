@@ -22,7 +22,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2 } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -632,6 +632,16 @@ function ShareButtons({
     }
   }
 
+  async function copyForInstagram() {
+    try {
+      await navigator.clipboard.writeText(tiktokCaption);
+      toast.success(t.shareInstagramCopied);
+      window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
   async function nativeShare() {
     if (navigator.share) {
       try {
@@ -708,6 +718,15 @@ function ShareButtons({
           title={t.shareTiktok}
         >
           <Music2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={copyForInstagram}
+          aria-label={t.shareInstagram}
+          title={t.shareInstagram}
+        >
+          <Instagram className="h-4 w-4" />
         </Button>
         {canNativeShare && (
           <Button variant="secondary" size="sm" onClick={nativeShare} className="gap-2">
