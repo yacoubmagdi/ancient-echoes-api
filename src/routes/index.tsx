@@ -22,6 +22,12 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -632,13 +638,48 @@ function ShareButtons({
     }
   }
 
-  async function copyForInstagram() {
+  /**
+   * Instagram has no public web share intent. Best we can do:
+   *  - Always copy the caption to the clipboard so the user can paste it.
+   *  - On mobile (where the IG app is likely installed), try the deep-link
+   *    URL schemes for Story/Post composer. These are app-only and silently
+   *    no-op if IG isn't installed, so we fall back to the web composer
+   *    after a short delay.
+   *  - On desktop, open the web Create/Home page directly.
+   */
+  async function shareToInstagram(target: "story" | "post") {
     try {
       await navigator.clipboard.writeText(tiktokCaption);
-      toast.success(t.shareInstagramCopied);
-      window.open("https://www.instagram.com/", "_blank", "noopener,noreferrer");
     } catch {
       toast.error("Copy failed");
+      return;
+    }
+    toast.success(t.shareInstagramCopied);
+
+    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+    const webFallback =
+      target === "post"
+        ? "https://www.instagram.com/create/select/"
+        : "https://www.instagram.com/";
+
+    if (isMobile) {
+      const deepLink =
+        target === "story"
+          ? "instagram://story-camera"
+          : "instagram://library?AssetPath=";
+      // Try the app first; if nothing handles it, swap to the web URL.
+      const start = Date.now();
+      window.location.href = deepLink;
+      window.setTimeout(() => {
+        // If the page is still focused after ~1.2s, the app didn't open.
+        if (Date.now() - start < 1500 && !document.hidden) {
+          window.open(webFallback, "_blank", "noopener,noreferrer");
+        }
+      }, 1200);
+      toast.message(t.shareInstagramOpening);
+    } else {
+      window.open(webFallback, "_blank", "noopener,noreferrer");
     }
   }
 
@@ -719,15 +760,26 @@ function ShareButtons({
         >
           <Music2 className="h-4 w-4" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={copyForInstagram}
-          aria-label={t.shareInstagram}
-          title={t.shareInstagram}
-        >
-          <Instagram className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={t.shareInstagram}
+              title={t.shareInstagram}
+            >
+              <Instagram className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => shareToInstagram("story")}>
+              {t.shareInstagramStory}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => shareToInstagram("post")}>
+              {t.shareInstagramPost}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         {canNativeShare && (
           <Button variant="secondary" size="sm" onClick={nativeShare} className="gap-2">
             <Send className="h-4 w-4" />
