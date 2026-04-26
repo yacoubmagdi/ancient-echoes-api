@@ -63,6 +63,9 @@ export const translations = {
     includeLinkLabel: "Include link in TikTok caption",
     shareInstagram: "Copy for Instagram",
     shareInstagramCopied: "Caption copied — paste it into Instagram!",
+    shareInstagramStory: "Instagram Story",
+    shareInstagramPost: "Instagram Post",
+    shareInstagramOpening: "Opening Instagram… if the app doesn't open, paste in your browser tab.",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
@@ -124,6 +127,9 @@ export const translations = {
     includeLinkLabel: "تضمين الرابط في تسمية تيك توك",
     shareInstagram: "نسخ للنشر على إنستغرام",
     shareInstagramCopied: "تم نسخ التسمية — الصقها في إنستغرام!",
+    shareInstagramStory: "قصة إنستغرام",
+    shareInstagramPost: "منشور إنستغرام",
+    shareInstagramOpening: "جارٍ فتح إنستغرام… إذا لم يفتح التطبيق، الصق التسمية في تبويب المتصفح.",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
