@@ -14,7 +14,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
@@ -62,6 +70,7 @@ function Index() {
   const [result, setResult] = useState<MatchResult | null>(null);
   const [dob, setDob] = useState<Date | undefined>(undefined);
   const [nationality, setNationality] = useState<string>("");
+  const [nationalityOpen, setNationalityOpen] = useState(false);
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [role, setRole] = useState<string>("any");
   const [civilization, setCivilization] = useState<string>("any");
@@ -70,6 +79,18 @@ function Index() {
   const [lang, setLang] = useState<Lang>("en");
   const t = useMemo(() => translations[lang], [lang]);
   const isRtl = lang === "ar";
+
+  const sortedNationalities = useMemo(
+    () =>
+      NATIONALITIES.slice().sort((a, b) =>
+        (isRtl ? a.ar : a.en).localeCompare(isRtl ? b.ar : b.en, isRtl ? "ar" : "en"),
+      ),
+    [isRtl],
+  );
+  const selectedNationality = useMemo(
+    () => NATIONALITIES.find((n) => n.code === nationality),
+    [nationality],
+  );
 
   // After mount: read saved language preference (client-only).
   useEffect(() => {
@@ -236,22 +257,73 @@ function Index() {
             </div>
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">{t.nationalityLabel}</label>
-              <Select value={nationality} onValueChange={setNationality} disabled={loading}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t.nationalityPlaceholder} />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {NATIONALITIES.slice()
-                    .sort((a, b) =>
-                      (isRtl ? a.ar : a.en).localeCompare(isRtl ? b.ar : b.en, isRtl ? "ar" : "en"),
-                    )
-                    .map((n) => (
-                      <SelectItem key={n.code} value={n.code}>
-                        {isRtl ? n.ar : n.en}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <Popover open={nationalityOpen} onOpenChange={setNationalityOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={nationalityOpen}
+                    disabled={loading}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      !selectedNationality && "text-muted-foreground",
+                    )}
+                  >
+                    {selectedNationality
+                      ? isRtl
+                        ? selectedNationality.ar
+                        : selectedNationality.en
+                      : t.nationalityPlaceholder}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-[--radix-popover-trigger-width] p-0"
+                  align="start"
+                >
+                  <Command
+                    filter={(value, search) => {
+                      // value is the option's `value` (lowercased by cmdk).
+                      // We stored a composite `${ar}|${en}|${code}` string so
+                      // searching in either Arabic or English works.
+                      if (!search) return 1;
+                      return value.includes(search.toLowerCase()) ? 1 : 0;
+                    }}
+                  >
+                    <CommandInput
+                      placeholder={t.nationalitySearchPlaceholder}
+                      dir={isRtl ? "rtl" : "ltr"}
+                    />
+                    <CommandList>
+                      <CommandEmpty>{t.nationalityNoResults}</CommandEmpty>
+                      <CommandGroup>
+                        {sortedNationalities.map((n) => {
+                          const label = isRtl ? n.ar : n.en;
+                          return (
+                            <CommandItem
+                              key={n.code}
+                              value={`${n.ar}|${n.en}|${n.code}`}
+                              onSelect={() => {
+                                setNationality(n.code);
+                                setNationalityOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "h-4 w-4",
+                                  nationality === n.code ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              <span>{label}</span>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">{t.genderLabel}</label>
