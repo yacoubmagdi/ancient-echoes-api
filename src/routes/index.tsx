@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/command";
 import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2 } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
@@ -538,6 +539,35 @@ function ShareButtons({
   const encodedUrl = encodeURIComponent(shareUrl);
   const encodedText = encodeURIComponent(shareText);
 
+  const [campaign, setCampaign] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("tiktok_campaign") ?? "";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("tiktok_campaign", campaign);
+  }, [campaign]);
+
+  // Build hashtags from name + category, plus a few brand staples.
+  function toHashtag(s: string) {
+    // Keep letters/digits across scripts (incl. Arabic), strip everything else.
+    const cleaned = s.normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, "");
+    return cleaned ? `#${cleaned}` : "";
+  }
+  const baseTags = [
+    "#EchoesOfTheAncients",
+    "#AncientTwin",
+    "#FaceMatch",
+    "#History",
+    toHashtag(category),
+    toHashtag(name),
+  ];
+  const campaignTag = campaign.trim() ? toHashtag(campaign.trim()) : "";
+  const hashtags = Array.from(
+    new Set([...baseTags, campaignTag].filter(Boolean)),
+  ).join(" ");
+  const tiktokCaption = `${shareText}\n${shareUrl}\n\n${hashtags}`;
+
   const links = [
     {
       key: "twitter",
@@ -582,7 +612,7 @@ function ShareButtons({
 
   async function copyForTiktok() {
     try {
-      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      await navigator.clipboard.writeText(tiktokCaption);
       toast.success(t.shareTiktokCopied);
       window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
     } catch {
@@ -607,6 +637,23 @@ function ShareButtons({
       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
         {t.shareTitle}
       </p>
+      <div className="mb-4">
+        <label
+          htmlFor="campaign-tag"
+          className="block text-xs font-medium text-muted-foreground mb-1"
+        >
+          {t.campaignLabel}
+        </label>
+        <Input
+          id="campaign-tag"
+          value={campaign}
+          onChange={(e) => setCampaign(e.target.value)}
+          placeholder={t.campaignPlaceholder}
+          maxLength={40}
+          className="h-9"
+        />
+        <p className="mt-1 text-[11px] text-muted-foreground">{t.campaignHint}</p>
+      </div>
       <div className="flex flex-wrap gap-2">
         {links.map(({ key, label, Icon, href }) => (
           <Button

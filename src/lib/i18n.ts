@@ -57,6 +57,9 @@ export const translations = {
     shareCopied: "Copied!",
     shareTiktok: "Copy for TikTok",
     shareTiktokCopied: "Caption copied — paste it into TikTok!",
+    campaignLabel: "Campaign tag",
+    campaignPlaceholder: "e.g. EchoesLaunch",
+    campaignHint: "Added as #YourTag at the end of the TikTok caption.",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
@@ -112,6 +115,9 @@ export const translations = {
     shareCopied: "تم النسخ!",
     shareTiktok: "نسخ للنشر على تيك توك",
     shareTiktokCopied: "تم نسخ التسمية — الصقها في تيك توك!",
+    campaignLabel: "وسم الحملة",
+    campaignPlaceholder: "مثال: EchoesLaunch",
+    campaignHint: "يُضاف كـ #وسمك في نهاية تسمية تيك توك.",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
