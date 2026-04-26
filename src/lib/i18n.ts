@@ -52,6 +52,10 @@ export const translations = {
     civSamurai: "Samurai (Japan)",
     civViking: "Viking",
     civChinese: "Chinese (Imperial China)",
+    shareTitle: "Share your result",
+    shareCopy: "Copy link",
+    shareCopied: "Copied!",
+    shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -101,6 +105,10 @@ export const translations = {
     civSamurai: "الساموراي (اليابان)",
     civViking: "الفايكنج",
     civChinese: "الصينيون (الصين الإمبراطورية)",
+    shareTitle: "شارك نتيجتك",
+    shareCopy: "نسخ الرابط",
+    shareCopied: "تم النسخ!",
+    shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
   },
 } as const;
 
