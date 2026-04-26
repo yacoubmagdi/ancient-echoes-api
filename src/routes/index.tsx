@@ -22,7 +22,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
@@ -488,6 +489,12 @@ function Index() {
                       {t.adNote}
                     </div>
                   )}
+                  <ShareButtons
+                    name={result.match_name}
+                    category={result.category}
+                    similarity={result.similarity}
+                    t={t}
+                  />
                 </div>
               </div>
             </Card>
@@ -509,5 +516,118 @@ function Index() {
         </footer>
       </div>
     </main>
+  );
+}
+
+function ShareButtons({
+  name,
+  category,
+  similarity,
+  t,
+}: {
+  name: string;
+  category: string;
+  similarity: number;
+  t: (typeof translations)[Lang];
+}) {
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+  const shareText = t.shareText
+    .replace("{name}", name)
+    .replace("{category}", category)
+    .replace("{similarity}", String(similarity));
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent(shareText);
+
+  const links = [
+    {
+      key: "twitter",
+      label: "X / Twitter",
+      Icon: Twitter,
+      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+    },
+    {
+      key: "facebook",
+      label: "Facebook",
+      Icon: Facebook,
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+    },
+    {
+      key: "whatsapp",
+      label: "WhatsApp",
+      Icon: MessageCircle,
+      href: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`,
+    },
+    {
+      key: "telegram",
+      label: "Telegram",
+      Icon: Send,
+      href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      Icon: Linkedin,
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    },
+  ];
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      toast.success(t.shareCopied);
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
+  async function nativeShare() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: name, text: shareText, url: shareUrl });
+      } catch {
+        /* user cancelled */
+      }
+    }
+  }
+
+  const canNativeShare = typeof navigator !== "undefined" && !!navigator.share;
+
+  return (
+    <div className="mt-6 border-t border-border/40 pt-5">
+      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
+        {t.shareTitle}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {links.map(({ key, label, Icon, href }) => (
+          <Button
+            key={key}
+            asChild
+            variant="outline"
+            size="icon"
+            aria-label={label}
+            title={label}
+          >
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              <Icon className="h-4 w-4" />
+            </a>
+          </Button>
+        ))}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={copyLink}
+          aria-label={t.shareCopy}
+          title={t.shareCopy}
+        >
+          <Link2 className="h-4 w-4" />
+        </Button>
+        {canNativeShare && (
+          <Button variant="secondary" size="sm" onClick={nativeShare} className="gap-2">
+            <Send className="h-4 w-4" />
+            {t.shareTitle}
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
