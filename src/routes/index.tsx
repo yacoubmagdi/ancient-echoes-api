@@ -22,7 +22,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2 } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
@@ -580,6 +580,16 @@ function ShareButtons({
     }
   }
 
+  async function copyForTiktok() {
+    try {
+      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      toast.success(t.shareTiktokCopied);
+      window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
   async function nativeShare() {
     if (navigator.share) {
       try {
@@ -620,6 +630,15 @@ function ShareButtons({
           title={t.shareCopy}
         >
           <Link2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={copyForTiktok}
+          aria-label={t.shareTiktok}
+          title={t.shareTiktok}
+        >
+          <Music2 className="h-4 w-4" />
         </Button>
         {canNativeShare && (
           <Button variant="secondary" size="sm" onClick={nativeShare} className="gap-2">
