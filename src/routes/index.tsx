@@ -934,12 +934,12 @@ function DownloadCardButton({
       ctx.fillStyle = "#f5e9b8";
       ctx.font = "bold 48px serif";
       ctx.textAlign = "center";
-      ctx.fillText(name, W / 2, 720);
+      ctx.fillText(name, W / 2, 735);
 
       // Category
       ctx.fillStyle = "#a89cc6";
       ctx.font = "italic 32px serif";
-      ctx.fillText(category, W / 2, 770);
+      ctx.fillText(category, W / 2, 778);
 
       // Similarity bar
       const barX = 180;
