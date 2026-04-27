@@ -932,7 +932,7 @@ function DownloadCardButton({
 
       // Match name
       ctx.fillStyle = "#f5e9b8";
-      ctx.font = "bold 64px serif";
+      ctx.font = "bold 48px serif";
       ctx.textAlign = "center";
       ctx.fillText(name, W / 2, 720);
 
