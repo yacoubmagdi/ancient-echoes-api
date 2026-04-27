@@ -2185,12 +2185,21 @@ Deno.serve(async (req) => {
     eligibleCategories = [civilizationFilter];
   }
 
-  const allowedGenders = gender === "male" || gender === "female"
-    ? [gender, "any"]
-    : ["male", "female", "any"];
+  // Strict gender lock: when the user picks male/female we ONLY return personas
+  // of that exact gender (personas marked "any" are excluded so the result is
+  // unambiguously male or female to match the user). When no gender is given
+  // we allow everything.
+  const userGender: "male" | "female" | null =
+    gender === "male" || gender === "female" ? gender : null;
+  const allowedGenders = userGender ? [userGender] : ["male", "female", "any"];
+
+  function genderMatches(p: { gender?: string | null }) {
+    if (!userGender) return true;
+    return (p.gender ?? "") === userGender;
+  }
 
   function personaPasses(p: { gender?: string | null; category: string; role?: string | null }) {
-    if (!allowedGenders.includes(p.gender ?? "any")) return false;
+    if (!genderMatches(p)) return false;
     if (eligibleCategories && !eligibleCategories.includes(p.category)) return false;
     if (roleFilter && (p.role ?? "") !== roleFilter) return false;
     return true;
@@ -2301,17 +2310,18 @@ Deno.serve(async (req) => {
   if (ranked.length < TARGET) {
     pushFromScored(
       (p) =>
-        allowedGenders.includes(p.gender ?? "any") &&
+        genderMatches(p) &&
         (!eligibleCategories || eligibleCategories.includes(p.category)),
     );
   }
   // Tier 3: gender only
   if (ranked.length < TARGET) {
-    pushFromScored((p) => allowedGenders.includes(p.gender ?? "any"));
+    pushFromScored((p) => genderMatches(p));
   }
-  // Tier 4: anyone with a descriptor
+  // Tier 4: anyone with a descriptor — but NEVER cross gender if the user
+  // explicitly picked one. A male user must not get a female result.
   if (ranked.length < TARGET) {
-    pushFromScored(() => true);
+    pushFromScored((p) => genderMatches(p));
   }
 
   // If nothing has descriptors yet, fall back to a random persona so the user
@@ -2323,7 +2333,14 @@ Deno.serve(async (req) => {
       .select("id, name, category, description, image_url, gender, role")
       .limit(2000);
     const pool = (anyPersonas ?? []).filter(personaPasses);
-    const finalPool = pool.length > 0 ? pool : (anyPersonas ?? []);
+    // Final fallback still respects the user's gender if they picked one.
+    const fallbackByGender = (anyPersonas ?? []).filter(genderMatches);
+    const finalPool =
+      pool.length > 0
+        ? pool
+        : fallbackByGender.length > 0
+          ? fallbackByGender
+          : (anyPersonas ?? []);
     if (finalPool.length === 0) {
       return jsonResponse({ error: "No personas available" }, 500);
     }
