@@ -2333,7 +2333,14 @@ Deno.serve(async (req) => {
       .select("id, name, category, description, image_url, gender, role")
       .limit(2000);
     const pool = (anyPersonas ?? []).filter(personaPasses);
-    const finalPool = pool.length > 0 ? pool : (anyPersonas ?? []);
+    // Final fallback still respects the user's gender if they picked one.
+    const fallbackByGender = (anyPersonas ?? []).filter(genderMatches);
+    const finalPool =
+      pool.length > 0
+        ? pool
+        : fallbackByGender.length > 0
+          ? fallbackByGender
+          : (anyPersonas ?? []);
     if (finalPool.length === 0) {
       return jsonResponse({ error: "No personas available" }, 500);
     }
