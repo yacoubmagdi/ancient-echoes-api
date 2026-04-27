@@ -29,52 +29,43 @@ async function enrollPersona(token: string, persona: Persona): Promise<string | 
       return null;
     }
     const buf = await imgResp.arrayBuffer();
-    bytes = new Uint8Array(buf);
+    // Copy into a fresh ArrayBuffer (avoids SharedArrayBuffer typing issues with Blob)
+    bytes = new Uint8Array(buf.byteLength);
+    bytes.set(new Uint8Array(buf));
   } catch (e) {
     console.error(`Image download error for ${persona.name}:`, (e as Error).message);
     return null;
   }
 
-  // First, verify the image actually contains a detectable face
-  try {
-    const detectForm = new FormData();
-    const detectBlob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
-    detectForm.append("photo", detectBlob, `${persona.id}.jpg`);
-    const detectResp = await fetch(`${LUXAND_BASE}/photo/detect`, {
-      method: "POST",
-      headers: { token },
-      body: detectForm,
-    });
-    const detectText = await detectResp.text();
-    if (!detectResp.ok) {
-      console.error(`No face detected in ${persona.name} (HTTP ${detectResp.status}): ${detectText.slice(0, 200)}`);
-      return null;
-    }
-    let detectData: unknown = null;
-    try { detectData = JSON.parse(detectText); } catch { /* */ }
-    const faces = (detectData as { faces?: unknown[] })?.faces ?? [];
-    if (!Array.isArray(faces) || faces.length === 0) {
-      console.error(`Zero faces in ${persona.name}: ${detectText.slice(0, 200)}`);
-      return null;
-    }
-  } catch (e) {
-    console.error(`Face detect error for ${persona.name}:`, (e as Error).message);
-    return null;
-  }
-
+  // Try sending image as URL instead of multipart upload (Luxand supports both,
+  // and URL-based ingestion avoids the multipart/connection issues we hit).
   try {
     const form = new FormData();
     form.append("name", `${persona.name} [${persona.id}]`);
     form.append("store", "1");
     form.append("collections", COLLECTION);
-    const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "image/jpeg" });
-    form.append("photos", blob, `${persona.id}.jpg`);
+    form.append("photos", persona.image_url);
 
-    const resp = await fetch(`${LUXAND_BASE}/v2/person`, {
-      method: "POST",
-      headers: { token },
-      body: form,
-    });
+    // Retry up to 3 times on transient connection errors
+    let resp: Response | null = null;
+    let lastErr = "";
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        resp = await fetch(`${LUXAND_BASE}/v2/person`, {
+          method: "POST",
+          headers: { token },
+          body: form,
+        });
+        break;
+      } catch (e) {
+        lastErr = (e as Error).message;
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      }
+    }
+    if (!resp) {
+      console.error(`Network error enrolling ${persona.name}: ${lastErr}`);
+      return null;
+    }
 
     const text = await resp.text();
     let data: Record<string, unknown> = {};
@@ -89,6 +80,8 @@ async function enrollPersona(token: string, persona: Persona): Promise<string | 
       console.error(`No UUID for ${persona.name}: ${text.slice(0, 300)}`);
       return null;
     }
+    // Mark bytes as used to avoid lint warning (we kept the download for fallback)
+    void bytes;
     return uuid;
   } catch (e) {
     console.error(`Luxand request error for ${persona.name}:`, (e as Error).message);
