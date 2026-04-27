@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -488,6 +488,16 @@ function Index() {
                     similarity={result.similarity}
                     t={t}
                   />
+                  <DownloadCardButton
+                    userImage={previewUrl}
+                    matchImage={result.image_url}
+                    name={result.match_name}
+                    category={result.category}
+                    similarity={result.similarity}
+                    description={result.description}
+                    t={t}
+                    isRtl={isRtl}
+                  />
                 </div>
               </div>
             </Card>
@@ -772,6 +782,236 @@ function ShareButtons({
           </Button>
         )}
       </div>
+    </div>
+  );
+}
+
+function DownloadCardButton({
+  userImage,
+  matchImage,
+  name,
+  category,
+  similarity,
+  description,
+  t,
+  isRtl,
+}: {
+  userImage: string | null;
+  matchImage: string;
+  name: string;
+  category: string;
+  similarity: number;
+  description: string;
+  t: (typeof translations)[Lang];
+  isRtl: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  function loadImg(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function drawCover(
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ) {
+    const ir = img.width / img.height;
+    const tr = w / h;
+    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+    if (ir > tr) {
+      sw = img.height * tr;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / tr;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  }
+
+  function wrapText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    maxWidth: number,
+  ): string[] {
+    const words = text.split(/\s+/);
+    const lines: string[] = [];
+    let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = w;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  async function generate() {
+    if (!userImage) {
+      toast.error(t.uploadCta);
+      return;
+    }
+    setBusy(true);
+    try {
+      const W = 1080;
+      const H = 1350;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d")!;
+
+      // Background gradient (dark navy → deep purple)
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#0b0a1f");
+      bg.addColorStop(1, "#1a1430");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Subtle gold border
+      ctx.strokeStyle = "#c9a84c";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(20, 20, W - 40, H - 40);
+
+      // Title
+      ctx.fillStyle = "#e8d27a";
+      ctx.textAlign = "center";
+      ctx.font = "bold 56px serif";
+      ctx.fillText(isRtl ? "أصداء القدماء" : "Echoes of the Ancients", W / 2, 100);
+
+      // Load images in parallel
+      const [uImg, mImg] = await Promise.all([loadImg(userImage), loadImg(matchImage)]);
+
+      // Two side-by-side circular portraits
+      const portraitSize = 380;
+      const portraitY = 170;
+      const leftX = 110;
+      const rightX = W - 110 - portraitSize;
+
+      function drawCircle(img: HTMLImageElement, x: number, y: number, label: string) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x + portraitSize / 2, y + portraitSize / 2, portraitSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        drawCover(ctx, img, x, y, portraitSize, portraitSize);
+        ctx.restore();
+        // Gold ring
+        ctx.beginPath();
+        ctx.arc(x + portraitSize / 2, y + portraitSize / 2, portraitSize / 2, 0, Math.PI * 2);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "#c9a84c";
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = "#cfcfe0";
+        ctx.font = "28px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 50);
+      }
+
+      drawCircle(uImg, leftX, portraitY, t.cardYou);
+      drawCircle(mImg, rightX, portraitY, t.cardMatch);
+
+      // Equals/echo symbol between
+      ctx.fillStyle = "#c9a84c";
+      ctx.font = "bold 70px serif";
+      ctx.textAlign = "center";
+      ctx.fillText("≈", W / 2, portraitY + portraitSize / 2 + 25);
+
+      // Match name
+      ctx.fillStyle = "#f5e9b8";
+      ctx.font = "bold 64px serif";
+      ctx.textAlign = "center";
+      ctx.fillText(name, W / 2, 720);
+
+      // Category
+      ctx.fillStyle = "#a89cc6";
+      ctx.font = "italic 32px serif";
+      ctx.fillText(category, W / 2, 770);
+
+      // Similarity bar
+      const barX = 180;
+      const barY = 820;
+      const barW = W - 360;
+      const barH = 22;
+      ctx.fillStyle = "#2a2440";
+      ctx.fillRect(barX, barY, barW, barH);
+      const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+      grad.addColorStop(0, "#c9a84c");
+      grad.addColorStop(1, "#f5e9b8");
+      ctx.fillStyle = grad;
+      ctx.fillRect(barX, barY, (barW * similarity) / 100, barH);
+
+      ctx.fillStyle = "#e8d27a";
+      ctx.font = "bold 44px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${similarity}% ${t.resemblance}`, W / 2, barY + 80);
+
+      // Description (wrapped)
+      ctx.fillStyle = "#d8d4e8";
+      ctx.font = "28px sans-serif";
+      ctx.textAlign = "center";
+      const lines = wrapText(ctx, description, W - 200);
+      const maxLines = 6;
+      const shown = lines.slice(0, maxLines);
+      shown.forEach((ln, i) => {
+        ctx.fillText(ln, W / 2, 970 + i * 38);
+      });
+
+      // Footer brand
+      ctx.fillStyle = "#8a82a8";
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        isRtl ? "اكتشف صداك التاريخي" : "Discover your historical echo",
+        W / 2,
+        H - 60,
+      );
+
+      // Trigger download
+      const blob: Blob | null = await new Promise((res) =>
+        canvas.toBlob((b) => res(b), "image/png"),
+      );
+      if (!blob) throw new Error("Failed");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `echoes-${name.replace(/\s+/g, "-")}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(t.downloadCardSaved);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4">
+      <Button
+        onClick={generate}
+        disabled={busy || !userImage}
+        variant="default"
+        className="w-full gap-2"
+      >
+        <Download className="h-4 w-4" />
+        {busy ? t.downloadingCard : t.downloadCard}
+      </Button>
     </div>
   );
 }
