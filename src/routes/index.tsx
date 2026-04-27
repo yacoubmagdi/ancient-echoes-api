@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -487,6 +487,16 @@ function Index() {
                     category={result.category}
                     similarity={result.similarity}
                     t={t}
+                  />
+                  <DownloadCardButton
+                    userImage={previewUrl}
+                    matchImage={result.image_url}
+                    name={result.match_name}
+                    category={result.category}
+                    similarity={result.similarity}
+                    description={result.description}
+                    t={t}
+                    isRtl={isRtl}
                   />
                 </div>
               </div>
