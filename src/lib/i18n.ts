@@ -67,6 +67,11 @@ export const translations = {
     shareInstagramPost: "Instagram Post",
     shareInstagramOpening: "Opening Instagram… if the app doesn't open, paste in your browser tab.",
     shareText: "I echo {name} from {category} on Echoes of the Ancients ({similarity}% match)!",
+    downloadCard: "Download as image",
+    downloadingCard: "Generating image…",
+    downloadCardSaved: "Image downloaded",
+    cardYou: "You",
+    cardMatch: "Your Echo",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -131,6 +136,11 @@ export const translations = {
     shareInstagramPost: "منشور إنستغرام",
     shareInstagramOpening: "جارٍ فتح إنستغرام… إذا لم يفتح التطبيق، الصق التسمية في تبويب المتصفح.",
     shareText: "أنا أشبه {name} من {category} في تطبيق أصداء القدماء (تطابق {similarity}%)!",
+    downloadCard: "تحميل النتيجة كصورة",
+    downloadingCard: "جارٍ توليد الصورة…",
+    downloadCardSaved: "تم تحميل الصورة",
+    cardYou: "أنت",
+    cardMatch: "صداك",
   },
 } as const;
 
