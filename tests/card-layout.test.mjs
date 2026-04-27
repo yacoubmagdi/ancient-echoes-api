@@ -15,9 +15,9 @@ const PORTRAIT_Y = 170;
 const PORTRAIT_SIZE = 380;
 const PORTRAIT_LABEL_OFFSET = 50; // label baseline = portraitY + size + 50
 const PORTRAIT_BLOCK_BOTTOM = PORTRAIT_Y + PORTRAIT_SIZE + PORTRAIT_LABEL_OFFSET; // 600
-const NAME_Y = 735;
+const NAME_Y = 705;
 const NAME_FONT = "bold 48px serif";
-const CATEGORY_Y = 778;
+const CATEGORY_Y = 748;
 const CATEGORY_FONT = "italic 32px serif";
 const BAR_Y = 820;
 
