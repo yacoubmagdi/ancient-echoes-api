@@ -128,21 +128,6 @@ function Index() {
   }
 
   async function handleFile(file: File) {
-    if (!dob) {
-      setError(t.dobRequired);
-      if (inputRef.current) inputRef.current.value = "";
-      return;
-    }
-    if (!nationality) {
-      setError(t.nationalityRequired);
-      if (inputRef.current) inputRef.current.value = "";
-      return;
-    }
-    if (!gender) {
-      setError(t.genderRequired);
-      if (inputRef.current) inputRef.current.value = "";
-      return;
-    }
     setError(null);
     setResult(null);
     setLoading(true);
@@ -172,10 +157,10 @@ function Index() {
         },
         body: JSON.stringify({
           descriptor,
-          date_of_birth: dob.toISOString().slice(0, 10),
-          nationality,
-          gender,
           lang,
+          ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
+          ...(nationality ? { nationality } : {}),
+          ...(gender ? { gender } : {}),
           ...(role && role !== "any" ? { role } : {}),
           ...(civilization && civilization !== "any" ? { civilization } : {}),
         }),
