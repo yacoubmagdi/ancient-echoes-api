@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/api/public/hooks/og-image")({
   server: {
@@ -14,9 +13,10 @@ export const Route = createFileRoute("/api/public/hooks/og-image")({
         // Size: "large" (1200x630), "square" (1080x1080), "story" (1080x1920)
         const size = url.searchParams.get("size") || "large";
 
-        const supabaseUrl = process.env.SUPABASE_URL!;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-        const supabase = createClient(supabaseUrl, serviceKey);
+        const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+        const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
+        const { createClient } = await import("@supabase/supabase-js");
+        const supabase = createClient(supabaseUrl, anonKey);
 
         // Check cached PNG first
         const cachedPath = `og-cache/${id}_${size}.png`;
