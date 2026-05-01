@@ -17,8 +17,8 @@ export const saveSharedResult = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
     );
 
     const { data: row, error } = await supabase
@@ -43,8 +43,8 @@ export const getSharedResult = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.VITE_SUPABASE_URL!,
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
     );
 
     const { data: row, error } = await supabase
