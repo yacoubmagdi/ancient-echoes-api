@@ -1983,6 +1983,74 @@ const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 
+// --- In-memory persona descriptor cache ---
+// Persona descriptors change rarely (only on enroll/re-enroll). Cache them
+// in memory for the lifetime of the edge function instance (typically minutes).
+// TTL keeps data fresh without hitting the DB on every request.
+type CachedPersona = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  image_url: string;
+  gender: string | null;
+  role: string | null;
+  face_descriptor: number[];
+};
+let personaCache: CachedPersona[] | null = null;
+let personaCacheTime = 0;
+const PERSONA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getPersonasWithDescriptors(
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ data: CachedPersona[]; fromCache: boolean }> {
+  const now = Date.now();
+  if (personaCache && now - personaCacheTime < PERSONA_CACHE_TTL_MS) {
+    return { data: personaCache, fromCache: true };
+  }
+  const { data: allPersonas, error: fetchErr } = await supabase
+    .from("personas")
+    .select("id, name, category, description, image_url, gender, role, face_descriptor")
+    .not("face_descriptor", "is", null)
+    .limit(2000);
+  if (fetchErr) throw fetchErr;
+  const enrolled = (allPersonas ?? []).filter(
+    (p: any) => Array.isArray(p.face_descriptor) && p.face_descriptor.length === DESCRIPTOR_LEN,
+  ) as CachedPersona[];
+  personaCache = enrolled;
+  personaCacheTime = now;
+  return { data: enrolled, fromCache: false };
+}
+
+// --- Result cache: keyed by descriptor hash + filters ---
+// If the same face descriptor + filter combo is sent again within TTL,
+// return the cached result instantly (< 50ms).
+type CachedResult = { body: Record<string, unknown>; at: number };
+const resultCache = new Map<string, CachedResult>();
+const RESULT_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const RESULT_CACHE_MAX = 200;
+
+function resultCacheKey(descriptor: number[], filters: Record<string, string>): string {
+  // Quantize descriptor to 3 decimal places to tolerate minor float diffs
+  const dStr = descriptor.map((v) => v.toFixed(3)).join(",");
+  const fStr = Object.entries(filters).sort().map(([k, v]) => `${k}=${v}`).join("&");
+  return `${dStr}|${fStr}`;
+}
+
+function pruneResultCache() {
+  if (resultCache.size <= RESULT_CACHE_MAX) return;
+  const now = Date.now();
+  for (const [k, v] of resultCache) {
+    if (now - v.at > RESULT_CACHE_TTL_MS) resultCache.delete(k);
+  }
+  // If still too large, drop oldest half
+  if (resultCache.size > RESULT_CACHE_MAX) {
+    const entries = [...resultCache.entries()].sort((a, b) => a[1].at - b[1].at);
+    const toDrop = Math.floor(entries.length / 2);
+    for (let i = 0; i < toDrop; i++) resultCache.delete(entries[i][0]);
+  }
+}
+
 function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
@@ -2219,22 +2287,39 @@ Deno.serve(async (req) => {
     .gte("created_at", since);
   const requiresAd = (priorQueryCount ?? 0) >= 1;
 
-  // Fetch every persona that has a descriptor and rank by Euclidean distance.
-  const { data: allPersonas, error: fetchErr } = await supabase
-    .from("personas")
-    .select("id, name, category, description, image_url, gender, role, face_descriptor")
-    .not("face_descriptor", "is", null)
-    .limit(2000);
+  // --- Check result cache ---
+  const cacheFilters: Record<string, string> = {
+    gender: gender || "",
+    role: roleFilter || "",
+    civ: civilizationFilter || "",
+    nat: nationalityCode || "",
+    lang,
+  };
+  const cKey = resultCacheKey(userDescriptor as number[], cacheFilters);
+  const cached = resultCache.get(cKey);
+  if (cached && Date.now() - cached.at < RESULT_CACHE_TTL_MS) {
+    mark("cache_hit");
+    mark("total");
+    return jsonResponse({
+      ...cached.body,
+      rate_limit_remaining: rl.remaining,
+      _cached: true,
+      ...(debugEnabled ? { _debug: { ...debug, cache: "hit" } } : {}),
+    });
+  }
 
-  if (fetchErr) {
+  // Fetch personas (from in-memory cache or DB).
+  let enrolled: CachedPersona[];
+  let personaCacheHit = false;
+  try {
+    const res = await getPersonasWithDescriptors(supabase);
+    enrolled = res.data;
+    personaCacheHit = res.fromCache;
+  } catch (fetchErr) {
     console.error("Failed to load personas:", fetchErr);
     return jsonResponse({ error: "Database error" }, 500);
   }
   mark("load_personas");
-
-  const enrolled = (allPersonas ?? []).filter(
-    (p) => Array.isArray(p.face_descriptor) && p.face_descriptor.length === DESCRIPTOR_LEN,
-  );
   debug.candidates_with_descriptor = enrolled.length;
 
   type Scored = {
@@ -2250,7 +2335,7 @@ Deno.serve(async (req) => {
   };
 
   const scored: Scored[] = enrolled.map((p) => {
-    const distance = euclideanDistance(userDescriptor as number[], p.face_descriptor as number[]);
+    const distance = euclideanDistance(userDescriptor as number[], p.face_descriptor);
     return {
       id: p.id,
       name: p.name,
@@ -2385,11 +2470,19 @@ Deno.serve(async (req) => {
   const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
   mark("total");
 
-  return jsonResponse({
+  const responseBody = {
     ...stripId(top),
     runners_up: ranked.slice(1).map(stripId),
     requires_ad: requiresAd,
+  };
+
+  // Store in result cache
+  pruneResultCache();
+  resultCache.set(cKey, { body: responseBody, at: Date.now() });
+
+  return jsonResponse({
+    ...responseBody,
     rate_limit_remaining: rl.remaining,
-    ...(debugEnabled ? { _debug: debug } : {}),
+    ...(debugEnabled ? { _debug: { ...debug, cache: "miss", persona_cache: personaCacheHit ? "hit" : "miss" } } : {}),
   });
 });
