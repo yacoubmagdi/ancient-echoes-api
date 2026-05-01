@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, LogOut } from "lucide-react";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
+import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -60,6 +61,8 @@ function AdminPage() {
   const [previewing, setPreviewing] = useState<Persona | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [genBusy, setGenBusy] = useState(false);
+  const [genProgress, setGenProgress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -180,6 +183,22 @@ function AdminPage() {
     }
   }
 
+  const handleGenerateDescriptions = useCallback(async () => {
+    setGenBusy(true);
+    setGenProgress("جارٍ توليد الأوصاف التاريخية…");
+    try {
+      const result = await generatePersonaDescriptions();
+      setGenProgress(null);
+      flash(result.message + (result.errors?.length ? ` (${result.errors.length} errors)` : ""));
+      if (result.updated > 0) loadPersonas();
+    } catch (e) {
+      setGenProgress(null);
+      flash(`Error: ${(e as Error).message}`);
+    } finally {
+      setGenBusy(false);
+    }
+  }, []);
+
   const filtered = useMemo(() => {
     return personas
       .filter((p) => p.category === activeCiv)
@@ -253,6 +272,16 @@ function AdminPage() {
               ))}
             </TabsList>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateDescriptions}
+                disabled={genBusy}
+                title="توليد أوصاف تاريخية غنية بالذكاء الاصطناعي"
+              >
+                <Sparkles className="h-4 w-4 mr-1" />
+                {genBusy ? (genProgress ?? "جارٍ…") : "توليد الأوصاف"}
+              </Button>
               <Input
                 placeholder="Search by name…"
                 value={search}
