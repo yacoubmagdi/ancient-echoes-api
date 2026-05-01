@@ -68,6 +68,7 @@ function AdminPage() {
   const [genBusy, setGenBusy] = useState(false);
   const [genProgress, setGenProgress] = useState<string | null>(null);
   const [auditBusy, setAuditBusy] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -121,6 +122,43 @@ function AdminPage() {
       flash("Name and image are required."); return;
     }
     setBusy(true);
+
+    // --- Duplicate detection (skip for edits keeping same name/category) ---
+    if (!form.id) {
+      // 1) Exact name match within same category
+      const nameMatch = personas.find(
+        (p) => p.name.trim().toLowerCase() === form.name.trim().toLowerCase() && p.category === form.category
+      );
+      if (nameMatch) {
+        setBusy(false);
+        flash(`⚠️ شخصية بنفس الاسم "${nameMatch.name}" موجودة بالفعل في ${form.category}`);
+        return;
+      }
+
+      // 2) Face descriptor similarity check
+      try {
+        const img = await imageFromUrl(form.image_url);
+        const newDescriptor = await extractDescriptor(img);
+        if (newDescriptor) {
+          const sameCatPersonas = personas.filter(
+            (p) => p.category === form.category && (p as any).face_descriptor
+          );
+          for (const existing of sameCatPersonas) {
+            const existingDesc = (existing as any).face_descriptor as number[] | null;
+            if (!existingDesc || existingDesc.length !== newDescriptor.length) continue;
+            const similarity = cosineSimilarity(newDescriptor, existingDesc);
+            if (similarity > 0.85) {
+              setBusy(false);
+              flash(`⚠️ وجه مشابه جداً (${(similarity * 100).toFixed(0)}%) للشخصية "${existing.name}" — يُحتمل تكرار`);
+              return;
+            }
+          }
+        }
+      } catch (_) {
+        // Face detection failed — skip face duplicate check, allow save
+      }
+    }
+
     if (form.id) {
       const { error } = await supabase
         .from("personas")
@@ -247,6 +285,16 @@ function AdminPage() {
     for (const p of personas) out[p.category] = (out[p.category] ?? 0) + 1;
     return out;
   }, [personas]);
+
+  function cosineSimilarity(a: number[], b: number[]): number {
+    let dot = 0, magA = 0, magB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      magA += a[i] * a[i];
+      magB += b[i] * b[i];
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB) || 1);
+  }
 
   if (authLoading) {
     return <main className="min-h-screen flex items-center justify-center">Loading…</main>;
