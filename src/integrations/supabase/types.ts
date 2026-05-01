@@ -112,6 +112,39 @@ export type Database = {
           },
         ]
       }
+      shared_results: {
+        Row: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          match_image_url: string
+          match_name: string
+          similarity: number
+          user_image_data: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          match_image_url: string
+          match_name: string
+          similarity: number
+          user_image_data?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          match_image_url?: string
+          match_name?: string
+          similarity?: number
+          user_image_data?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
