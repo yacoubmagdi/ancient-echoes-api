@@ -43,6 +43,7 @@ type Persona = {
   image_url: string;
   luxand_uuid: string | null;
   created_at: string;
+  face_descriptor: number[] | null;
 };
 
 type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid"> & { id?: string };
@@ -142,9 +143,11 @@ function AdminPage() {
         if (newDescriptor) {
           const sameCatPersonas = personas.filter(
             (p) => p.category === form.category && (p as any).face_descriptor
+          const sameCatPersonas = personas.filter(
+            (p) => p.category === form.category && (p as any).face_descriptor
           );
           for (const existing of sameCatPersonas) {
-            const existingDesc = (existing as any).face_descriptor as number[] | null;
+            const existingDesc = existing.face_descriptor;
             if (!existingDesc || existingDesc.length !== newDescriptor.length) continue;
             const similarity = cosineSimilarity(newDescriptor, existingDesc);
             if (similarity > 0.85) {
