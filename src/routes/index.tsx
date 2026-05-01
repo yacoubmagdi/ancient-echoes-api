@@ -38,6 +38,18 @@ import { NATIONALITIES } from "@/lib/nationalities";
 import { compressImage } from "@/lib/image-compress";
 import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
 
+// Client-side analysis result cache — avoids redundant API calls for the
+// same face + filter combo. Keyed by a hash of the descriptor + filters.
+const analysisCache = new Map<string, { result: MatchResult; at: number }>();
+const ANALYSIS_CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+function descriptorCacheKey(descriptor: number[], filters: Record<string, string>): string {
+  // Quantize to 3 decimals (same as server) for consistency
+  const d = descriptor.map((v) => v.toFixed(3)).join(",");
+  const f = Object.entries(filters).sort().map(([k, v]) => `${k}=${v}`).join("&");
+  return `${d}|${f}`;
+}
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -148,6 +160,23 @@ function Index() {
         );
       }
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
+
+      // Check client-side cache first
+      const filters: Record<string, string> = {
+        lang,
+        gender: gender || "",
+        role: role && role !== "any" ? role : "",
+        civ: civilization && civilization !== "any" ? civilization : "",
+        nat: nationality || "",
+      };
+      const cKey = descriptorCacheKey(descriptor, filters);
+      const cached = analysisCache.get(cKey);
+      if (cached && Date.now() - cached.at < ANALYSIS_CACHE_TTL) {
+        setResult(cached.result);
+        setLoading(false);
+        return;
+      }
+
       const resp = await fetch(url, {
         method: "POST",
         headers: {
@@ -170,6 +199,8 @@ function Index() {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
       setResult(data as MatchResult);
+      // Store in client cache
+      analysisCache.set(cKey, { result: data as MatchResult, at: Date.now() });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
