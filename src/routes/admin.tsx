@@ -230,12 +230,6 @@ function AdminPage() {
     }
   }
 
-  const handleGenerateDescriptions = useCallback(async () => {
-    // existing code below
-  }, []);
-
-  // -- remove the duplicate above, it was just a marker -- 
-
   const handleGenerateImages = useCallback(async () => {
     setImgGenBusy(true);
     setImgGenProgress("جارٍ توليد الصور… (دفعة 5)");
