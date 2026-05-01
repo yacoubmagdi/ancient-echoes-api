@@ -142,9 +142,7 @@ function AdminPage() {
         const newDescriptor = await extractDescriptor(img);
         if (newDescriptor) {
           const sameCatPersonas = personas.filter(
-            (p) => p.category === form.category && (p as any).face_descriptor
-          const sameCatPersonas = personas.filter(
-            (p) => p.category === form.category && (p as any).face_descriptor
+            (p) => p.category === form.category && p.face_descriptor
           );
           for (const existing of sameCatPersonas) {
             const existingDesc = existing.face_descriptor;
