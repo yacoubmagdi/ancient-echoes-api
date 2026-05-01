@@ -37,6 +37,7 @@ import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
 import { compressImage } from "@/lib/image-compress";
 import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
+import { saveSharedResult } from "@/server/share.functions";
 
 // Client-side analysis result cache — avoids redundant API calls for the
 // same face + filter combo. Keyed by a hash of the descriptor + filters.
@@ -518,6 +519,9 @@ function Index() {
                     category={result.category}
                     similarity={result.similarity}
                     t={t}
+                    matchImageUrl={result.image_url}
+                    description={result.description}
+                    userImage={previewUrl}
                   />
                   <DownloadCardButton
                     userImage={previewUrl}
@@ -558,19 +562,83 @@ function ShareButtons({
   category,
   similarity,
   t,
+  matchImageUrl,
+  description,
+  userImage,
 }: {
   name: string;
   category: string;
   similarity: number;
   t: (typeof translations)[Lang];
+  matchImageUrl: string;
+  description: string;
+  userImage: string | null;
 }) {
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const shareText = t.shareText
     .replace("{name}", name)
     .replace("{category}", category)
     .replace("{similarity}", String(similarity));
-  const encodedUrl = encodeURIComponent(shareUrl);
-  const encodedText = encodeURIComponent(shareText);
+
+  const [shareUrl, setShareUrl] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const savedIdRef = useRef<string | null>(null);
+
+  async function ensureShareUrl(): Promise<string> {
+    if (savedIdRef.current) {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      return `${origin}/result/${savedIdRef.current}`;
+    }
+    setSaving(true);
+    try {
+      // Compress user image for storage (small thumbnail)
+      let userThumb: string | undefined;
+      if (userImage) {
+        // Use a canvas to resize to small thumbnail for OG
+        try {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          await new Promise<void>((res, rej) => {
+            img.onload = () => res();
+            img.onerror = rej;
+            img.src = userImage;
+          });
+          const canvas = document.createElement("canvas");
+          canvas.width = 200;
+          canvas.height = 200;
+          const ctx = canvas.getContext("2d")!;
+          const ir = img.width / img.height;
+          let sx = 0, sy = 0, sw = img.width, sh = img.height;
+          if (ir > 1) { sw = img.height; sx = (img.width - sw) / 2; }
+          else { sh = img.width; sy = (img.height - sh) / 2; }
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, 200, 200);
+          userThumb = canvas.toDataURL("image/jpeg", 0.6);
+        } catch {
+          // skip thumbnail
+        }
+      }
+
+      const resp = await saveSharedResult({
+        data: {
+          match_name: name,
+          category,
+          similarity,
+          description,
+          match_image_url: matchImageUrl,
+          user_image_data: userThumb,
+        },
+      });
+      savedIdRef.current = resp.id;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${origin}/result/${resp.id}`;
+      setShareUrl(url);
+      return url;
+    } catch (e) {
+      // fallback to current page
+      return typeof window !== "undefined" ? window.location.href : "";
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const [campaign, setCampaign] = useState<string>(() => {
     if (typeof window === "undefined") return "";
@@ -608,46 +676,38 @@ function ShareButtons({
   const hashtags = Array.from(
     new Set([...baseTags, campaignTag].filter(Boolean)),
   ).join(" ");
-  const tiktokCaption = includeLink
-    ? `${shareText}\n${shareUrl}\n\n${hashtags}`
-    : `${shareText}\n\n${hashtags}`;
+  function buildTiktokCaption(url: string) {
+    return includeLink
+      ? `${shareText}\n${url}\n\n${hashtags}`
+      : `${shareText}\n\n${hashtags}`;
+  }
 
-  const links = [
-    {
-      key: "twitter",
-      label: "X / Twitter",
-      Icon: Twitter,
-      href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
-    },
-    {
-      key: "facebook",
-      label: "Facebook",
-      Icon: Facebook,
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
-    },
-    {
-      key: "whatsapp",
-      label: "WhatsApp",
-      Icon: MessageCircle,
-      href: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`,
-    },
-    {
-      key: "telegram",
-      label: "Telegram",
-      Icon: Send,
-      href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
-    },
-    {
-      key: "linkedin",
-      label: "LinkedIn",
-      Icon: Linkedin,
-      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    },
+  async function handleShareClick(platform: string) {
+    const url = await ensureShareUrl();
+    const encodedUrl = encodeURIComponent(url);
+    const encodedText = encodeURIComponent(shareText);
+    const hrefs: Record<string, string> = {
+      twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+      whatsapp: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`,
+      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
+      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    };
+    window.open(hrefs[platform], "_blank", "noopener,noreferrer");
+  }
+
+  const linkButtons = [
+    { key: "twitter", label: "X / Twitter", Icon: Twitter },
+    { key: "facebook", label: "Facebook", Icon: Facebook },
+    { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
+    { key: "telegram", label: "Telegram", Icon: Send },
+    { key: "linkedin", label: "LinkedIn", Icon: Linkedin },
   ];
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      const url = await ensureShareUrl();
+      await navigator.clipboard.writeText(`${shareText} ${url}`);
       toast.success(t.shareCopied);
     } catch {
       toast.error("Copy failed");
@@ -656,7 +716,8 @@ function ShareButtons({
 
   async function copyForTiktok() {
     try {
-      await navigator.clipboard.writeText(tiktokCaption);
+      const url = await ensureShareUrl();
+      await navigator.clipboard.writeText(buildTiktokCaption(url));
       toast.success(t.shareTiktokCopied);
       window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
     } catch {
@@ -675,7 +736,8 @@ function ShareButtons({
    */
   async function shareToInstagram(target: "story" | "post") {
     try {
-      await navigator.clipboard.writeText(tiktokCaption);
+      const url = await ensureShareUrl();
+      await navigator.clipboard.writeText(buildTiktokCaption(url));
     } catch {
       toast.error("Copy failed");
       return;
@@ -712,7 +774,8 @@ function ShareButtons({
   async function nativeShare() {
     if (navigator.share) {
       try {
-        await navigator.share({ title: name, text: shareText, url: shareUrl });
+        const url = await ensureShareUrl();
+        await navigator.share({ title: name, text: shareText, url });
       } catch {
         /* user cancelled */
       }
@@ -754,18 +817,17 @@ function ShareButtons({
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        {links.map(({ key, label, Icon, href }) => (
+        {linkButtons.map(({ key, label, Icon }) => (
           <Button
             key={key}
-            asChild
             variant="outline"
             size="icon"
             aria-label={label}
             title={label}
+            disabled={saving}
+            onClick={() => handleShareClick(key)}
           >
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              <Icon className="h-4 w-4" />
-            </a>
+            <Icon className="h-4 w-4" />
           </Button>
         ))}
         <Button
