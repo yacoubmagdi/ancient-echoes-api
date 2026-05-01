@@ -46,7 +46,7 @@ type Persona = {
   face_descriptor: number[] | null;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid"> & { id?: string };
+type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid" | "face_descriptor"> & { id?: string };
 
 function emptyForm(): FormState {
   return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "" };
