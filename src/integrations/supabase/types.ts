@@ -34,6 +34,7 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          description_audit: Json | null
           face_descriptor: Json | null
           gender: string
           id: string
@@ -46,6 +47,7 @@ export type Database = {
           category: string
           created_at?: string
           description: string
+          description_audit?: Json | null
           face_descriptor?: Json | null
           gender?: string
           id?: string
@@ -58,6 +60,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          description_audit?: Json | null
           face_descriptor?: Json | null
           gender?: string
           id?: string
