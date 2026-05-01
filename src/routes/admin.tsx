@@ -404,6 +404,16 @@ function AdminPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleGenerateImages}
+                disabled={imgGenBusy}
+                title="توليد صور بالذكاء الاصطناعي للشخصيات بدون صور"
+              >
+                <ImageIcon className="h-4 w-4 mr-1" />
+                {imgGenBusy ? (imgGenProgress ?? "جارٍ…") : "توليد الصور"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleRunAudit}
                 disabled={auditBusy || personas.length === 0}
                 title="إعادة تدقيق جميع الأوصاف"
