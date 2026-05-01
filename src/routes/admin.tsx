@@ -13,8 +13,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
+import { auditDescription } from "@/lib/description-audit";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -56,6 +58,8 @@ function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [activeCiv, setActiveCiv] = useState<string>("Pharaoh");
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [genderFilter, setGenderFilter] = useState<string>("all");
   const [editing, setEditing] = useState<FormState | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewing, setPreviewing] = useState<Persona | null>(null);
@@ -63,6 +67,7 @@ function AdminPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [genBusy, setGenBusy] = useState(false);
   const [genProgress, setGenProgress] = useState<string | null>(null);
+  const [auditBusy, setAuditBusy] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -199,11 +204,42 @@ function AdminPage() {
     }
   }, []);
 
+  const handleRunAudit = useCallback(async () => {
+    setAuditBusy(true);
+    let audited = 0;
+    let issues = 0;
+    try {
+      for (const p of personas) {
+        const result = auditDescription(p.description);
+        const auditData = {
+          score: result.score,
+          valid: result.valid,
+          issues: result.issues,
+          audited_at: new Date().toISOString(),
+        };
+        const { error } = await supabase
+          .from("personas")
+          .update({ description_audit: auditData })
+          .eq("id", p.id);
+        if (!error) audited++;
+        if (!result.valid) issues++;
+      }
+      flash(`تم تدقيق ${audited} شخصية — ${issues} بها مشاكل`);
+      loadPersonas();
+    } catch (e) {
+      flash(`Audit error: ${(e as Error).message}`);
+    } finally {
+      setAuditBusy(false);
+    }
+  }, [personas]);
+
   const filtered = useMemo(() => {
     return personas
       .filter((p) => p.category === activeCiv)
-      .filter((p) => !search.trim() || p.name.toLowerCase().includes(search.toLowerCase()));
-  }, [personas, activeCiv, search]);
+      .filter((p) => !search.trim() || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase()))
+      .filter((p) => roleFilter === "all" || p.role === roleFilter)
+      .filter((p) => genderFilter === "all" || p.gender === genderFilter);
+  }, [personas, activeCiv, search, roleFilter, genderFilter]);
 
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -271,7 +307,7 @@ function AdminPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -282,8 +318,36 @@ function AdminPage() {
                 <Sparkles className="h-4 w-4 mr-1" />
                 {genBusy ? (genProgress ?? "جارٍ…") : "توليد الأوصاف"}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRunAudit}
+                disabled={auditBusy || personas.length === 0}
+                title="إعادة تدقيق جميع الأوصاف"
+              >
+                <ShieldCheck className="h-4 w-4 mr-1" />
+                {auditBusy ? "جارٍ التدقيق…" : "تدقيق الأوصاف"}
+              </Button>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-28 h-9 text-xs">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  {ROLES.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={genderFilter} onValueChange={setGenderFilter}>
+                <SelectTrigger className="w-28 h-9 text-xs">
+                  <SelectValue placeholder="Gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All genders</SelectItem>
+                  {GENDERS.map((g) => <SelectItem key={g} value={g} className="capitalize">{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Input
-                placeholder="Search by name…"
+                placeholder="Search name / description…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full md:w-56"
