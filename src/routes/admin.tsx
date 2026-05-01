@@ -47,7 +47,7 @@ type Persona = {
   duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid" | "face_descriptor"> & { id?: string };
+type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid" | "face_descriptor" | "duplicate_flag"> & { id?: string };
 
 function emptyForm(): FormState {
   return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "" };
