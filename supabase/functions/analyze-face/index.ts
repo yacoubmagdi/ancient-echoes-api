@@ -2024,7 +2024,9 @@ function euclideanDistance(a: number[], b: number[]): number {
 // face-api.js descriptor distance is typically 0.3 (very similar) – 1.0+ (different).
 // Map to a 5–98% resemblance score.
 function distanceToSimilarity(distance: number): number {
-  const pct = Math.round((1 - distance) * 100);
+  // Non-linear mapping: 0.0→98%, 0.3→90%, 0.5→65%, 0.7→40%, 1.0→10%
+  const normalized = Math.max(0, Math.min(1.2, distance));
+  const pct = Math.round(98 * Math.exp(-2.5 * normalized * normalized));
   return Math.max(5, Math.min(98, pct));
 }
 

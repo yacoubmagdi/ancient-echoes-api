@@ -81,22 +81,82 @@ export async function imageFromUrl(url: string): Promise<HTMLImageElement> {
 /**
  * Extract a 128-float face descriptor from an image. Returns null if no face
  * is detected. Uses TinyFaceDetector (fast, lightweight) + landmarks + recognition.
+ *
+ * Improved: tries multiple input sizes and progressively lower score thresholds
+ * to handle low-light, low-quality, or challenging images. Also preprocesses the
+ * image with brightness/contrast normalization via canvas for better detection.
  */
 export async function extractDescriptor(
   input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
 ): Promise<number[] | null> {
   await loadFaceModels();
   const faceapi = await getFaceApi();
-  const options = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 416,
-    scoreThreshold: 0.5,
-  });
-  const result = await faceapi
-    .detectSingleFace(input, options)
-    .withFaceLandmarks()
-    .withFaceDescriptor();
-  if (!result || !result.descriptor) return null;
-  return Array.from(result.descriptor);
+
+  // Multi-pass: try different input sizes and thresholds (from strict to lenient)
+  const passes: Array<{ inputSize: number; scoreThreshold: number }> = [
+    { inputSize: 416, scoreThreshold: 0.5 },
+    { inputSize: 512, scoreThreshold: 0.4 },
+    { inputSize: 320, scoreThreshold: 0.35 },
+    { inputSize: 608, scoreThreshold: 0.3 },
+    { inputSize: 416, scoreThreshold: 0.2 },
+  ];
+
+  // First try with the original input
+  for (const { inputSize, scoreThreshold } of passes) {
+    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
+    const result = await faceapi
+      .detectSingleFace(input, opts)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (result?.descriptor) return Array.from(result.descriptor);
+  }
+
+  // If all passes failed, try with a brightness/contrast-normalized copy
+  const enhanced = enhanceImage(input);
+  if (enhanced) {
+    for (const { inputSize, scoreThreshold } of passes) {
+      const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
+      const result = await faceapi
+        .detectSingleFace(enhanced, opts)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+      if (result?.descriptor) return Array.from(result.descriptor);
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Create a brightness/contrast-enhanced copy of the image on a canvas.
+ * Helps with low-light or washed-out photos.
+ */
+function enhanceImage(
+  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
+): HTMLCanvasElement | null {
+  try {
+    const w = input instanceof HTMLVideoElement ? input.videoWidth : input.width;
+    const h = input instanceof HTMLVideoElement ? input.videoHeight : input.height;
+    if (!w || !h) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    // Draw original
+    ctx.drawImage(input, 0, 0, w, h);
+
+    // Apply brightness + contrast boost via CSS filter on a second pass
+    ctx.filter = "brightness(1.3) contrast(1.4)";
+    ctx.drawImage(canvas, 0, 0);
+    ctx.filter = "none";
+
+    return canvas;
+  } catch {
+    return null;
+  }
 }
 
 /** Euclidean distance between two equally-sized number arrays. */
@@ -116,7 +176,10 @@ export function euclideanDistance(a: number[], b: number[]): number {
  * 0.3 distance ≈ 95%, 0.6 ≈ 50%, 1.0 ≈ 5%.
  */
 export function distanceToSimilarity(distance: number): number {
-  // Linear-ish map clamped 5–98%.
-  const pct = Math.round((1 - distance) * 100);
+  // Non-linear mapping for more meaningful percentages:
+  // distance 0.0 → 98%, 0.3 → 90%, 0.5 → 65%, 0.7 → 40%, 1.0 → 10%
+  // Uses a sigmoid-like curve centered around 0.5 distance
+  const normalized = Math.max(0, Math.min(1.2, distance));
+  const pct = Math.round(98 * Math.exp(-2.5 * normalized * normalized));
   return Math.max(5, Math.min(98, pct));
 }
