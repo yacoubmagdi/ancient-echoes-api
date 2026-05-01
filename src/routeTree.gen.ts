@@ -13,7 +13,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
-import { Route as ApiPublicHooksScanDuplicatesRouteImport } from './routes/api/public/hooks/scan-duplicates'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -35,26 +34,18 @@ const AdminEnrollRoute = AdminEnrollRouteImport.update({
   path: '/enroll',
   getParentRoute: () => AdminRoute,
 } as any)
-const ApiPublicHooksScanDuplicatesRoute =
-  ApiPublicHooksScanDuplicatesRouteImport.update({
-    id: '/api/public/hooks/scan-duplicates',
-    path: '/api/public/hooks/scan-duplicates',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
-  '/api/public/hooks/scan-duplicates': typeof ApiPublicHooksScanDuplicatesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
-  '/api/public/hooks/scan-duplicates': typeof ApiPublicHooksScanDuplicatesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,37 +53,19 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
-  '/api/public/hooks/scan-duplicates': typeof ApiPublicHooksScanDuplicatesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/admin'
-    | '/auth'
-    | '/admin/enroll'
-    | '/api/public/hooks/scan-duplicates'
+  fullPaths: '/' | '/admin' | '/auth' | '/admin/enroll'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/admin'
-    | '/auth'
-    | '/admin/enroll'
-    | '/api/public/hooks/scan-duplicates'
-  id:
-    | '__root__'
-    | '/'
-    | '/admin'
-    | '/auth'
-    | '/admin/enroll'
-    | '/api/public/hooks/scan-duplicates'
+  to: '/' | '/admin' | '/auth' | '/admin/enroll'
+  id: '__root__' | '/' | '/admin' | '/auth' | '/admin/enroll'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
-  ApiPublicHooksScanDuplicatesRoute: typeof ApiPublicHooksScanDuplicatesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -125,13 +98,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEnrollRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/api/public/hooks/scan-duplicates': {
-      id: '/api/public/hooks/scan-duplicates'
-      path: '/api/public/hooks/scan-duplicates'
-      fullPath: '/api/public/hooks/scan-duplicates'
-      preLoaderRoute: typeof ApiPublicHooksScanDuplicatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -149,7 +115,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
-  ApiPublicHooksScanDuplicatesRoute: ApiPublicHooksScanDuplicatesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles } from "lucide-react";
-import { ShieldCheck, AlertTriangle, Search } from "lucide-react";
+import { ShieldCheck, AlertTriangle } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -71,7 +71,7 @@ function AdminPage() {
   const [genProgress, setGenProgress] = useState<string | null>(null);
   const [auditBusy, setAuditBusy] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-  const [scanBusy, setScanBusy] = useState(false);
+
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -274,29 +274,7 @@ function AdminPage() {
     }
   }, [personas]);
 
-  const handleScanDuplicates = useCallback(async () => {
-    setScanBusy(true);
-    try {
-      const res = await fetch("/api/public/hooks/scan-duplicates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-      });
-      const result = await res.json();
-      if (result.success) {
-        flash(`تم فحص ${result.total} شخصية — ${result.flagged} مشتبه بتكرارها`);
-        loadPersonas();
-      } else {
-        flash(`Scan error: ${result.error}`);
-      }
-    } catch (e) {
-      flash(`Scan error: ${(e as Error).message}`);
-    } finally {
-      setScanBusy(false);
-    }
-  }, []);
+
 
   const filtered = useMemo(() => {
     return personas
@@ -403,16 +381,7 @@ function AdminPage() {
                 <ShieldCheck className="h-4 w-4 mr-1" />
                 {auditBusy ? "جارٍ التدقيق…" : "تدقيق الأوصاف"}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleScanDuplicates}
-                disabled={scanBusy || personas.length === 0}
-                title="فحص التكرار بالاسم والوجه"
-              >
-                <Search className="h-4 w-4 mr-1" />
-                {scanBusy ? "جارٍ الفحص…" : "فحص التكرار"}
-              </Button>
+
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-28 h-9 text-xs">
                   <SelectValue placeholder="Role" />
