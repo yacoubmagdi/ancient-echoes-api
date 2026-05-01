@@ -35,6 +35,7 @@ export type Database = {
           created_at: string
           description: string
           description_audit: Json | null
+          duplicate_flag: Json | null
           face_descriptor: Json | null
           gender: string
           id: string
@@ -48,6 +49,7 @@ export type Database = {
           created_at?: string
           description: string
           description_audit?: Json | null
+          duplicate_flag?: Json | null
           face_descriptor?: Json | null
           gender?: string
           id?: string
@@ -61,6 +63,7 @@ export type Database = {
           created_at?: string
           description?: string
           description_audit?: Json | null
+          duplicate_flag?: Json | null
           face_descriptor?: Json | null
           gender?: string
           id?: string
