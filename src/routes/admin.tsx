@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles } from "lucide-react";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon } from "lucide-react";
 import { ShieldCheck, AlertTriangle } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
@@ -71,7 +71,8 @@ function AdminPage() {
   const [genProgress, setGenProgress] = useState<string | null>(null);
   const [auditBusy, setAuditBusy] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
-
+  const [imgGenBusy, setImgGenBusy] = useState(false);
+  const [imgGenProgress, setImgGenProgress] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -228,6 +229,41 @@ function AdminPage() {
       flash((e as Error).message || "Re-enroll failed");
     }
   }
+
+  const handleGenerateDescriptions = useCallback(async () => {
+    // existing code below
+  }, []);
+
+  // -- remove the duplicate above, it was just a marker -- 
+
+  const handleGenerateImages = useCallback(async () => {
+    setImgGenBusy(true);
+    setImgGenProgress("جارٍ توليد الصور… (دفعة 5)");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch("/api/public/hooks/generate-persona-images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ batchSize: 5 }),
+      });
+      const result = await resp.json();
+      if (!resp.ok) {
+        setToast(`❌ خطأ: ${result.error}`);
+      } else {
+        setToast(`✅ تم توليد ${result.success} صورة (متبقي: ${result.remaining})`);
+        const { data } = await supabase.from("personas").select("*").order("created_at", { ascending: false });
+        if (data) setPersonas(data as unknown as Persona[]);
+      }
+    } catch (e) {
+      setToast(`❌ خطأ: ${(e as Error).message}`);
+    } finally {
+      setImgGenBusy(false);
+      setImgGenProgress(null);
+    }
+  }, []);
 
   const handleGenerateDescriptions = useCallback(async () => {
     setGenBusy(true);
