@@ -586,7 +586,7 @@ function ShareButtons({
   async function ensureShareUrl(): Promise<string> {
     if (savedIdRef.current) {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      return `${origin}/result/${savedIdRef.current}`;
+      return `${origin}/api/public/hooks/share-page?id=${savedIdRef.current}`;
     }
     setSaving(true);
     try {
@@ -629,7 +629,7 @@ function ShareButtons({
       });
       savedIdRef.current = resp.id;
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const url = `${origin}/result/${resp.id}`;
+      const url = `${origin}/api/public/hooks/share-page?id=${resp.id}`;
       setShareUrl(url);
       return url;
     } catch (e) {

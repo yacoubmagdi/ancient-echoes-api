@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result.$id'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
+import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
 
@@ -42,6 +43,11 @@ const AdminEnrollRoute = AdminEnrollRouteImport.update({
   path: '/enroll',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicHooksSharePageRoute = ApiPublicHooksSharePageRouteImport.update({
+  id: '/api/public/hooks/share-page',
+  path: '/api/public/hooks/share-page',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksOgImageRoute = ApiPublicHooksOgImageRouteImport.update({
   id: '/api/public/hooks/og-image',
   path: '/api/public/hooks/og-image',
@@ -62,6 +68,7 @@ export interface FileRoutesByFullPath {
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByTo {
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -81,6 +89,7 @@ export interface FileRoutesById {
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -92,6 +101,7 @@ export interface FileRouteTypes {
     | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/share-page'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
     | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/share-page'
   id:
     | '__root__'
     | '/'
@@ -110,6 +121,7 @@ export interface FileRouteTypes {
     | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/share-page'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   ResultIdRoute: typeof ResultIdRoute
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
+  ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminEnrollRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/public/hooks/share-page': {
+      id: '/api/public/hooks/share-page'
+      path: '/api/public/hooks/share-page'
+      fullPath: '/api/public/hooks/share-page'
+      preLoaderRoute: typeof ApiPublicHooksSharePageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/og-image': {
       id: '/api/public/hooks/og-image'
       path: '/api/public/hooks/og-image'
@@ -193,6 +213,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGeneratePersonaImagesRoute:
     ApiPublicHooksGeneratePersonaImagesRoute,
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
+  ApiPublicHooksSharePageRoute: ApiPublicHooksSharePageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
