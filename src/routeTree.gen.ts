@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ResultIdRouteImport } from './routes/result.$id'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
+import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
 
 const AuthRoute = AuthRouteImport.update({
@@ -30,10 +32,20 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultIdRoute = ResultIdRouteImport.update({
+  id: '/result/$id',
+  path: '/result/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminEnrollRoute = AdminEnrollRouteImport.update({
   id: '/enroll',
   path: '/enroll',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiPublicHooksOgImageRoute = ApiPublicHooksOgImageRouteImport.update({
+  id: '/api/public/hooks/og-image',
+  path: '/api/public/hooks/og-image',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHooksGeneratePersonaImagesRoute =
   ApiPublicHooksGeneratePersonaImagesRouteImport.update({
@@ -47,14 +59,18 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
+  '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
+  '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,7 +78,9 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
+  '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,28 +89,36 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
+    | '/api/public/hooks/og-image'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
+    | '/api/public/hooks/og-image'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/result/$id'
     | '/api/public/hooks/generate-persona-images'
+    | '/api/public/hooks/og-image'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ResultIdRoute: typeof ResultIdRoute
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
+  ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -118,12 +144,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/result/$id': {
+      id: '/result/$id'
+      path: '/result/$id'
+      fullPath: '/result/$id'
+      preLoaderRoute: typeof ResultIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/enroll': {
       id: '/admin/enroll'
       path: '/enroll'
       fullPath: '/admin/enroll'
       preLoaderRoute: typeof AdminEnrollRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/public/hooks/og-image': {
+      id: '/api/public/hooks/og-image'
+      path: '/api/public/hooks/og-image'
+      fullPath: '/api/public/hooks/og-image'
+      preLoaderRoute: typeof ApiPublicHooksOgImageRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/generate-persona-images': {
       id: '/api/public/hooks/generate-persona-images'
@@ -149,8 +189,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  ResultIdRoute: ResultIdRoute,
   ApiPublicHooksGeneratePersonaImagesRoute:
     ApiPublicHooksGeneratePersonaImagesRoute,
+  ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
