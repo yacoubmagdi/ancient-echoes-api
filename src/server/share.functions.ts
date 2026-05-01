@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createClient } from "@supabase/supabase-js";
 
 export const saveSharedResult = createServerFn({ method: "POST" })
   .inputValidator((data) =>
@@ -15,7 +16,6 @@ export const saveSharedResult = createServerFn({ method: "POST" })
       .parse(data)
   )
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
       process.env.VITE_SUPABASE_URL!,
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
@@ -41,7 +41,6 @@ export const saveSharedResult = createServerFn({ method: "POST" })
 export const getSharedResult = createServerFn({ method: "GET" })
   .inputValidator((data) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data }) => {
-    const { createClient } = await import("@supabase/supabase-js");
     const supabase = createClient(
       process.env.VITE_SUPABASE_URL!,
       process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
