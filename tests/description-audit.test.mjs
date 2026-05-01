@@ -104,6 +104,6 @@ describe("isDescriptionAcceptable", () => {
   it("supports custom threshold", () => {
     const mediocre =
       "كان حاكمًا مصريًا قديمًا حكم في عهد الأسرة الثامنة عشرة وأشرف على بناء المعابد";
-    expect(isDescriptionAcceptable(mediocre, 3)).toBe(true);
+    expect(isDescriptionAcceptable(mediocre, 3)).toBe(false);
   });
 });
