@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles } from "lucide-react";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Search } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -44,6 +44,7 @@ type Persona = {
   luxand_uuid: string | null;
   created_at: string;
   face_descriptor: number[] | null;
+  duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
 };
 
 type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid" | "face_descriptor"> & { id?: string };
@@ -70,6 +71,7 @@ function AdminPage() {
   const [genProgress, setGenProgress] = useState<string | null>(null);
   const [auditBusy, setAuditBusy] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [scanBusy, setScanBusy] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -272,6 +274,30 @@ function AdminPage() {
     }
   }, [personas]);
 
+  const handleScanDuplicates = useCallback(async () => {
+    setScanBusy(true);
+    try {
+      const res = await fetch("/api/public/hooks/scan-duplicates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      const result = await res.json();
+      if (result.success) {
+        flash(`تم فحص ${result.total} شخصية — ${result.flagged} مشتبه بتكرارها`);
+        loadPersonas();
+      } else {
+        flash(`Scan error: ${result.error}`);
+      }
+    } catch (e) {
+      flash(`Scan error: ${(e as Error).message}`);
+    } finally {
+      setScanBusy(false);
+    }
+  }, []);
+
   const filtered = useMemo(() => {
     return personas
       .filter((p) => p.category === activeCiv)
@@ -377,6 +403,16 @@ function AdminPage() {
                 <ShieldCheck className="h-4 w-4 mr-1" />
                 {auditBusy ? "جارٍ التدقيق…" : "تدقيق الأوصاف"}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScanDuplicates}
+                disabled={scanBusy || personas.length === 0}
+                title="فحص التكرار بالاسم والوجه"
+              >
+                <Search className="h-4 w-4 mr-1" />
+                {scanBusy ? "جارٍ الفحص…" : "فحص التكرار"}
+              </Button>
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-28 h-9 text-xs">
                   <SelectValue placeholder="Role" />
@@ -435,10 +471,27 @@ function AdminPage() {
                             <p className="font-medium truncate">{p.name}</p>
                             <p className="text-xs text-muted-foreground capitalize">{p.role} · {p.gender}</p>
                           </div>
-                          <Badge variant={p.luxand_uuid ? "default" : "secondary"} className="text-[10px] shrink-0">
-                            {p.luxand_uuid ? "enrolled" : "no face"}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant={p.luxand_uuid ? "default" : "secondary"} className="text-[10px] shrink-0">
+                              {p.luxand_uuid ? "enrolled" : "no face"}
+                            </Badge>
+                            {p.duplicate_flag && p.duplicate_flag.length > 0 && (
+                              <Badge variant="destructive" className="text-[10px] shrink-0 gap-0.5">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                تكرار ({p.duplicate_flag.length})
+                              </Badge>
+                            )}
+                          </div>
                         </div>
+                        {p.duplicate_flag && p.duplicate_flag.length > 0 && (
+                          <div className="text-[10px] text-destructive space-y-0.5 bg-destructive/10 rounded p-1.5">
+                            {p.duplicate_flag.map((f, i) => (
+                              <p key={i}>
+                                {f.type === "name" ? "📝" : "👤"} مشابه لـ <strong>{f.similar_to_name}</strong> ({Math.round(f.similarity * 100)}%)
+                              </p>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" className="flex-1"
                             onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url }); setDialogOpen(true); }}>
