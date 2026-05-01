@@ -176,7 +176,10 @@ export function euclideanDistance(a: number[], b: number[]): number {
  * 0.3 distance ≈ 95%, 0.6 ≈ 50%, 1.0 ≈ 5%.
  */
 export function distanceToSimilarity(distance: number): number {
-  // Linear-ish map clamped 5–98%.
-  const pct = Math.round((1 - distance) * 100);
+  // Non-linear mapping for more meaningful percentages:
+  // distance 0.0 → 98%, 0.3 → 90%, 0.5 → 65%, 0.7 → 40%, 1.0 → 10%
+  // Uses a sigmoid-like curve centered around 0.5 distance
+  const normalized = Math.max(0, Math.min(1.2, distance));
+  const pct = Math.round(98 * Math.exp(-2.5 * normalized * normalized));
   return Math.max(5, Math.min(98, pct));
 }
