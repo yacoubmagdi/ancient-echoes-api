@@ -114,5 +114,5 @@ export function auditDescription(description: string | null | undefined): AuditR
  */
 export function isDescriptionAcceptable(description: string, threshold = 6): boolean {
   const result = auditDescription(description);
-  return result.valid && result.score >= threshold;
+  return result.score >= threshold && result.issues.length === 0;
 }
