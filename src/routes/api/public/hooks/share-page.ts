@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/api/public/hooks/share-page")({
   server: {
@@ -10,10 +11,10 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
           return new Response("Missing id", { status: 400 });
         }
 
-        const supabaseUrl = process.env.VITE_SUPABASE_URL!;
-        const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY!;
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(supabaseUrl, anonKey);
+        const supabase = createClient(
+          process.env.VITE_SUPABASE_URL!,
+          process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
+        );
 
         const { data, error } = await supabase
           .from("shared_results")
