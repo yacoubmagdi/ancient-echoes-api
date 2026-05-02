@@ -29,6 +29,39 @@ export type Database = {
         }
         Relationships: []
       }
+      persona_audit_log: {
+        Row: {
+          changed_by: string | null
+          changed_field: string
+          created_at: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          persona_id: string
+          persona_name: string
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_field: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          persona_id: string
+          persona_name: string
+        }
+        Update: {
+          changed_by?: string | null
+          changed_field?: string
+          created_at?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          persona_id?: string
+          persona_name?: string
+        }
+        Relationships: []
+      }
       personas: {
         Row: {
           category: string
