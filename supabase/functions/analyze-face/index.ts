@@ -2012,6 +2012,7 @@ async function getPersonasWithDescriptors(
     .from("personas")
     .select("id, name, category, description, image_url, gender, role, face_descriptor")
     .not("face_descriptor", "is", null)
+    .not("image_url", "like", "%placeholder%")
     .limit(2000);
   if (fetchErr) throw fetchErr;
   const enrolled = (allPersonas ?? []).filter(
