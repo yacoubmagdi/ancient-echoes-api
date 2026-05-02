@@ -1,75 +1,80 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/api/public/hooks/og-image")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const id = url.searchParams.get("id");
-        if (!id) {
-          return new Response("Missing id", { status: 400 });
-        }
-
-        // Size: "large" (1200x630), "square" (1080x1080), "story" (1080x1920)
-        const size = url.searchParams.get("size") || "large";
-
-        const supabase = createClient(
-          process.env.VITE_SUPABASE_URL!,
-          process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
-        );
-
-        // Check cached PNG first
-        const cachedPath = `og-cache/${id}_${size}.png`;
-        const { data: cachedUrlData } = supabase.storage
-          .from("personas")
-          .getPublicUrl(cachedPath);
-
         try {
-          const headResp = await fetch(cachedUrlData.publicUrl, {
-            method: "HEAD",
+          const url = new URL(request.url);
+          const id = url.searchParams.get("id");
+          if (!id) {
+            return new Response("Missing id", { status: 400 });
+          }
+
+          const size = url.searchParams.get("size") || "large";
+
+          const supabaseUrl =
+            process.env.SUPABASE_URL ||
+            process.env.VITE_SUPABASE_URL ||
+            "https://kfycwzfhyermjhupyrpk.supabase.co";
+          const anonKey =
+            process.env.SUPABASE_PUBLISHABLE_KEY ||
+            process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmeWN3emZoeWVybWpodXB5cnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MjA5NTMsImV4cCI6MjA5MjQ5Njk1M30.2j95N0uQNWUZV8f32_GRwfmL_2oL0UhX5QlQ28oenL4";
+
+          // Check cached PNG first
+          const cachedUrl = `${supabaseUrl}/storage/v1/object/public/personas/og-cache/${id}_${size}.png`;
+          try {
+            const headResp = await fetch(cachedUrl, { method: "HEAD" });
+            if (headResp.ok) {
+              return new Response(null, {
+                status: 302,
+                headers: { Location: cachedUrl, "Cache-Control": "public, max-age=86400" },
+              });
+            }
+          } catch {
+            // not cached
+          }
+
+          // Fetch shared result via REST API
+          const restUrl = `${supabaseUrl}/rest/v1/shared_results?id=eq.${encodeURIComponent(id)}&select=*&limit=1`;
+          const dbResp = await fetch(restUrl, {
+            headers: {
+              apikey: anonKey,
+              Authorization: `Bearer ${anonKey}`,
+              Accept: "application/json",
+            },
           });
-          if (headResp.ok) {
+
+          if (!dbResp.ok) {
+            return new Response("Not found", { status: 404 });
+          }
+
+          const rows = await dbResp.json();
+          const data = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+          if (!data) {
+            return new Response("Not found", { status: 404 });
+          }
+
+          const similarity = Math.round(Number(data.similarity));
+          const lovableKey = process.env.LOVABLE_API_KEY;
+
+          if (!lovableKey) {
+            // Fallback: redirect to the match image
             return new Response(null, {
               status: 302,
-              headers: {
-                Location: cachedUrlData.publicUrl,
-                "Cache-Control": "public, max-age=86400",
-              },
+              headers: { Location: data.match_image_url },
             });
           }
-        } catch {
-          // not cached
-        }
 
-        const { data, error } = await supabase
-          .from("shared_results")
-          .select("*")
-          .eq("id", id)
-          .single();
+          const aspectMap: Record<string, string> = {
+            large: "wide horizontal 1200x630 social media card",
+            square: "square 1:1 social media post",
+            story: "vertical 9:16 Instagram/TikTok story",
+          };
+          const layoutDesc = aspectMap[size] || aspectMap.large;
 
-        if (error || !data) {
-          return new Response("Not found", { status: 404 });
-        }
-
-        const similarity = Math.round(Number(data.similarity));
-        const lovableKey = process.env.LOVABLE_API_KEY;
-
-        if (!lovableKey) {
-          return new Response(null, {
-            status: 302,
-            headers: { Location: data.match_image_url },
-          });
-        }
-
-        const aspectMap: Record<string, string> = {
-          large: "wide horizontal 1200x630 social media card",
-          square: "square 1:1 social media post",
-          story: "vertical 9:16 Instagram/TikTok story",
-        };
-        const layoutDesc = aspectMap[size] || aspectMap.large;
-
-        const prompt = `Create a ${layoutDesc} image for sharing on social media.
+          const prompt = `Create a ${layoutDesc} image for sharing on social media.
 
 Design: Dark navy-to-purple gradient background. Elegant gold (#c9a84c) border frame.
 
@@ -85,7 +90,6 @@ Content layout:
 - All Arabic text must be clear, readable, right-to-left
 - Ancient Egyptian themed, premium quality`;
 
-        try {
           const aiResp = await fetch(
             "https://ai.gateway.lovable.dev/v1/chat/completions",
             {
@@ -95,7 +99,7 @@ Content layout:
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-3.1-flash-image-preview",
+                model: "google/gemini-3-pro-image-preview",
                 messages: [
                   {
                     role: "user",
@@ -134,14 +138,20 @@ Content layout:
           const b64 = imgB64.includes(",") ? imgB64.split(",")[1] : imgB64;
           const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 
-          // Cache in storage (fire and forget)
-          supabase.storage
-            .from("personas")
-            .upload(cachedPath, bytes, {
-              contentType: "image/png",
-              upsert: true,
-            })
-            .catch(() => {});
+          // Cache in storage via REST (fire and forget)
+          fetch(
+            `${supabaseUrl}/storage/v1/object/personas/og-cache/${id}_${size}.png`,
+            {
+              method: "POST",
+              headers: {
+                apikey: anonKey,
+                Authorization: `Bearer ${anonKey}`,
+                "Content-Type": "image/png",
+                "x-upsert": "true",
+              },
+              body: bytes,
+            }
+          ).catch(() => {});
 
           return new Response(bytes, {
             headers: {
@@ -152,7 +162,7 @@ Content layout:
         } catch {
           return new Response(null, {
             status: 302,
-            headers: { Location: data.match_image_url },
+            headers: { Location: "https://kfycwzfhyermjhupyrpk.supabase.co/storage/v1/object/public/personas/default-og.png" },
           });
         }
       },
