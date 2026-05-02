@@ -199,9 +199,17 @@ function Index() {
       if (!resp.ok || (data as { error?: string })?.error) {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
-      setResult(data as MatchResult);
+      const matchData = data as MatchResult;
+      if (matchData.similarity < 55) {
+        throw new Error(
+          lang === "ar"
+            ? "نسبة التشابه منخفضة جدًا. حاول بصورة أوضح للوجه أو بزاوية مختلفة."
+            : "Similarity too low. Try a clearer face photo or a different angle.",
+        );
+      }
+      setResult(matchData);
       // Store in client cache
-      analysisCache.set(cKey, { result: data as MatchResult, at: Date.now() });
+      analysisCache.set(cKey, { result: matchData, at: Date.now() });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
