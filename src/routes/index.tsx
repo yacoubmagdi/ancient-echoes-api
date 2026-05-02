@@ -200,7 +200,8 @@ function Index() {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
       const matchData = data as MatchResult;
-      if (matchData.similarity < 55) {
+      const minSimilarity = Number(import.meta.env.VITE_MIN_SIMILARITY ?? 55);
+      if (matchData.similarity < minSimilarity) {
         throw new Error(
           lang === "ar"
             ? "نسبة التشابه منخفضة جدًا. حاول بصورة أوضح للوجه أو بزاوية مختلفة."
