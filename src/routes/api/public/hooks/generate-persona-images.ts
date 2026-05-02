@@ -149,7 +149,7 @@ export const Route = createFileRoute(
               );
 
               // Upload to storage
-              const storagePath = `pharaonic/${persona.id}_${Date.now()}.png`;
+              const storagePath = `Pharaoh/${persona.id}_${Date.now()}.png`;
               const { error: uploadErr } = await supabase.storage
                 .from("personas")
                 .upload(storagePath, bytes, {
