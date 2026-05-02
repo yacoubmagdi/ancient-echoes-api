@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 const BATCH_SIZE = 5;
+const MAX_RETRIES = 2;
 
 export const Route = createFileRoute(
   "/api/public/hooks/generate-persona-images"
@@ -93,49 +94,50 @@ export const Route = createFileRoute(
                 persona.gender === "female" ? "أنثى" : "ذكر";
               const prompt = `Ancient Egyptian ${persona.role} portrait painting, historical accurate, ${persona.gender} figure named "${persona.name}". ${persona.description?.slice(0, 100) || ""}. Oil painting style, dramatic lighting, gold and blue tones, hieroglyphic background, museum quality, detailed face features, ancient Egyptian headdress and jewelry. Photorealistic digital art.`;
 
-              // Call Lovable AI Gateway for image generation
-              const aiResp = await fetch(
-                "https://ai.gateway.lovable.dev/v1/chat/completions",
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${lovableKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model: "google/gemini-3.1-flash-image-preview",
-                    messages: [
-                      {
-                        role: "user",
-                        content: prompt,
-                      },
-                    ],
-                    modalities: ["image", "text"],
-                  }),
+              // Call Lovable AI Gateway with retry logic
+              let imageB64: string | undefined;
+              let lastError = "";
+              for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                if (attempt > 0) {
+                  await new Promise((r) => setTimeout(r, 2000 * attempt));
                 }
-              );
+                try {
+                  const aiResp = await fetch(
+                    "https://ai.gateway.lovable.dev/v1/chat/completions",
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${lovableKey}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        model: "google/gemini-3.1-flash-image-preview",
+                        messages: [{ role: "user", content: prompt }],
+                        modalities: ["image", "text"],
+                      }),
+                    }
+                  );
 
-              if (!aiResp.ok) {
-                const errText = await aiResp.text();
-                results.push({
-                  id: persona.id,
-                  name: persona.name,
-                  success: false,
-                  error: `AI API ${aiResp.status}: ${errText.slice(0, 200)}`,
-                });
-                continue;
+                  if (!aiResp.ok) {
+                    lastError = `AI API ${aiResp.status}: ${(await aiResp.text()).slice(0, 200)}`;
+                    continue;
+                  }
+
+                  const aiData = await aiResp.json();
+                  imageB64 = aiData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+                  if (imageB64) break;
+                  lastError = "No image returned from AI";
+                } catch (retryErr) {
+                  lastError = (retryErr as Error).message;
+                }
               }
-
-              const aiData = await aiResp.json();
-              const imageB64 =
-                aiData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
               if (!imageB64) {
                 results.push({
                   id: persona.id,
                   name: persona.name,
                   success: false,
-                  error: "No image returned from AI",
+                  error: `After ${MAX_RETRIES + 1} attempts: ${lastError}`,
                 });
                 continue;
               }
