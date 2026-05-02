@@ -173,10 +173,29 @@ export const Route = createFileRoute(
                 .getPublicUrl(storagePath);
 
               // Update persona record
+              // Re-check that persona still has placeholder to prevent race conditions
+              const { data: currentPersona } = await supabase
+                .from("personas")
+                .select("image_url")
+                .eq("id", persona.id)
+                .single();
+
+              if (currentPersona && !currentPersona.image_url?.includes("placeholder")) {
+                await supabase.storage.from("personas").remove([storagePath]);
+                results.push({
+                  id: persona.id,
+                  name: persona.name,
+                  success: true,
+                  error: "Already updated — skipped",
+                });
+                continue;
+              }
+
               const { error: updateErr } = await supabase
                 .from("personas")
                 .update({ image_url: urlData.publicUrl })
-                .eq("id", persona.id);
+                .eq("id", persona.id)
+                .like("image_url", "%placeholder%");
 
               if (updateErr) {
                 results.push({
