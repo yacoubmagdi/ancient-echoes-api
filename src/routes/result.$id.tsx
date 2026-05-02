@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Sparkles, Share2, Copy, Check } from "lucide-react";
 import { getSharedResult } from "@/server/share.functions";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/result/$id")({
   head: ({ params, loaderData }) => {
@@ -71,6 +72,7 @@ export const Route = createFileRoute("/result/$id")({
 
 function ShareButtons({ id, matchName, similarity, category }: { id: string; matchName: string; similarity: number; category: string }) {
   const [copied, setCopied] = useState(false);
+  const [supportsShare] = useState(() => typeof navigator !== "undefined" && !!navigator.share);
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/api/public/hooks/share-page?id=${id}`
     : `https://ancient-echoes-api.lovable.app/api/public/hooks/share-page?id=${id}`;
@@ -92,12 +94,35 @@ function ShareButtons({ id, matchName, similarity, category }: { id: string; mat
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  const handleNativeShare = async () => {
+    try {
+      await navigator.share({
+        title: `أنا أشبه ${matchName} — أصداء القدماء`,
+        text,
+        url: shareUrl,
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        toast.error("تعذرت المشاركة");
+      }
+    }
+  };
   const btn = "flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95";
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-        <Share2 className="h-4 w-4" />
-        <span>شارك نتيجتك</span>
+      {supportsShare && (
+        <div className="flex justify-center">
+          <button
+            onClick={handleNativeShare}
+            className={`${btn} bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 text-base`}
+          >
+            <Share2 className="h-5 w-5" />
+            <span>شارك نتيجتك</span>
+          </button>
+        </div>
+      )}
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <span>{supportsShare ? "أو شارك عبر" : "شارك نتيجتك"}</span>
       </div>
       <div className="flex flex-wrap justify-center gap-3">
         <a href={twitterUrl} target="_blank" rel="noopener noreferrer" className={`${btn} bg-black text-white hover:bg-neutral-800`}>
