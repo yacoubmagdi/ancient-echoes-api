@@ -1,41 +1,53 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/api/public/hooks/share-page")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const id = url.searchParams.get("id");
-        if (!id) {
-          return new Response("Missing id", { status: 400 });
-        }
+        try {
+          const url = new URL(request.url);
+          const id = url.searchParams.get("id");
+          if (!id) {
+            return new Response("Missing id", { status: 400 });
+          }
 
-        const supabase = createClient(
-          process.env.VITE_SUPABASE_URL!,
-          process.env.VITE_SUPABASE_PUBLISHABLE_KEY!
-        );
+          const supabaseUrl =
+            process.env.SUPABASE_URL ||
+            process.env.VITE_SUPABASE_URL ||
+            "https://kfycwzfhyermjhupyrpk.supabase.co";
+          const anonKey =
+            process.env.SUPABASE_PUBLISHABLE_KEY ||
+            process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmeWN3emZoeWVybWpodXB5cnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MjA5NTMsImV4cCI6MjA5MjQ5Njk1M30.2j95N0uQNWUZV8f32_GRwfmL_2oL0UhX5QlQ28oenL4";
 
-        const { data, error } = await supabase
-          .from("shared_results")
-          .select("*")
-          .eq("id", id)
-          .single();
+          const restUrl = `${supabaseUrl}/rest/v1/shared_results?id=eq.${encodeURIComponent(id)}&select=*&limit=1`;
+          const resp = await fetch(restUrl, {
+            headers: {
+              apikey: anonKey,
+              Authorization: `Bearer ${anonKey}`,
+              Accept: "application/json",
+            },
+          });
 
-        if (error || !data) {
-          return new Response("Not found", { status: 404 });
-        }
+          if (!resp.ok) {
+            return new Response("Not found", { status: 404 });
+          }
 
-        const similarity = Math.round(Number(data.similarity));
-        const baseUrl = url.origin;
-        const ogImageUrl = `${baseUrl}/api/public/hooks/og-image?id=${id}`;
-        const resultUrl = `${baseUrl}/result/${id}`;
+          const rows = await resp.json();
+          const data = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+          if (!data) {
+            return new Response("Not found", { status: 404 });
+          }
 
-        const title = `أنا أشبه ${data.match_name} — أصداء القدماء`;
-        const desc = `تطابق ${similarity}% مع ${data.match_name} من ${data.category}. اكتشف شبيهك التاريخي أنت أيضًا!`;
+          const similarity = Math.round(Number(data.similarity));
+          const baseUrl = url.origin;
+          const ogImageUrl = `${baseUrl}/api/public/hooks/og-image?id=${id}`;
+          const resultUrl = `${baseUrl}/result/${id}`;
 
-        // Return full HTML with proper OG tags + redirect for humans
-        const html = `<!DOCTYPE html>
+          const title = `أنا أشبه ${data.match_name} — أصداء القدماء`;
+          const desc = `تطابق ${similarity}% مع ${data.match_name} من ${data.category}. اكتشف شبيهك التاريخي أنت أيضًا!`;
+
+          const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8"/>
@@ -47,6 +59,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   <meta property="og:title" content="${esc(title)}"/>
   <meta property="og:description" content="${esc(desc)}"/>
   <meta property="og:image" content="${esc(ogImageUrl)}"/>
+  <meta property="og:image:secure_url" content="${esc(ogImageUrl)}"/>
   <meta property="og:image:width" content="1200"/>
   <meta property="og:image:height" content="630"/>
   <meta property="og:image:type" content="image/png"/>
@@ -59,11 +72,11 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   <meta name="twitter:title" content="${esc(title)}"/>
   <meta name="twitter:description" content="${esc(desc)}"/>
   <meta name="twitter:image" content="${esc(ogImageUrl)}"/>
+  <meta name="twitter:image:src" content="${esc(ogImageUrl)}"/>
   
   <!-- WhatsApp / Telegram -->
   <meta property="og:image:alt" content="${esc(`${data.match_name} - ${similarity}% تطابق`)}"/>
   
-  <!-- Redirect humans to the full result page -->
   <meta http-equiv="refresh" content="0;url=${esc(resultUrl)}"/>
   <link rel="canonical" href="${esc(resultUrl)}"/>
   
@@ -89,12 +102,18 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
 </body>
 </html>`;
 
-        return new Response(html, {
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "public, max-age=3600",
-          },
-        });
+          return new Response(html, {
+            headers: {
+              "Content-Type": "text/html; charset=utf-8",
+              "Cache-Control": "public, max-age=3600",
+            },
+          });
+        } catch (e) {
+          return new Response(
+            `Error: ${e instanceof Error ? e.message : String(e)}`,
+            { status: 500 }
+          );
+        }
       },
     },
   },
