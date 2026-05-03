@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.prevent_duplicate_persona() FROM anon, authenticated, public;
