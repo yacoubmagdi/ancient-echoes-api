@@ -62,6 +62,48 @@ export type Database = {
         }
         Relationships: []
       }
+      persona_verification_log: {
+        Row: {
+          category: string
+          confidence: number | null
+          created_at: string
+          gender: string | null
+          id: string
+          persona_name: string
+          reason: string
+          role: string | null
+          sources: string[] | null
+          verdict: string
+          verified_by: string | null
+        }
+        Insert: {
+          category: string
+          confidence?: number | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          persona_name: string
+          reason: string
+          role?: string | null
+          sources?: string[] | null
+          verdict: string
+          verified_by?: string | null
+        }
+        Update: {
+          category?: string
+          confidence?: number | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          persona_name?: string
+          reason?: string
+          role?: string | null
+          sources?: string[] | null
+          verdict?: string
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       personas: {
         Row: {
           category: string
@@ -75,6 +117,7 @@ export type Database = {
           image_url: string
           name: string
           role: string
+          verification_status: string | null
         }
         Insert: {
           category: string
@@ -88,6 +131,7 @@ export type Database = {
           image_url: string
           name: string
           role?: string
+          verification_status?: string | null
         }
         Update: {
           category?: string
@@ -101,6 +145,7 @@ export type Database = {
           image_url?: string
           name?: string
           role?: string
+          verification_status?: string | null
         }
         Relationships: []
       }
