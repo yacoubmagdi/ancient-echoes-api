@@ -144,26 +144,58 @@ export const Route = createFileRoute(
         };
 
         try {
-          // Auth: accept either apikey header or Authorization Bearer
-          const apikey =
-            request.headers.get("apikey") ??
-            request.headers.get("authorization")?.replace("Bearer ", "");
+          // Auth: verify JWT token via Supabase and check admin role
+          const authHeader =
+            request.headers.get("authorization") ??
+            (request.headers.get("apikey") ? `Bearer ${request.headers.get("apikey")}` : null);
 
-          if (!apikey) {
+          if (!authHeader || !authHeader.startsWith("Bearer ")) {
             return new Response(
               JSON.stringify({ error: "Missing apikey" }),
               { status: 401, headers: corsHeaders }
             );
           }
 
-          const supabaseUrl = process.env.SUPABASE_URL!;
-          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
           const lovableKey = process.env.LOVABLE_API_KEY;
+
+          if (!supabaseUrl || !serviceKey || !publishableKey) {
+            return new Response(
+              JSON.stringify({ error: "Server misconfigured" }),
+              { status: 500, headers: corsHeaders }
+            );
+          }
 
           if (!lovableKey) {
             return new Response(
               JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
               { status: 500, headers: corsHeaders }
+            );
+          }
+
+          // Verify the caller's JWT and admin role
+          const token = authHeader.replace("Bearer ", "");
+          const userClient = createClient(supabaseUrl, publishableKey, {
+            global: { headers: { Authorization: `Bearer ${token}` } },
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: userData, error: userErr } = await userClient.auth.getUser();
+          if (userErr || !userData?.user) {
+            return new Response(
+              JSON.stringify({ error: "Unauthorized" }),
+              { status: 401, headers: corsHeaders }
+            );
+          }
+          const { data: isAdmin } = await userClient.rpc("has_role", {
+            _user_id: userData.user.id,
+            _role: "admin",
+          });
+          if (!isAdmin) {
+            return new Response(
+              JSON.stringify({ error: "Forbidden: admin role required" }),
+              { status: 403, headers: corsHeaders }
             );
           }
 

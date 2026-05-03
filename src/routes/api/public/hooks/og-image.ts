@@ -13,14 +13,12 @@ export const Route = createFileRoute("/api/public/hooks/og-image")({
 
           const size = url.searchParams.get("size") || "large";
 
-          const supabaseUrl =
-            process.env.SUPABASE_URL ||
-            process.env.VITE_SUPABASE_URL ||
-            "https://kfycwzfhyermjhupyrpk.supabase.co";
-          const anonKey =
-            process.env.SUPABASE_PUBLISHABLE_KEY ||
-            process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtmeWN3emZoeWVybWpodXB5cnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5MjA5NTMsImV4cCI6MjA5MjQ5Njk1M30.2j95N0uQNWUZV8f32_GRwfmL_2oL0UhX5QlQ28oenL4";
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+
+          if (!supabaseUrl || !anonKey) {
+            return new Response("Server misconfigured", { status: 500 });
+          }
 
           // Check cached PNG first
           const cachedUrl = `${supabaseUrl}/storage/v1/object/public/personas/og-cache/${id}_${size}.png`;
@@ -160,10 +158,7 @@ Content layout:
             },
           });
         } catch {
-          return new Response(null, {
-            status: 302,
-            headers: { Location: "https://kfycwzfhyermjhupyrpk.supabase.co/storage/v1/object/public/personas/default-og.png" },
-          });
+          return new Response("Internal Server Error", { status: 500 });
         }
       },
     },
