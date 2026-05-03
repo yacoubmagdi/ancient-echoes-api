@@ -1121,3 +1121,33 @@ function DownloadCardButton({
     </div>
   );
 }
+
+function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; name: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="mt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShow((v) => !v)}
+        className="gap-2 w-full"
+      >
+        <BookOpen className="h-4 w-4" />
+        {show ? "إخفاء المصدر التاريخي" : "عرض المصدر التاريخي"}
+      </Button>
+      {show && (
+        <div className="mt-3 animate-fade-in">
+          <img
+            src={sourceImageUrl}
+            alt={`المصدر التاريخي — ${name}`}
+            className="w-full rounded-lg border border-border/60"
+            loading="lazy"
+          />
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            📜 المصدر الأثري الموثّق
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
