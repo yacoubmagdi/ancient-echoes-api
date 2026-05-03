@@ -1993,6 +1993,7 @@ type CachedPersona = {
   category: string;
   description: string;
   image_url: string;
+  source_image_url: string | null;
   gender: string | null;
   role: string | null;
   face_descriptor: number[];
@@ -2010,7 +2011,7 @@ async function getPersonasWithDescriptors(
   }
   const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, gender, role, face_descriptor")
+    .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor")
     .not("face_descriptor", "is", null)
     .not("image_url", "like", "%placeholder%")
     .limit(2000);
@@ -2329,6 +2330,7 @@ Deno.serve(async (req) => {
     category: string;
     description: string;
     image_url: string;
+    source_image_url: string | null;
     gender: string | null;
     role: string | null;
     distance: number;
@@ -2343,6 +2345,7 @@ Deno.serve(async (req) => {
       category: p.category,
       description: p.description,
       image_url: p.image_url,
+      source_image_url: p.source_image_url,
       gender: p.gender,
       role: p.role,
       distance,
@@ -2359,6 +2362,7 @@ Deno.serve(async (req) => {
     category: string;
     similarity: number;
     image_url: string;
+    source_image_url: string | null;
     description: string;
     historical_figure: { name: string; bio: string } | null;
     persona_id: string;
@@ -2384,6 +2388,7 @@ Deno.serve(async (req) => {
         category: loc.category,
         similarity: s.similarity,
         image_url: s.image_url,
+        source_image_url: s.source_image_url,
         description: loc.description,
         historical_figure: loc.figure,
         persona_id: s.id,
@@ -2418,7 +2423,7 @@ Deno.serve(async (req) => {
     debug.fallback_used = "no_enrolled_personas";
     const { data: anyPersonas } = await supabase
       .from("personas")
-      .select("id, name, category, description, image_url, gender, role")
+      .select("id, name, category, description, image_url, source_image_url, gender, role")
       .limit(2000);
     const pool = (anyPersonas ?? []).filter(personaPasses);
     // Final fallback still respects the user's gender if they picked one.
@@ -2448,6 +2453,7 @@ Deno.serve(async (req) => {
       category: loc.category,
       similarity: fallbackSimilarity,
       image_url: random.image_url,
+      source_image_url: (random as any).source_image_url ?? null,
       description: traitLine ? `${loc.description}\n\n${traitLine}` : loc.description,
       historical_figure: loc.figure,
       runners_up: [],
