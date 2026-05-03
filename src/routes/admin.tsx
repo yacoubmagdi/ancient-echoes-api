@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight } from "lucide-react";
 import { ShieldCheck, AlertTriangle } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
@@ -42,15 +42,16 @@ type Persona = {
   gender: string;
   role: string;
   image_url: string;
+  source_image_url: string | null;
   created_at: string;
   face_descriptor: number[] | null;
   duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string };
+type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string; source_image_url: string | null };
 
 function emptyForm(): FormState {
-  return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "" };
+  return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "", source_image_url: null };
 }
 
 function AdminPage() {
@@ -221,7 +222,7 @@ function AdminPage() {
         .from("personas")
         .update({
           name: form.name, description: form.description, category: form.category,
-          gender: form.gender, role: form.role, image_url: form.image_url,
+          gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         })
         .eq("id", form.id);
       if (error) { setBusy(false); flash(error.message); return; }
@@ -229,7 +230,7 @@ function AdminPage() {
     } else {
       const { error } = await supabase.from("personas").insert({
         name: form.name, description: form.description, category: form.category,
-        gender: form.gender, role: form.role, image_url: form.image_url,
+        gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
       });
       if (error) { setBusy(false); flash(error.message); return; }
@@ -509,18 +510,7 @@ function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filtered.map((p) => (
                     <Card key={p.id} className="overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewing(p)}
-                        className="block w-full aspect-square overflow-hidden bg-muted"
-                      >
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="w-full h-full object-cover hover:scale-105 transition"
-                          loading="lazy"
-                        />
-                      </button>
+                      <PersonaCardImage persona={p} onPreview={() => setPreviewing(p)} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -550,7 +540,7 @@ function AdminPage() {
                         )}
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" className="flex-1"
-                            onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url }); setDialogOpen(true); }}>
+                            onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url, source_image_url: p.source_image_url }); setDialogOpen(true); }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                           <Button size="sm" variant="outline" className="flex-1" onClick={() => reenroll(p)} disabled={busy}>
