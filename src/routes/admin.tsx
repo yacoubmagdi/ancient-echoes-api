@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight } from "lucide-react";
 import { ShieldCheck, AlertTriangle } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
@@ -42,15 +42,16 @@ type Persona = {
   gender: string;
   role: string;
   image_url: string;
+  source_image_url: string | null;
   created_at: string;
   face_descriptor: number[] | null;
   duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string };
+type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string; source_image_url: string | null };
 
 function emptyForm(): FormState {
-  return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "" };
+  return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "", source_image_url: null };
 }
 
 function AdminPage() {
@@ -221,7 +222,7 @@ function AdminPage() {
         .from("personas")
         .update({
           name: form.name, description: form.description, category: form.category,
-          gender: form.gender, role: form.role, image_url: form.image_url,
+          gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         })
         .eq("id", form.id);
       if (error) { setBusy(false); flash(error.message); return; }
@@ -229,7 +230,7 @@ function AdminPage() {
     } else {
       const { error } = await supabase.from("personas").insert({
         name: form.name, description: form.description, category: form.category,
-        gender: form.gender, role: form.role, image_url: form.image_url,
+        gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
       });
       if (error) { setBusy(false); flash(error.message); return; }
@@ -509,18 +510,7 @@ function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filtered.map((p) => (
                     <Card key={p.id} className="overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewing(p)}
-                        className="block w-full aspect-square overflow-hidden bg-muted"
-                      >
-                        <img
-                          src={p.image_url}
-                          alt={p.name}
-                          className="w-full h-full object-cover hover:scale-105 transition"
-                          loading="lazy"
-                        />
-                      </button>
+                      <PersonaCardImage persona={p} onPreview={() => setPreviewing(p)} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -550,7 +540,7 @@ function AdminPage() {
                         )}
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" className="flex-1"
-                            onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url }); setDialogOpen(true); }}>
+                            onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url, source_image_url: p.source_image_url }); setDialogOpen(true); }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                           <Button size="sm" variant="outline" className="flex-1" onClick={() => reenroll(p)} disabled={busy}>
@@ -717,6 +707,18 @@ function PersonaDialog({
               <img src={form.image_url} alt="preview" className="mt-2 w-32 h-32 object-cover rounded-md border border-border" />
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label>المصدر التاريخي (نقش / تمثال / صورة أثرية)</Label>
+            <Input
+              placeholder="https://…/source-image.jpg"
+              value={form.source_image_url ?? ""}
+              onChange={(e) => setForm({ ...form, source_image_url: e.target.value || null })}
+            />
+            {form.source_image_url && (
+              <img src={form.source_image_url} alt="source preview" className="mt-2 w-32 h-32 object-cover rounded-md border border-border" />
+            )}
+          </div>
         </div>
         <DialogFooter>
           {!form.id && (
@@ -779,6 +781,12 @@ function PreviewDialog({
         </DialogHeader>
         <div>
           <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
+          {persona.source_image_url && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-3 w-3" /> المصدر التاريخي:</p>
+              <img src={persona.source_image_url} alt={`مصدر ${persona.name}`} className="w-full rounded-md border border-border" />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-2 break-all">
             <strong>Face Descriptor:</strong> {persona.face_descriptor ? "✅ stored" : "— not computed —"}
           </p>
@@ -786,5 +794,85 @@ function PreviewDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview: () => void }) {
+  const [showSource, setShowSource] = useState(false);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startXRef = useRef(0);
+
+  const hasSource = !!persona.source_image_url;
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!hasSource) return;
+    setDragging(true);
+    startXRef.current = e.clientX;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!dragging) return;
+    const dx = e.clientX - startXRef.current;
+    // Only allow dragging to the right (positive direction)
+    setDragX(Math.max(0, dx));
+  }
+
+  function handlePointerUp() {
+    if (!dragging) return;
+    setDragging(false);
+    if (dragX > 80) {
+      setShowSource(true);
+    }
+    setDragX(0);
+  }
+
+  if (showSource && persona.source_image_url) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShowSource(false)}
+        className="relative block w-full aspect-square overflow-hidden bg-muted"
+      >
+        <img
+          src={persona.source_image_url}
+          alt={`مصدر ${persona.name}`}
+          className="w-full h-full object-cover animate-fade-in"
+          loading="lazy"
+        />
+        <div className="absolute bottom-2 left-2 right-2 bg-background/80 backdrop-blur rounded-md px-2 py-1 text-[10px] text-center flex items-center justify-center gap-1">
+          <BookOpen className="h-3 w-3" />
+          المصدر التاريخي — اضغط للعودة
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative block w-full aspect-square overflow-hidden bg-muted">
+      <button
+        type="button"
+        onClick={onPreview}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="block w-full h-full touch-pan-y"
+      >
+        <img
+          src={persona.image_url}
+          alt={persona.name}
+          className="w-full h-full object-cover hover:scale-105 transition"
+          loading="lazy"
+          style={dragX > 0 ? { transform: `translateX(${dragX}px)`, opacity: 1 - dragX / 200 } : undefined}
+        />
+      </button>
+      {hasSource && (
+        <div className="absolute bottom-2 right-2 bg-background/70 backdrop-blur rounded-full p-1.5 pointer-events-none">
+          <ChevronRight className="h-3 w-3 text-foreground animate-[pulse_2s_ease-in-out_infinite]" />
+        </div>
+      )}
+    </div>
   );
 }

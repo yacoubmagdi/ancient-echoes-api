@@ -117,6 +117,7 @@ export type Database = {
           image_url: string
           name: string
           role: string
+          source_image_url: string | null
           verification_status: string | null
         }
         Insert: {
@@ -131,6 +132,7 @@ export type Database = {
           image_url: string
           name: string
           role?: string
+          source_image_url?: string | null
           verification_status?: string | null
         }
         Update: {
@@ -145,6 +147,7 @@ export type Database = {
           image_url?: string
           name?: string
           role?: string
+          source_image_url?: string | null
           verification_status?: string | null
         }
         Relationships: []
