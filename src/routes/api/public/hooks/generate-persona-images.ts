@@ -2,6 +2,91 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 
 const BATCH_SIZE = 5;
+const MAX_VALIDATION_RETRIES = 2;
+
+/**
+ * Validates a generated persona image using AI vision analysis.
+ * Checks for:
+ * - Random text/letters/numbers on the image
+ * - Non-Egyptian or anachronistic elements
+ * - Wrong eye colors (blue/green on ancient Egyptians)
+ * - Modern clothing or accessories
+ * - Distorted faces or artifacts
+ * Returns { valid: boolean; issues: string[] }
+ */
+async function validatePersonaImage(
+  imageBase64: string,
+  persona: { name: string; gender: string; role: string },
+  lovableKey: string
+): Promise<{ valid: boolean; issues: string[] }> {
+  try {
+    const validationPrompt = `You are an expert quality-control reviewer for AI-generated historical Egyptian portrait images.
+
+Analyze this image of "${persona.name}" (${persona.gender} ${persona.role}) and check for these defects:
+
+1. RANDOM TEXT: Any Latin letters, numbers, watermarks, or non-hieroglyphic text visible on the image (e.g. "AR", "AI", random characters on crowns/clothing)
+2. WRONG EYE COLOR: Blue or green eyes on an ancient Egyptian figure (should be brown/dark)
+3. ANACHRONISTIC ELEMENTS: Modern items, non-Egyptian clothing, wrong era accessories
+4. FACE DISTORTION: Deformed features, extra fingers, melted/blurred face
+5. WRONG GENDER: Image shows wrong gender for the specified persona
+
+Respond ONLY with a JSON object:
+{"valid": true/false, "issues": ["issue description 1", ...]}
+
+If no issues, respond: {"valid": true, "issues": []}`;
+
+    const resp = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: validationPrompt },
+                {
+                  type: "image_url",
+                  image_url: { url: imageBase64 },
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!resp.ok) {
+      console.error(`Validation API error: ${resp.status}`);
+      // If validation service is down, allow image through with a warning
+      return { valid: true, issues: ["validation_skipped: API error"] };
+    }
+
+    const data = await resp.json();
+    const content = data?.choices?.[0]?.message?.content ?? "";
+
+    // Extract JSON from response (handle markdown code blocks)
+    const jsonMatch = content.match(/\{[\s\S]*"valid"[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("Validation returned non-JSON:", content.slice(0, 200));
+      return { valid: true, issues: ["validation_skipped: parse error"] };
+    }
+
+    const result = JSON.parse(jsonMatch[0]);
+    return {
+      valid: Boolean(result.valid),
+      issues: Array.isArray(result.issues) ? result.issues : [],
+    };
+  } catch (e) {
+    console.error("Image validation error:", (e as Error).message);
+    return { valid: true, issues: ["validation_skipped: exception"] };
+  }
+}
 
 export const Route = createFileRoute(
   "/api/public/hooks/generate-persona-images"
@@ -140,10 +225,80 @@ export const Route = createFileRoute(
                 continue;
               }
 
-              // Convert base64 to bytes
-              const b64Data = imageB64.includes(",")
-                ? imageB64.split(",")[1]
-                : imageB64;
+              // --- Image Validation Gate ---
+              let finalImageB64 = imageB64;
+              let validationPassed = false;
+              let validationIssues: string[] = [];
+
+              for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
+                const validation = await validatePersonaImage(
+                  finalImageB64,
+                  persona,
+                  lovableKey
+                );
+
+                if (validation.valid) {
+                  validationPassed = true;
+                  if (validation.issues.length > 0 && validation.issues[0]?.startsWith("validation_skipped")) {
+                    console.warn(`Validation skipped for ${persona.name}: ${validation.issues[0]}`);
+                  }
+                  break;
+                }
+
+                validationIssues = validation.issues;
+                console.warn(
+                  `Image validation failed for ${persona.name} (attempt ${attempt + 1}): ${validation.issues.join(", ")}`
+                );
+
+                // If we have retries left, regenerate the image with stricter prompt
+                if (attempt < MAX_VALIDATION_RETRIES) {
+                  const issuesList = validation.issues.join("; ");
+                  const fixPrompt = `Ancient Egyptian ${persona.role} portrait painting, historically accurate, ${persona.gender} figure named "${persona.name}". ${persona.description?.slice(0, 100) || ""}. Oil painting style, dramatic lighting, gold and blue tones, hieroglyphic background, museum quality.
+CRITICAL REQUIREMENTS: Do NOT add any text, letters, numbers or watermarks on the image. The person MUST have dark brown eyes. No modern elements. No blue or green eyes. Clean, artifact-free image.
+Previous issues to fix: ${issuesList}`;
+
+                  const retryResp = await fetch(
+                    "https://ai.gateway.lovable.dev/v1/chat/completions",
+                    {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${lovableKey}`,
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        model: "google/gemini-3.1-flash-image-preview",
+                        messages: [{ role: "user", content: fixPrompt }],
+                        modalities: ["image", "text"],
+                      }),
+                    }
+                  );
+
+                  if (retryResp.ok) {
+                    const retryData = await retryResp.json();
+                    const retryB64 = retryData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+                    if (retryB64) {
+                      finalImageB64 = retryB64;
+                    }
+                  }
+
+                  await new Promise((r) => setTimeout(r, 1500));
+                }
+              }
+
+              if (!validationPassed) {
+                results.push({
+                  id: persona.id,
+                  name: persona.name,
+                  success: false,
+                  error: `Image validation failed after ${MAX_VALIDATION_RETRIES + 1} attempts: ${validationIssues.join("; ")}`,
+                });
+                continue;
+              }
+
+              // Convert validated base64 to bytes
+              const b64Data = finalImageB64.includes(",")
+                ? finalImageB64.split(",")[1]
+                : finalImageB64;
               const bytes = Uint8Array.from(atob(b64Data), (c) =>
                 c.charCodeAt(0)
               );
