@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -77,6 +77,7 @@ interface RunnerUp {
   similarity: number;
   image_url: string;
   description: string;
+  source_image_url?: string | null;
 }
 interface MatchResult extends RunnerUp {
   runners_up: RunnerUp[];
@@ -518,6 +519,9 @@ function Index() {
                   <p className="mt-6 text-base text-muted-foreground leading-relaxed">
                     {result.description}
                   </p>
+                  {result.source_image_url && (
+                    <SourceImageToggle sourceImageUrl={result.source_image_url} name={result.match_name} />
+                  )}
                   {result.requires_ad && (
                     <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
                       {t.adNote}
