@@ -1,0 +1,1 @@
+ALTER TABLE public.personas DROP COLUMN IF EXISTS luxand_uuid;

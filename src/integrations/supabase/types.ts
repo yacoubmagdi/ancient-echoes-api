@@ -73,7 +73,6 @@ export type Database = {
           gender: string
           id: string
           image_url: string
-          luxand_uuid: string | null
           name: string
           role: string
         }
@@ -87,7 +86,6 @@ export type Database = {
           gender?: string
           id?: string
           image_url: string
-          luxand_uuid?: string | null
           name: string
           role?: string
         }
@@ -101,7 +99,6 @@ export type Database = {
           gender?: string
           id?: string
           image_url?: string
-          luxand_uuid?: string | null
           name?: string
           role?: string
         }
