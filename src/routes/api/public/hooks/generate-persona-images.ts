@@ -1,8 +1,42 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { createHash } from "crypto";
 
 const BATCH_SIZE = 5;
 const MAX_VALIDATION_RETRIES = 2;
+const VALIDATION_CACHE_MAX = 200;
+
+/** In-memory LRU cache for validation results keyed by image content hash */
+const validationCache = new Map<
+  string,
+  { valid: boolean; issues: string[]; ts: number }
+>();
+
+function getImageHash(base64: string): string {
+  // Use only the raw data portion (strip data-url prefix if present)
+  const raw = base64.includes(",") ? base64.split(",")[1] : base64;
+  return createHash("sha256").update(raw).digest("hex");
+}
+
+function getCachedValidation(hash: string): { valid: boolean; issues: string[] } | null {
+  const entry = validationCache.get(hash);
+  if (!entry) return null;
+  // Expire after 1 hour
+  if (Date.now() - entry.ts > 3_600_000) {
+    validationCache.delete(hash);
+    return null;
+  }
+  return { valid: entry.valid, issues: entry.issues };
+}
+
+function setCachedValidation(hash: string, result: { valid: boolean; issues: string[] }) {
+  // Evict oldest entries when cache is full
+  if (validationCache.size >= VALIDATION_CACHE_MAX) {
+    const oldest = validationCache.keys().next().value;
+    if (oldest) validationCache.delete(oldest);
+  }
+  validationCache.set(hash, { ...result, ts: Date.now() });
+}
 
 /**
  * Validates a generated persona image using AI vision analysis.
@@ -19,6 +53,14 @@ async function validatePersonaImage(
   persona: { name: string; gender: string; role: string },
   lovableKey: string
 ): Promise<{ valid: boolean; issues: string[] }> {
+  // Check cache first
+  const hash = getImageHash(imageBase64);
+  const cached = getCachedValidation(hash);
+  if (cached) {
+    console.log(`Validation cache hit for ${persona.name} (hash=${hash.slice(0, 8)})`);
+    return cached;
+  }
+
   try {
     const validationPrompt = `You are an expert quality-control reviewer for AI-generated historical Egyptian portrait images.
 
@@ -78,10 +120,12 @@ If no issues, respond: {"valid": true, "issues": []}`;
     }
 
     const result = JSON.parse(jsonMatch[0]);
-    return {
+    const validationResult = {
       valid: Boolean(result.valid),
       issues: Array.isArray(result.issues) ? result.issues : [],
     };
+    setCachedValidation(hash, validationResult);
+    return validationResult;
   } catch (e) {
     console.error("Image validation error:", (e as Error).message);
     return { valid: true, issues: ["validation_skipped: exception"] };
