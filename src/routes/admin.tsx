@@ -707,6 +707,18 @@ function PersonaDialog({
               <img src={form.image_url} alt="preview" className="mt-2 w-32 h-32 object-cover rounded-md border border-border" />
             )}
           </div>
+
+          <div className="space-y-2">
+            <Label>المصدر التاريخي (نقش / تمثال / صورة أثرية)</Label>
+            <Input
+              placeholder="https://…/source-image.jpg"
+              value={form.source_image_url ?? ""}
+              onChange={(e) => setForm({ ...form, source_image_url: e.target.value || null })}
+            />
+            {form.source_image_url && (
+              <img src={form.source_image_url} alt="source preview" className="mt-2 w-32 h-32 object-cover rounded-md border border-border" />
+            )}
+          </div>
         </div>
         <DialogFooter>
           {!form.id && (
@@ -769,6 +781,12 @@ function PreviewDialog({
         </DialogHeader>
         <div>
           <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
+          {persona.source_image_url && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-3 w-3" /> المصدر التاريخي:</p>
+              <img src={persona.source_image_url} alt={`مصدر ${persona.name}`} className="w-full rounded-md border border-border" />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground mt-2 break-all">
             <strong>Face Descriptor:</strong> {persona.face_descriptor ? "✅ stored" : "— not computed —"}
           </p>
@@ -776,5 +794,85 @@ function PreviewDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview: () => void }) {
+  const [showSource, setShowSource] = useState(false);
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startXRef = useRef(0);
+
+  const hasSource = !!persona.source_image_url;
+
+  function handlePointerDown(e: React.PointerEvent) {
+    if (!hasSource) return;
+    setDragging(true);
+    startXRef.current = e.clientX;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    if (!dragging) return;
+    const dx = e.clientX - startXRef.current;
+    // Only allow dragging to the right (positive direction)
+    setDragX(Math.max(0, dx));
+  }
+
+  function handlePointerUp() {
+    if (!dragging) return;
+    setDragging(false);
+    if (dragX > 80) {
+      setShowSource(true);
+    }
+    setDragX(0);
+  }
+
+  if (showSource && persona.source_image_url) {
+    return (
+      <button
+        type="button"
+        onClick={() => setShowSource(false)}
+        className="relative block w-full aspect-square overflow-hidden bg-muted"
+      >
+        <img
+          src={persona.source_image_url}
+          alt={`مصدر ${persona.name}`}
+          className="w-full h-full object-cover animate-fade-in"
+          loading="lazy"
+        />
+        <div className="absolute bottom-2 left-2 right-2 bg-background/80 backdrop-blur rounded-md px-2 py-1 text-[10px] text-center flex items-center justify-center gap-1">
+          <BookOpen className="h-3 w-3" />
+          المصدر التاريخي — اضغط للعودة
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative block w-full aspect-square overflow-hidden bg-muted">
+      <button
+        type="button"
+        onClick={onPreview}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className="block w-full h-full touch-pan-y"
+      >
+        <img
+          src={persona.image_url}
+          alt={persona.name}
+          className="w-full h-full object-cover hover:scale-105 transition"
+          loading="lazy"
+          style={dragX > 0 ? { transform: `translateX(${dragX}px)`, opacity: 1 - dragX / 200 } : undefined}
+        />
+      </button>
+      {hasSource && (
+        <div className="absolute bottom-2 right-2 bg-background/70 backdrop-blur rounded-full p-1.5 pointer-events-none">
+          <ChevronRight className="h-3 w-3 text-foreground animate-[pulse_2s_ease-in-out_infinite]" />
+        </div>
+      )}
+    </div>
   );
 }
