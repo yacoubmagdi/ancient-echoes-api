@@ -40,6 +40,35 @@ export const validateOgTags = createServerFn({ method: "POST" })
     const issues: string[] = [];
     const tags: OgValidationResult["tags"] = {};
 
+    // SSRF protection: only allow fetching our own origin
+    const allowedHosts = [
+      "lovable.app",
+      "lovable.dev",
+    ];
+    try {
+      const parsedUrl = new URL(data.sharePageUrl);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      if (!allowedHosts.some((h) => hostname === h || hostname.endsWith(`.${h}`))) {
+        return {
+          url: data.sharePageUrl,
+          status: "fail",
+          tags: {},
+          issues: ["❌ URL غير مسموح — يمكن فحص روابط المشروع فقط"],
+          debugLinks: buildDebugLinks(data.sharePageUrl),
+          imageCheck: { accessible: false, error: "Host not allowed" },
+        };
+      }
+    } catch {
+      return {
+        url: data.sharePageUrl,
+        status: "fail",
+        tags: {},
+        issues: ["❌ رابط غير صالح"],
+        debugLinks: buildDebugLinks(data.sharePageUrl),
+        imageCheck: { accessible: false, error: "Invalid URL" },
+      };
+    }
+
     // Fetch the share page HTML
     let html = "";
     try {
