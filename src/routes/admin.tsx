@@ -17,6 +17,7 @@ import { ShieldCheck, AlertTriangle } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
+import { verifyPersona } from "@/server/verify-persona.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -72,6 +73,15 @@ function AdminPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [imgGenBusy, setImgGenBusy] = useState(false);
   const [imgGenProgress, setImgGenProgress] = useState<string | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyResult, setVerifyResult] = useState<{
+    verdict: string;
+    reason: string;
+    sources: string[];
+    confidence: number;
+    correctedName?: string;
+    correctedDescription?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -128,6 +138,50 @@ function AdminPage() {
 
     // --- Duplicate detection (skip for edits keeping same name/category) ---
     if (!form.id) {
+      // --- Historical verification for new personas ---
+      try {
+        flash("🔍 جارٍ التحقق التاريخي…");
+        const vResult = await verifyPersona({
+          data: {
+            name: form.name,
+            category: form.category,
+            role: form.role,
+            gender: form.gender,
+            description: form.description,
+          },
+        });
+
+        // Log verification result to DB
+        await supabase.from("persona_verification_log").insert({
+          persona_name: form.name,
+          category: form.category,
+          role: form.role,
+          gender: form.gender,
+          verdict: vResult.verdict,
+          reason: vResult.reason,
+          sources: vResult.sources,
+          confidence: vResult.confidence,
+          verified_by: user?.id,
+        });
+
+        if (vResult.verdict === "rejected") {
+          setBusy(false);
+          setVerifyResult(vResult);
+          flash(`❌ مرفوضة: ${vResult.reason}`);
+          return;
+        }
+
+        if (vResult.verdict === "uncertain") {
+          setVerifyResult(vResult);
+          flash(`⚠️ غير مؤكدة: ${vResult.reason}`);
+        } else {
+          setVerifyResult(vResult);
+          flash(`✅ مقبولة تاريخياً (ثقة ${Math.round(vResult.confidence * 100)}%)`);
+        }
+      } catch (e) {
+        flash(`⚠️ تعذر التحقق التاريخي: ${(e as Error).message}`);
+      }
+
       // 1) Exact name match within same category
       const nameMatch = personas.find(
         (p) => p.name.trim().toLowerCase() === form.name.trim().toLowerCase() && p.category === form.category
@@ -176,6 +230,7 @@ function AdminPage() {
       const { error } = await supabase.from("personas").insert({
         name: form.name, description: form.description, category: form.category,
         gender: form.gender, role: form.role, image_url: form.image_url,
+        verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
       });
       if (error) { setBusy(false); flash(error.message); return; }
       flash("Persona created.");
@@ -183,6 +238,7 @@ function AdminPage() {
     setBusy(false);
     setDialogOpen(false);
     setEditing(null);
+    setVerifyResult(null);
     loadPersonas();
   }
 
@@ -531,12 +587,33 @@ function AdminPage() {
       {/* Edit / Create dialog */}
       <PersonaDialog
         open={dialogOpen}
-        onOpenChange={(o) => { setDialogOpen(o); if (!o) setEditing(null); }}
+        onOpenChange={(o) => { setDialogOpen(o); if (!o) { setEditing(null); setVerifyResult(null); } }}
         form={editing}
         setForm={setEditing}
         onSave={savePersona}
         onUpload={uploadImageToBucket}
         busy={busy}
+        onVerify={async (f) => {
+          setVerifyBusy(true);
+          setVerifyResult(null);
+          try {
+            const result = await verifyPersona({
+              data: { name: f.name, category: f.category, role: f.role, gender: f.gender, description: f.description },
+            });
+            setVerifyResult(result);
+            await supabase.from("persona_verification_log").insert({
+              persona_name: f.name, category: f.category, role: f.role, gender: f.gender,
+              verdict: result.verdict, reason: result.reason, sources: result.sources,
+              confidence: result.confidence, verified_by: user?.id,
+            });
+          } catch (e) {
+            flash(`خطأ في التحقق: ${(e as Error).message}`);
+          } finally {
+            setVerifyBusy(false);
+          }
+        }}
+        verifyBusy={verifyBusy}
+        verifyResult={verifyResult}
       />
 
       {/* Preview / similarity dialog */}
@@ -549,7 +626,7 @@ function AdminPage() {
 }
 
 function PersonaDialog({
-  open, onOpenChange, form, setForm, onSave, onUpload, busy,
+  open, onOpenChange, form, setForm, onSave, onUpload, busy, onVerify, verifyBusy, verifyResult,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -558,6 +635,9 @@ function PersonaDialog({
   onSave: (f: FormState) => void;
   onUpload: (file: File) => Promise<string | null>;
   busy: boolean;
+  onVerify: (f: FormState) => void;
+  verifyBusy: boolean;
+  verifyResult: { verdict: string; reason: string; sources: string[]; confidence: number; correctedName?: string; correctedDescription?: string } | null;
 }) {
   if (!form) return null;
   return (
@@ -639,9 +719,47 @@ function PersonaDialog({
           </div>
         </div>
         <DialogFooter>
+          {!form.id && (
+            <Button
+              variant="outline"
+              onClick={() => onVerify(form)}
+              disabled={verifyBusy || busy || !form.name.trim()}
+              className="mr-auto"
+            >
+              <ShieldCheck className="h-4 w-4 mr-1" />
+              {verifyBusy ? "جارٍ التحقق…" : "تحقق تاريخياً"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
           <Button onClick={() => onSave(form)} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
         </DialogFooter>
+        {verifyResult && (
+          <div className={`mt-3 p-3 rounded-md text-sm border ${
+            verifyResult.verdict === "accepted" ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800" :
+            verifyResult.verdict === "rejected" ? "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800" :
+            "bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800"
+          }`}>
+            <div className="flex items-center gap-2 font-semibold mb-1">
+              {verifyResult.verdict === "accepted" ? "✅ مقبولة" :
+               verifyResult.verdict === "rejected" ? "❌ مرفوضة" : "⚠️ غير مؤكدة"}
+              <span className="text-xs font-normal text-muted-foreground">
+                (ثقة {Math.round(verifyResult.confidence * 100)}%)
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed">{verifyResult.reason}</p>
+            {verifyResult.sources.length > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-semibold">المصادر:</p>
+                <ul className="text-xs list-disc list-inside">
+                  {verifyResult.sources.map((s, i) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+            {verifyResult.correctedName && (
+              <p className="text-xs mt-1">📝 الاسم المقترح: <strong>{verifyResult.correctedName}</strong></p>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
