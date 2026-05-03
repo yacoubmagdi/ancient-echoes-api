@@ -41,13 +41,12 @@ type Persona = {
   gender: string;
   role: string;
   image_url: string;
-  luxand_uuid: string | null;
   created_at: string;
   face_descriptor: number[] | null;
   duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "luxand_uuid" | "face_descriptor" | "duplicate_flag"> & { id?: string };
+type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string };
 
 function emptyForm(): FormState {
   return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "" };
@@ -189,14 +188,6 @@ function AdminPage() {
 
   async function deletePersona(p: Persona) {
     setBusy(true);
-    if (p.luxand_uuid) {
-      // Best-effort delete from Luxand via edge function
-      try {
-        await supabase.functions.invoke("persona-admin", {
-          body: { action: "luxand_delete", luxand_uuid: p.luxand_uuid },
-        });
-      } catch (_) { /* ignore */ }
-    }
     const { error } = await supabase.from("personas").delete().eq("id", p.id);
     setBusy(false);
     if (error) { flash(error.message); return; }
@@ -481,8 +472,8 @@ function AdminPage() {
                             <p className="text-xs text-muted-foreground capitalize">{p.role} · {p.gender}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <Badge variant={p.luxand_uuid ? "default" : "secondary"} className="text-[10px] shrink-0">
-                              {p.luxand_uuid ? "enrolled" : "no face"}
+                            <Badge variant={p.face_descriptor ? "default" : "secondary"} className="text-[10px] shrink-0">
+                              {p.face_descriptor ? "has face" : "no face"}
                             </Badge>
                             {p.duplicate_flag && p.duplicate_flag.length > 0 && (
                               <Badge variant="destructive" className="text-[10px] shrink-0 gap-0.5">
@@ -671,7 +662,7 @@ function PreviewDialog({
         <div>
           <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
           <p className="text-xs text-muted-foreground mt-2 break-all">
-            <strong>Luxand UUID:</strong> {persona.luxand_uuid ?? "— not enrolled —"}
+            <strong>Face Descriptor:</strong> {persona.face_descriptor ? "✅ stored" : "— not computed —"}
           </p>
           {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
         </div>
