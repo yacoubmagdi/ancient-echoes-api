@@ -1,0 +1,1 @@
+ALTER TABLE public.personas ADD COLUMN source_image_url text;
