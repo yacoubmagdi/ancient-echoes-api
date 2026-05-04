@@ -1143,9 +1143,14 @@ function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; n
             className="w-full rounded-lg border border-border/60"
             loading="lazy"
           />
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            📜 المصدر الأثري الموثّق
-          </p>
+          <a
+            href={sourceImageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-xs text-primary text-center mt-2 hover:underline"
+          >
+            📜 عرض المصدر الأصلي ↗
+          </a>
         </div>
       )}
     </div>
