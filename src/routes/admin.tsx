@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink } from "lucide-react";
-import { ShieldCheck, AlertTriangle } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Link2 } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -76,6 +76,13 @@ function AdminPage() {
   const [imgGenBusy, setImgGenBusy] = useState(false);
   const [imgGenProgress, setImgGenProgress] = useState<string | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [urlCheckBusy, setUrlCheckBusy] = useState(false);
+  const [urlCheckResult, setUrlCheckResult] = useState<{
+    total: number;
+    ok: number;
+    failed: number;
+    failures: Array<{ name: string; url: string; status: number | null; error: string | null }>;
+  } | null>(null);
   const [verifyResult, setVerifyResult] = useState<{
     verdict: string;
     reason: string;
@@ -97,6 +104,27 @@ function AdminPage() {
   function flash(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
+  }
+
+  async function handleCheckUrls() {
+    setUrlCheckBusy(true);
+    setUrlCheckResult(null);
+    try {
+      const res = await fetch("/api/public/hooks/check-source-urls", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+      });
+      const data = await res.json();
+      setUrlCheckResult(data);
+      flash(\`فحص الروابط: \${data.ok}/\${data.total} صالحة، \${data.failed} معطلة\`);
+    } catch (err: any) {
+      flash("فشل فحص الروابط: " + (err?.message || "خطأ"));
+    } finally {
+      setUrlCheckBusy(false);
+    }
   }
 
   async function loadPersonas() {
@@ -430,6 +458,32 @@ function AdminPage() {
       )}
 
       <div className="mx-auto max-w-7xl px-4 py-6">
+        {urlCheckResult && (
+          <Card className="mb-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                نتائج فحص الروابط
+              </CardTitle>
+              <CardDescription>
+                {urlCheckResult.ok}/{urlCheckResult.total} رابط صالح — {urlCheckResult.failed} معطل
+              </CardDescription>
+            </CardHeader>
+            {urlCheckResult.failures.length > 0 && (
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {urlCheckResult.failures.map((f, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs border-b border-border/50 pb-1">
+                      <span className="font-medium">{f.name}</span>
+                      <span className="text-destructive">{f.error || \`HTTP \${f.status}\`}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
         <Tabs value={activeCiv} onValueChange={setActiveCiv}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
             <TabsList className="flex-wrap h-auto">
@@ -469,6 +523,16 @@ function AdminPage() {
               >
                 <ShieldCheck className="h-4 w-4 mr-1" />
                 {auditBusy ? "جارٍ التدقيق…" : "تدقيق الأوصاف"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCheckUrls}
+                disabled={urlCheckBusy}
+                title="فحص صلاحية روابط المصدر التاريخي"
+              >
+                <Link2 className="h-4 w-4 mr-1" />
+                {urlCheckBusy ? "جارٍ الفحص…" : "فحص الروابط"}
               </Button>
 
               <Select value={roleFilter} onValueChange={setRoleFilter}>
