@@ -17,6 +17,7 @@ import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
+import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -59,6 +60,12 @@ const ApiPublicHooksGeneratePersonaImagesRoute =
     path: '/api/public/hooks/generate-persona-images',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCheckSourceUrlsRoute =
+  ApiPublicHooksCheckSourceUrlsRouteImport.update({
+    id: '/api/public/hooks/check-source-urls',
+    path: '/api/public/hooks/check-source-urls',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
@@ -76,6 +84,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
@@ -87,6 +96,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin/enroll'
     | '/result/$id'
+    | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin/enroll'
     | '/result/$id'
+    | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
@@ -119,6 +131,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/admin/enroll'
     | '/result/$id'
+    | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
@@ -129,6 +142,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResultIdRoute: typeof ResultIdRoute
+  ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
   ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
@@ -192,6 +206,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksGeneratePersonaImagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/check-source-urls': {
+      id: '/api/public/hooks/check-source-urls'
+      path: '/api/public/hooks/check-source-urls'
+      fullPath: '/api/public/hooks/check-source-urls'
+      preLoaderRoute: typeof ApiPublicHooksCheckSourceUrlsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -210,6 +231,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ResultIdRoute: ResultIdRoute,
+  ApiPublicHooksCheckSourceUrlsRoute: ApiPublicHooksCheckSourceUrlsRoute,
   ApiPublicHooksGeneratePersonaImagesRoute:
     ApiPublicHooksGeneratePersonaImagesRoute,
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
