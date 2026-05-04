@@ -223,6 +223,42 @@ export type Database = {
         }
         Relationships: []
       }
+      source_url_check_logs: {
+        Row: {
+          batch_id: string
+          checked_at: string
+          error_message: string | null
+          id: string
+          is_ok: boolean
+          persona_id: string
+          persona_name: string
+          source_url: string
+          status_code: number | null
+        }
+        Insert: {
+          batch_id: string
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          is_ok?: boolean
+          persona_id: string
+          persona_name: string
+          source_url: string
+          status_code?: number | null
+        }
+        Update: {
+          batch_id?: string
+          checked_at?: string
+          error_message?: string | null
+          id?: string
+          is_ok?: boolean
+          persona_id?: string
+          persona_name?: string
+          source_url?: string
+          status_code?: number | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
