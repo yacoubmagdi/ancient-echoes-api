@@ -119,7 +119,7 @@ function AdminPage() {
       });
       const data = await res.json();
       setUrlCheckResult(data);
-      flash(\`فحص الروابط: \${data.ok}/\${data.total} صالحة، \${data.failed} معطلة\`);
+      flash(`فحص الروابط: ${data.ok}/${data.total} صالحة، ${data.failed} معطلة`);
     } catch (err: any) {
       flash("فشل فحص الروابط: " + (err?.message || "خطأ"));
     } finally {
@@ -475,7 +475,7 @@ function AdminPage() {
                   {urlCheckResult.failures.map((f, i) => (
                     <div key={i} className="flex items-center justify-between text-xs border-b border-border/50 pb-1">
                       <span className="font-medium">{f.name}</span>
-                      <span className="text-destructive">{f.error || \`HTTP \${f.status}\`}</span>
+                     <span className="text-destructive">{f.error || `HTTP ${f.status}`}</span>
                     </div>
                   ))}
                 </div>
