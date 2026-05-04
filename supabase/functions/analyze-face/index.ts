@@ -2122,12 +2122,17 @@ function buildLocalized(
   const gender = p.gender ?? "any";
   const figure = figureFor(p.id, p.category, role, gender);
 
+  // If the DB name already contains Arabic characters, use it directly
+  // instead of the generic fallback translation.
+  const hasArabicName = /[\u0600-\u06FF]/.test(p.name);
   const archetypeName = lang === "ar"
-    ? arabicNameFor(p.name, p.category, role, gender)
+    ? (hasArabicName ? p.name : arabicNameFor(p.name, p.category, role, gender))
     : p.name;
   const localCategory = lang === "ar" ? arabicCategoryFor(p.category) : p.category;
+  // If the DB description already contains Arabic text, use it directly.
+  const hasArabicDesc = /[\u0600-\u06FF]/.test(p.description ?? "");
   const archetypeDesc = lang === "ar"
-    ? arabicDescriptionFor(p.category, role, gender)
+    ? (hasArabicDesc ? p.description : arabicDescriptionFor(p.category, role, gender))
     : p.description;
 
   if (!figure) {
