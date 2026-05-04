@@ -18,6 +18,7 @@ import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
 import { verifyPersona } from "@/server/verify-persona.functions";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -544,11 +545,20 @@ function AdminPage() {
                             <Pencil className="h-3 w-3" />
                           </Button>
                           {p.source_image_url && (
-                            <Button size="sm" variant="outline" className="flex-1" asChild title="المصدر التاريخي">
-                              <a href={p.source_image_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button size="sm" variant="outline" className="flex-1" asChild>
+                                    <a href={p.source_image_url} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>فتح المصدر التاريخي (ويكيبيديا) في تبويب جديد</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                           <Button size="sm" variant="outline" className="flex-1" onClick={() => reenroll(p)} disabled={busy}>
                             <RefreshCw className="h-3 w-3" />
