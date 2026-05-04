@@ -1151,6 +1151,10 @@ function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; n
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-xs text-primary text-center mt-2 hover:underline"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(sourceImageUrl, "_blank", "noopener,noreferrer");
+                }}
               >
                 📜 عرض المصدر الأصلي ↗
               </a>
