@@ -1125,6 +1125,22 @@ function DownloadCardButton({
 function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; name: string }) {
   const [show, setShow] = useState(false);
   const isValidUrl = /^https?:\/\//i.test(sourceImageUrl);
+
+  // Convert Wikimedia thumbnail URL to the Commons file page
+  // e.g. .../thumb/4/4f/Tutanchamun_Maske.jpg/440px-... → File:Tutanchamun_Maske.jpg
+  const getSourcePageUrl = (url: string) => {
+    const m = url.match(/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/i);
+    if (m) return `https://commons.wikimedia.org/wiki/File:${decodeURIComponent(m[1])}`;
+    return url;
+  };
+
+  // Get direct (non-thumb) image URL for display
+  const getDirectImageUrl = (url: string) => {
+    const m = url.match(/(upload\.wikimedia\.org\/wikipedia\/commons\/)thumb\/([0-9a-f]\/[0-9a-f]{2}\/[^/]+)\/.+/i);
+    if (m) return `https://${m[1]}${m[2]}`;
+    return url;
+  };
+
   return (
     <div className="mt-4">
       <Button
@@ -1141,19 +1157,19 @@ function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; n
           {isValidUrl ? (
             <>
               <img
-                src={sourceImageUrl}
+                src={getDirectImageUrl(sourceImageUrl)}
                 alt={`المصدر التاريخي — ${name}`}
                 className="w-full rounded-lg border border-border/60"
                 loading="lazy"
               />
               <a
-                href={sourceImageUrl}
+                href={getSourcePageUrl(sourceImageUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block text-xs text-primary text-center mt-2 hover:underline"
                 onClick={(e) => {
                   e.preventDefault();
-                  window.open(sourceImageUrl, "_blank", "noopener,noreferrer");
+                  window.open(getSourcePageUrl(sourceImageUrl), "_blank", "noopener,noreferrer");
                 }}
               >
                 📜 عرض المصدر الأصلي ↗
