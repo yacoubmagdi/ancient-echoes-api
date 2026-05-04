@@ -1124,6 +1124,7 @@ function DownloadCardButton({
 
 function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; name: string }) {
   const [show, setShow] = useState(false);
+  const isValidUrl = /^https?:\/\//i.test(sourceImageUrl);
   return (
     <div className="mt-4">
       <Button
@@ -1137,20 +1138,28 @@ function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; n
       </Button>
       {show && (
         <div className="mt-3 animate-fade-in">
-          <img
-            src={sourceImageUrl}
-            alt={`المصدر التاريخي — ${name}`}
-            className="w-full rounded-lg border border-border/60"
-            loading="lazy"
-          />
-          <a
-            href={sourceImageUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-xs text-primary text-center mt-2 hover:underline"
-          >
-            📜 عرض المصدر الأصلي ↗
-          </a>
+          {isValidUrl ? (
+            <>
+              <img
+                src={sourceImageUrl}
+                alt={`المصدر التاريخي — ${name}`}
+                className="w-full rounded-lg border border-border/60"
+                loading="lazy"
+              />
+              <a
+                href={sourceImageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-xs text-primary text-center mt-2 hover:underline"
+              >
+                📜 عرض المصدر الأصلي ↗
+              </a>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center">
+              ⚠️ رابط المصدر غير صالح
+            </p>
+          )}
         </div>
       )}
     </div>
