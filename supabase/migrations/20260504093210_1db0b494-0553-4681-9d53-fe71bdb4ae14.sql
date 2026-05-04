@@ -1,0 +1,1 @@
+UPDATE personas SET source_image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Tutanchamun_Maske.jpg/440px-Tutanchamun_Maske.jpg' WHERE name = 'Tutankhamun';
