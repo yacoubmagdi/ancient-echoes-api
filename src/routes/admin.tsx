@@ -12,9 +12,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink } from "lucide-react";
-import { ShieldCheck, AlertTriangle, Link2, Wand2 } from "lucide-react";
-import { Eye } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -102,6 +102,8 @@ function AdminPage() {
     correctedName?: string;
     correctedDescription?: string;
   } | null>(null);
+  const [minSimilarity, setMinSimilarity] = useState(30);
+  const [similaritySaving, setSimilaritySaving] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
@@ -110,7 +112,22 @@ function AdminPage() {
   useEffect(() => {
     if (!user) return;
     loadPersonas();
+    loadSettings();
   }, [user]);
+
+  async function loadSettings() {
+    const { data } = await supabase.from("site_settings").select("value").eq("key", "min_similarity").single();
+    if (data) setMinSimilarity(Number(data.value));
+  }
+
+  async function saveMinSimilarity(val: number) {
+    setSimilaritySaving(true);
+    const { error } = await supabase.from("site_settings").upsert({ key: "min_similarity", value: String(val), updated_at: new Date().toISOString() });
+    setSimilaritySaving(false);
+    if (error) { flash("خطأ في حفظ الإعداد: " + error.message); return; }
+    setMinSimilarity(val);
+    flash(`تم تحديث حد التطابق إلى ${val}%`);
+  }
 
   function flash(msg: string) {
     setToast(msg);
@@ -498,6 +515,39 @@ function AdminPage() {
             )}
           </Card>
         )}
+
+        {/* Settings Card */}
+        <Card className="mb-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              إعدادات التطابق
+            </CardTitle>
+            <CardDescription>تحكم في الحد الأدنى لنسبة التشابه المعروضة للمستخدمين</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Label className="text-sm whitespace-nowrap">حد التطابق:</Label>
+              <Slider
+                value={[minSimilarity]}
+                onValueChange={([v]) => setMinSimilarity(v)}
+                min={10}
+                max={90}
+                step={5}
+                className="flex-1"
+              />
+              <span className="text-sm font-bold min-w-[3rem] text-center">{minSimilarity}%</span>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={similaritySaving}
+                onClick={() => saveMinSimilarity(minSimilarity)}
+              >
+                {similaritySaving ? "جارٍ الحفظ…" : "حفظ"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeCiv} onValueChange={setActiveCiv}>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
