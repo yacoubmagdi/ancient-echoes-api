@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result.$id'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
+import { Route as ApiPublicHooksVerifySourceRelevanceRouteImport } from './routes/api/public/hooks/verify-source-relevance'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
@@ -44,6 +45,12 @@ const AdminEnrollRoute = AdminEnrollRouteImport.update({
   path: '/enroll',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiPublicHooksVerifySourceRelevanceRoute =
+  ApiPublicHooksVerifySourceRelevanceRouteImport.update({
+    id: '/api/public/hooks/verify-source-relevance',
+    path: '/api/public/hooks/verify-source-relevance',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSharePageRoute = ApiPublicHooksSharePageRouteImport.update({
   id: '/api/public/hooks/share-page',
   path: '/api/public/hooks/share-page',
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
+  '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -88,6 +96,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
+  '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -100,6 +109,7 @@ export interface FileRoutesById {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
+  '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
+    | '/api/public/hooks/verify-source-relevance'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
+    | '/api/public/hooks/verify-source-relevance'
   id:
     | '__root__'
     | '/'
@@ -135,6 +147,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/share-page'
+    | '/api/public/hooks/verify-source-relevance'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -146,6 +159,7 @@ export interface RootRouteChildren {
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
   ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
+  ApiPublicHooksVerifySourceRelevanceRoute: typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +198,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/enroll'
       preLoaderRoute: typeof AdminEnrollRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/public/hooks/verify-source-relevance': {
+      id: '/api/public/hooks/verify-source-relevance'
+      path: '/api/public/hooks/verify-source-relevance'
+      fullPath: '/api/public/hooks/verify-source-relevance'
+      preLoaderRoute: typeof ApiPublicHooksVerifySourceRelevanceRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/share-page': {
       id: '/api/public/hooks/share-page'
@@ -236,6 +257,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicHooksGeneratePersonaImagesRoute,
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
   ApiPublicHooksSharePageRoute: ApiPublicHooksSharePageRoute,
+  ApiPublicHooksVerifySourceRelevanceRoute:
+    ApiPublicHooksVerifySourceRelevanceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
