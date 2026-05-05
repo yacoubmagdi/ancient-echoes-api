@@ -16,6 +16,7 @@ import { Route as ResultIdRouteImport } from './routes/result.$id'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
 import { Route as ApiPublicHooksVerifySourceRelevanceRouteImport } from './routes/api/public/hooks/verify-source-relevance'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
+import { Route as ApiPublicHooksRegeneratePersonaImageRouteImport } from './routes/api/public/hooks/regenerate-persona-image'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
 import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
@@ -56,6 +57,12 @@ const ApiPublicHooksSharePageRoute = ApiPublicHooksSharePageRouteImport.update({
   path: '/api/public/hooks/share-page',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksRegeneratePersonaImageRoute =
+  ApiPublicHooksRegeneratePersonaImageRouteImport.update({
+    id: '/api/public/hooks/regenerate-persona-image',
+    path: '/api/public/hooks/regenerate-persona-image',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksOgImageRoute = ApiPublicHooksOgImageRouteImport.update({
   id: '/api/public/hooks/og-image',
   path: '/api/public/hooks/og-image',
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -95,6 +103,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -108,6 +117,7 @@ export interface FileRoutesById {
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
+  '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesByTo: FileRoutesByTo
@@ -134,6 +145,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   id:
@@ -146,6 +158,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
+    | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesById: FileRoutesById
@@ -158,6 +171,7 @@ export interface RootRouteChildren {
   ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
+  ApiPublicHooksRegeneratePersonaImageRoute: typeof ApiPublicHooksRegeneratePersonaImageRoute
   ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
   ApiPublicHooksVerifySourceRelevanceRoute: typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -213,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSharePageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/regenerate-persona-image': {
+      id: '/api/public/hooks/regenerate-persona-image'
+      path: '/api/public/hooks/regenerate-persona-image'
+      fullPath: '/api/public/hooks/regenerate-persona-image'
+      preLoaderRoute: typeof ApiPublicHooksRegeneratePersonaImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/og-image': {
       id: '/api/public/hooks/og-image'
       path: '/api/public/hooks/og-image'
@@ -256,6 +277,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGeneratePersonaImagesRoute:
     ApiPublicHooksGeneratePersonaImagesRoute,
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
+  ApiPublicHooksRegeneratePersonaImageRoute:
+    ApiPublicHooksRegeneratePersonaImageRoute,
   ApiPublicHooksSharePageRoute: ApiPublicHooksSharePageRoute,
   ApiPublicHooksVerifySourceRelevanceRoute:
     ApiPublicHooksVerifySourceRelevanceRoute,
