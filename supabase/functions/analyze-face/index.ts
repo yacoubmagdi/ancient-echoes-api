@@ -2395,6 +2395,7 @@ Deno.serve(async (req) => {
     civ: civilizationFilter || "",
     nat: nationalityCode || "",
     lang,
+    skin: userSkinTone ? `${userSkinTone.h}_${userSkinTone.s}_${userSkinTone.l}` : "off",
   };
   const cKey = resultCacheKey(userDescriptor as number[], cacheFilters);
   const cached = resultCache.get(cKey);
