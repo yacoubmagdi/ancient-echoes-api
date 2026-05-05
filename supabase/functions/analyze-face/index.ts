@@ -2326,6 +2326,7 @@ Deno.serve(async (req) => {
   debug.descriptor_len = userDescriptor.length;
 
   const nationalityCode = ((payload.nationality as string) ?? "").toUpperCase();
+  const userSkinTone = payload.skin_tone as { h: number; s: number; l: number } | undefined;
   const gender = ((payload.gender as string) ?? "").toLowerCase();
   const roleFilter = ((payload.role as string) ?? "").toLowerCase().trim();
   const civilizationFilter = ((payload.civilization as string) ?? "").trim();
@@ -2423,7 +2424,7 @@ Deno.serve(async (req) => {
   debug.candidates_with_descriptor = index.length;
 
   // Use the vector index for fast batch distance computation + sorting
-  const scored = index.scoreAll(userDescriptor as number[]);
+  const scored = index.scoreAll(userDescriptor as number[], userSkinTone ?? null);
   mark("scored");
 
   // Tiered selection — try to return 3 results.
