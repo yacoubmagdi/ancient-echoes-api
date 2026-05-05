@@ -935,6 +935,7 @@ function PersonaCardImage({ persona, index, onPreview }: { persona: Persona; ind
         onClick={() => setShowSource(false)}
         className="relative block w-full aspect-square overflow-hidden bg-muted"
       >
+        <span className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">{index}</span>
         <img
           src={persona.source_image_url}
           alt={`مصدر ${persona.name}`}
