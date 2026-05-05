@@ -2104,7 +2104,6 @@ async function getPersonasWithDescriptors(
   }
   const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor")
     .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor, skin_tone")
     .not("face_descriptor", "is", null)
     .not("image_url", "like", "%placeholder%")
