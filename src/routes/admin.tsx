@@ -132,12 +132,12 @@ function AdminPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("personas")
-      .select("*")
+      .select("id, name, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag")
       .order("category")
       .order("name")
       .limit(2000);
     if (error) flash(`Load error: ${error.message}`);
-    setPersonas((data as Persona[]) ?? []);
+    setPersonas((data as any[])?.map(d => ({ ...d, face_descriptor: null })) as Persona[] ?? []);
     setLoading(false);
   }
 
@@ -228,11 +228,14 @@ function AdminPage() {
         const img = await imageFromUrl(form.image_url);
         const newDescriptor = await extractDescriptor(img);
         if (newDescriptor) {
-          const sameCatPersonas = personas.filter(
-            (p) => p.category === form.category && p.face_descriptor
-          );
-          for (const existing of sameCatPersonas) {
-            const existingDesc = existing.face_descriptor;
+          // Fetch face descriptors on-demand for same category
+          const { data: sameCatData } = await supabase
+            .from("personas")
+            .select("id, name, face_descriptor")
+            .eq("category", form.category)
+            .not("face_descriptor", "is", null);
+          for (const existing of sameCatData ?? []) {
+            const existingDesc = existing.face_descriptor as number[] | null;
             if (!existingDesc || existingDesc.length !== newDescriptor.descriptor.length) continue;
             const similarity = cosineSimilarity(newDescriptor.descriptor, existingDesc);
             if (similarity > 0.85) {
@@ -593,8 +596,8 @@ function AdminPage() {
                             <p className="text-xs text-muted-foreground capitalize">{p.role} · {p.gender}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <Badge variant={p.face_descriptor ? "default" : "secondary"} className="text-[10px] shrink-0">
-                              {p.face_descriptor ? "has face" : "no face"}
+                          <Badge variant="secondary" className="text-[10px] shrink-0">
+                              face
                             </Badge>
                             {p.duplicate_flag && p.duplicate_flag.length > 0 && (
                               <Badge variant="destructive" className="text-[10px] shrink-0 gap-0.5">
@@ -888,7 +891,7 @@ function PreviewDialog({
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2 break-all">
-            <strong>Face Descriptor:</strong> {persona.face_descriptor ? "✅ stored" : "— not computed —"}
+            <strong>Face Descriptor:</strong> — check DB —
           </p>
           {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
         </div>
