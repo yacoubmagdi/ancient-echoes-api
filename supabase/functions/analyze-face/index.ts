@@ -2049,15 +2049,15 @@ class VectorIndex {
     for (let i = 0; i < this.personas.length; i++) {
       let distance = this.distanceTo(query, i);
 
-      // Adjust distance based on skin tone similarity (up to ±15% weight)
+      // Adjust distance based on skin tone similarity (up to ±35% weight)
       if (userSkinTone && this.personas[i].skin_tone) {
         const pTone = this.personas[i].skin_tone!;
         const skinDist = skinToneDistance(userSkinTone, pTone);
         // skinDist ranges 0-1; 0 = perfect match, 1 = opposite ends
-        // Apply as a multiplier: matching skin tone reduces distance by up to 15%,
-        // mismatching increases by up to 10%
-        const skinFactor = 1.0 + (skinDist - 0.3) * 0.25;
-        distance *= Math.max(0.85, Math.min(1.10, skinFactor));
+        // Apply as a multiplier: matching skin tone reduces distance by up to 35%,
+        // mismatching increases by up to 25%
+        const skinFactor = 1.0 + (skinDist - 0.25) * 0.55;
+        distance *= Math.max(0.65, Math.min(1.25, skinFactor));
       }
 
       results[i] = {
@@ -2535,6 +2535,30 @@ Deno.serve(async (req) => {
   }
 
   const top = ranked[0];
+
+  // Reject results below minimum similarity threshold (50%)
+  const MIN_SIMILARITY = 50;
+  if (top.similarity < MIN_SIMILARITY) {
+    debug.rejected_similarity = top.similarity;
+    await supabase.from("query_logs").insert({
+      ip_hash: ipHash,
+      matched_persona_id: top.persona_id,
+      similarity: top.similarity,
+      success: false,
+      error_code: "low_similarity",
+    });
+    mark("total");
+    return jsonResponse({
+      error: lang === "ar"
+        ? "لم نجد تطابقًا كافيًا. جرّب صورة أوضح للوجه أو بإضاءة أفضل."
+        : "No sufficient match found. Try a clearer face photo with better lighting.",
+      similarity: top.similarity,
+      requires_ad: requiresAd,
+      rate_limit_remaining: rl.remaining,
+      ...(debugEnabled ? { _debug: debug } : {}),
+    }, 200);
+  }
+
   if (traitLine) {
     top.description = `${top.description}\n\n${traitLine}`;
   }
