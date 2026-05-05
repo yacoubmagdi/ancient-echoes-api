@@ -162,12 +162,14 @@ function Index() {
         );
       }
       const { descriptor, skinTone } = faceResult;
+      // Use AI-detected gender when user hasn't manually selected one
+      const effectiveGender = gender || faceResult.detectedGender || "";
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
 
       // Check client-side cache first
       const filters: Record<string, string> = {
         lang,
-        gender: gender || "",
+        gender: effectiveGender,
         role: role && role !== "any" ? role : "",
         civ: civilization && civilization !== "any" ? civilization : "",
         nat: nationality || "",
@@ -193,7 +195,7 @@ function Index() {
           lang,
           ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
           ...(nationality ? { nationality } : {}),
-          ...(gender ? { gender } : {}),
+          ...(effectiveGender ? { gender: effectiveGender } : {}),
           ...(role && role !== "any" ? { role } : {}),
           ...(civilization && civilization !== "any" ? { civilization } : {}),
         }),
