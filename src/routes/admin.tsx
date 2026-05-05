@@ -14,10 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink } from "lucide-react";
 import { ShieldCheck, AlertTriangle, Link2, Wand2 } from "lucide-react";
+import { Eye } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
 import { verifyPersona } from "@/server/verify-persona.functions";
+import { verifyPersonaImageFn } from "@/server/verify-persona-image.functions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/admin")({
@@ -78,6 +80,14 @@ function AdminPage() {
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [regenBusy, setRegenBusy] = useState<string | null>(null);
   const [urlCheckBusy, setUrlCheckBusy] = useState(false);
+  const [imgVerifyBusy, setImgVerifyBusy] = useState(false);
+  const [imgVerifyResult, setImgVerifyResult] = useState<{
+    verdict: string;
+    score: number;
+    issues: string[];
+    details: Record<string, { ok: boolean; note: string }>;
+    suggestion: string;
+  } | null>(null);
   const [urlCheckResult, setUrlCheckResult] = useState<{
     total: number;
     ok: number;
@@ -713,6 +723,46 @@ function AdminPage() {
       <PreviewDialog
         persona={previewing}
         onClose={() => setPreviewing(null)}
+        onVerifyImage={async (p: Persona) => {
+          setImgVerifyBusy(true);
+          setImgVerifyResult(null);
+          try {
+            const result = await verifyPersonaImageFn({
+              data: {
+                name: p.name,
+                role: p.role,
+                gender: p.gender,
+                description: p.description,
+                imageUrl: p.image_url,
+              },
+            });
+            setImgVerifyResult(result);
+            // Log to verification table
+            await supabase.from("persona_verification_log").insert({
+              persona_name: p.name,
+              category: p.category,
+              role: p.role,
+              gender: p.gender,
+              verdict: result.verdict,
+              reason: `تدقيق الصورة: ${result.score}/100 — ${result.issues.join("، ")}`,
+              sources: Object.entries(result.details).map(([k, v]) => `${k}: ${v.note}`),
+              confidence: result.score / 100,
+              verified_by: user?.id,
+            });
+            // Update verification_status on persona
+            if (result.verdict === "approved") {
+              await supabase.from("personas").update({ verification_status: "image_verified" }).eq("id", p.id);
+            } else if (result.verdict === "rejected") {
+              await supabase.from("personas").update({ verification_status: "image_rejected" }).eq("id", p.id);
+            }
+          } catch (e) {
+            flash(`خطأ في تدقيق الصورة: ${(e as Error).message}`);
+          } finally {
+            setImgVerifyBusy(false);
+          }
+        }}
+        imgVerifyBusy={imgVerifyBusy}
+        imgVerifyResult={imgVerifyResult}
       />
     </main>
   );
@@ -871,9 +921,29 @@ function PersonaDialog({
 }
 
 function PreviewDialog({
-  persona, onClose,
-}: { persona: Persona | null; onClose: () => void }) {
+  persona, onClose, onVerifyImage, imgVerifyBusy, imgVerifyResult,
+}: {
+  persona: Persona | null;
+  onClose: () => void;
+  onVerifyImage: (p: Persona) => void;
+  imgVerifyBusy: boolean;
+  imgVerifyResult: {
+    verdict: string;
+    score: number;
+    issues: string[];
+    details: Record<string, { ok: boolean; note: string }>;
+    suggestion: string;
+  } | null;
+}) {
   if (!persona) return null;
+
+  const detailLabels: Record<string, string> = {
+    skinTone: "لون البشرة",
+    facialFeatures: "ملامح الوجه",
+    headdressAttire: "الغطاء والملابس",
+    historicalAccuracy: "الدقة التاريخية",
+    overallQuality: "جودة الصورة",
+  };
 
   return (
     <Dialog open={!!persona} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -894,6 +964,62 @@ function PreviewDialog({
             <strong>Face Descriptor:</strong> — check DB —
           </p>
           {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
+
+          {/* Image Verification */}
+          <div className="mt-4 border-t pt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onVerifyImage(persona)}
+              disabled={imgVerifyBusy}
+              className="w-full gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              {imgVerifyBusy ? "جارٍ تدقيق الصورة…" : "تدقيق مطابقة الصورة للأدلة التاريخية"}
+            </Button>
+
+            {imgVerifyResult && (
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${
+                imgVerifyResult.verdict === "approved"
+                  ? "bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800"
+                  : imgVerifyResult.verdict === "rejected"
+                  ? "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800"
+                  : "bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800"
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold">
+                    {imgVerifyResult.verdict === "approved" ? "✅ معتمدة" :
+                     imgVerifyResult.verdict === "rejected" ? "❌ مرفوضة" : "⚠️ تحتاج مراجعة"}
+                  </span>
+                  <Badge variant="secondary">{imgVerifyResult.score}/100</Badge>
+                </div>
+
+                {/* Detail checks */}
+                <div className="space-y-1 mb-2">
+                  {Object.entries(imgVerifyResult.details).map(([key, val]) => (
+                    <div key={key} className="flex items-start gap-2 text-xs">
+                      <span>{val.ok ? "✅" : "❌"}</span>
+                      <span className="font-medium min-w-[80px]">{detailLabels[key] || key}:</span>
+                      <span className="text-muted-foreground">{val.note}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {imgVerifyResult.issues.length > 0 && (
+                  <div className="text-xs mt-2">
+                    <p className="font-semibold text-destructive">المشاكل:</p>
+                    <ul className="list-disc list-inside">
+                      {imgVerifyResult.issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {imgVerifyResult.suggestion && (
+                  <p className="text-xs mt-2 text-muted-foreground">💡 {imgVerifyResult.suggestion}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
