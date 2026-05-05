@@ -206,19 +206,6 @@ function Index() {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
       const matchData = data as MatchResult;
-      // Fetch threshold from site_settings (falls back to 30)
-      let minSimilarity = 30;
-      try {
-        const { data: setting } = await supabase.from("site_settings").select("value").eq("key", "min_similarity").single();
-        if (setting) minSimilarity = Number(setting.value);
-      } catch {}
-      if (matchData.similarity < minSimilarity) {
-        throw new Error(
-          lang === "ar"
-            ? "نسبة التشابه منخفضة جدًا. حاول بصورة أوضح للوجه أو بزاوية مختلفة."
-            : "Similarity too low. Try a clearer face photo or a different angle.",
-        );
-      }
       setResult(matchData);
       // Store in client cache
       analysisCache.set(cKey, { result: matchData, at: Date.now() });
