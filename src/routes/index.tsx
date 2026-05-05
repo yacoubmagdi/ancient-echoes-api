@@ -194,7 +194,7 @@ function Index() {
         },
         body: JSON.stringify({
           descriptor,
-          skin_tone: skinTone,
+          ...(skinToneEnabled ? { skin_tone: skinTone } : {}),
           lang,
           ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
           ...(nationality ? { nationality } : {}),
