@@ -74,6 +74,8 @@ export const translations = {
     cardMatch: "Your Echo",
     topMatches: "Top 3 Matches",
     matchRank: "Match #{rank}",
+    skinToneLabel: "Skin tone matching",
+    skinToneHint: "Reduces result variability when disabled",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -145,6 +147,8 @@ export const translations = {
     cardMatch: "صداك",
     topMatches: "أفضل 3 تطابقات",
     matchRank: "التطابق #{rank}",
+    skinToneLabel: "مطابقة لون البشرة",
+    skinToneHint: "تعطيلها يحسّن ثبات النتائج",
   },
 } as const;
 

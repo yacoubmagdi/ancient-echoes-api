@@ -98,6 +98,7 @@ function Index() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [role, setRole] = useState<string>("any");
   const [civilization, setCivilization] = useState<string>("any");
+  const [skinToneEnabled, setSkinToneEnabled] = useState(true);
   // Always start with "en" on the server AND first client render to avoid
   // hydration mismatch; load saved language in an effect after mount.
   const [lang, setLang] = useState<Lang>("en");
@@ -175,6 +176,7 @@ function Index() {
         role: role && role !== "any" ? role : "",
         civ: civilization && civilization !== "any" ? civilization : "",
         nat: nationality || "",
+        skin: skinToneEnabled ? "1" : "0",
       };
       const cKey = descriptorCacheKey(descriptor, filters);
       const cached = analysisCache.get(cKey);
@@ -193,7 +195,7 @@ function Index() {
         },
         body: JSON.stringify({
           descriptor,
-          skin_tone: skinTone,
+          ...(skinToneEnabled ? { skin_tone: skinTone } : {}),
           lang,
           ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
           ...(nationality ? { nationality } : {}),
@@ -412,6 +414,17 @@ function Index() {
                   <SelectItem value="Chinese">{t.civChinese}</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium">{t.skinToneLabel}</label>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.skinToneHint}</p>
+              </div>
+              <Switch
+                checked={skinToneEnabled}
+                onCheckedChange={setSkinToneEnabled}
+                disabled={loading}
+              />
             </div>
             <label
               htmlFor="photo-input"
