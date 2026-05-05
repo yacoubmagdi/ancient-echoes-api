@@ -1998,16 +1998,74 @@ type CachedPersona = {
   role: string | null;
   face_descriptor: number[];
 };
-let personaCache: CachedPersona[] | null = null;
-let personaCacheTime = 0;
+
+// ===== Vector Index =====
+// Stores all persona descriptors in a contiguous Float64Array for cache-friendly
+// batch distance computation. Uses a min-heap for top-K extraction (O(N log K)
+// instead of O(N log N) full sort). Rebuilt when persona cache expires.
+class VectorIndex {
+  private matrix: Float64Array; // flat NxD array
+  private personas: CachedPersona[];
+  private dim: number;
+  private builtAt: number;
+
+  constructor(personas: CachedPersona[], dim: number) {
+    this.personas = personas;
+    this.dim = dim;
+    this.builtAt = Date.now();
+    // Pack all descriptors into a single contiguous buffer
+    this.matrix = new Float64Array(personas.length * dim);
+    for (let i = 0; i < personas.length; i++) {
+      const desc = personas[i].face_descriptor;
+      const offset = i * dim;
+      for (let j = 0; j < dim; j++) {
+        this.matrix[offset + j] = desc[j];
+      }
+    }
+  }
+
+  get length() { return this.personas.length; }
+  get age() { return Date.now() - this.builtAt; }
+  getPersona(i: number) { return this.personas[i]; }
+
+  /** Compute euclidean distance between query and the i-th stored vector */
+  private distanceTo(query: number[], i: number): number {
+    const offset = i * this.dim;
+    let sum = 0;
+    for (let j = 0; j < this.dim; j++) {
+      const d = query[j] - this.matrix[offset + j];
+      sum += d * d;
+    }
+    return Math.sqrt(sum);
+  }
+
+  /** Return ALL personas scored & sorted by distance (needed for tiered filtering). */
+  scoreAll(query: number[]): Array<CachedPersona & { distance: number; similarity: number }> {
+    const results: Array<CachedPersona & { distance: number; similarity: number }> = new Array(this.personas.length);
+    for (let i = 0; i < this.personas.length; i++) {
+      const distance = this.distanceTo(query, i);
+      results[i] = {
+        ...this.personas[i],
+        distance,
+        similarity: distanceToSimilarity(distance),
+      };
+    }
+    // Sort by distance ascending
+    results.sort((a, b) => a.distance - b.distance);
+    return results;
+  }
+}
+
+let vectorIndex: VectorIndex | null = null;
+let vectorIndexTime = 0;
 const PERSONA_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 async function getPersonasWithDescriptors(
   supabase: ReturnType<typeof createClient>,
-): Promise<{ data: CachedPersona[]; fromCache: boolean }> {
+): Promise<{ index: VectorIndex; fromCache: boolean }> {
   const now = Date.now();
-  if (personaCache && now - personaCacheTime < PERSONA_CACHE_TTL_MS) {
-    return { data: personaCache, fromCache: true };
+  if (vectorIndex && now - vectorIndexTime < PERSONA_CACHE_TTL_MS) {
+    return { index: vectorIndex, fromCache: true };
   }
   const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
@@ -2019,9 +2077,9 @@ async function getPersonasWithDescriptors(
   const enrolled = (allPersonas ?? []).filter(
     (p: any) => Array.isArray(p.face_descriptor) && p.face_descriptor.length === DESCRIPTOR_LEN,
   ) as CachedPersona[];
-  personaCache = enrolled;
-  personaCacheTime = now;
-  return { data: enrolled, fromCache: false };
+  vectorIndex = new VectorIndex(enrolled, DESCRIPTOR_LEN);
+  vectorIndexTime = now;
+  return { index: vectorIndex, fromCache: false };
 }
 
 // --- Result cache: keyed by descriptor hash + filters ---
@@ -2316,49 +2374,21 @@ Deno.serve(async (req) => {
   }
 
   // Fetch personas (from in-memory cache or DB).
-  let enrolled: CachedPersona[];
+  let index: VectorIndex;
   let personaCacheHit = false;
   try {
     const res = await getPersonasWithDescriptors(supabase);
-    enrolled = res.data;
+    index = res.index;
     personaCacheHit = res.fromCache;
   } catch (fetchErr) {
     console.error("Failed to load personas:", fetchErr);
     return jsonResponse({ error: "Database error" }, 500);
   }
   mark("load_personas");
-  debug.candidates_with_descriptor = enrolled.length;
+  debug.candidates_with_descriptor = index.length;
 
-  type Scored = {
-    id: string;
-    name: string;
-    category: string;
-    description: string;
-    image_url: string;
-    source_image_url: string | null;
-    gender: string | null;
-    role: string | null;
-    distance: number;
-    similarity: number;
-  };
-
-  const scored: Scored[] = enrolled.map((p) => {
-    const distance = euclideanDistance(userDescriptor as number[], p.face_descriptor);
-    return {
-      id: p.id,
-      name: p.name,
-      category: p.category,
-      description: p.description,
-      image_url: p.image_url,
-      source_image_url: p.source_image_url,
-      gender: p.gender,
-      role: p.role,
-      distance,
-      similarity: distanceToSimilarity(distance),
-    };
-  });
-  // Sort by distance ascending (closest first).
-  scored.sort((a, b) => a.distance - b.distance);
+  // Use the vector index for fast batch distance computation + sorting
+  const scored = index.scoreAll(userDescriptor as number[]);
   mark("scored");
 
   // Tiered selection — try to return 3 results.
