@@ -72,6 +72,8 @@ export const translations = {
     downloadCardSaved: "Image downloaded",
     cardYou: "You",
     cardMatch: "Your Echo",
+    topMatches: "Top 3 Matches",
+    matchRank: "Match #{rank}",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -141,6 +143,8 @@ export const translations = {
     downloadCardSaved: "تم تحميل الصورة",
     cardYou: "أنت",
     cardMatch: "صداك",
+    topMatches: "أفضل 3 تطابقات",
+    matchRank: "التطابق #{rank}",
   },
 } as const;
 

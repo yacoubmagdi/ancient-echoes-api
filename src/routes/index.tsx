@@ -484,81 +484,108 @@ function Index() {
 
         {result && (
           <div className="space-y-8 animate-in fade-in duration-700">
-            <Card className="overflow-hidden border-border/60 bg-card/60 backdrop-blur">
-              <div className="grid md:grid-cols-2 gap-0">
-                <div className="relative aspect-square">
-                  <img
-                    src={result.image_url}
-                    alt={result.match_name}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                  <div className="absolute top-4 left-4 rounded-full bg-background/70 backdrop-blur px-3 py-1 text-xs uppercase tracking-wider">
-                    {result.category}
-                  </div>
-                </div>
-                <div className="p-8 md:p-10 flex flex-col justify-center">
-                  <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                    {t.youEcho}
-                  </p>
-                  <h2
-                    className="mt-2 text-3xl md:text-4xl font-bold bg-clip-text text-transparent"
-                    style={{ backgroundImage: "var(--gradient-gold)" }}
-                  >
-                    {result.match_name}
-                  </h2>
-                  <div className="mt-6">
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm text-muted-foreground">{t.resemblance}</span>
-                      <span
-                        className="text-2xl font-bold"
-                        style={{ color: "var(--color-gold)" }}
-                      >
-                        {result.similarity}%
-                      </span>
-                    </div>
-                    <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full transition-all duration-1000"
-                        style={{
-                          width: `${result.similarity}%`,
-                          background: "var(--gradient-gold)",
-                        }}
+            {/* Top 3 Matches heading */}
+            <h2
+              className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent"
+              style={{ backgroundImage: "var(--gradient-gold)" }}
+            >
+              {t.topMatches}
+            </h2>
+
+            {/* Build array of top 3 */}
+            {(() => {
+              const allMatches: (RunnerUp & { rank: number })[] = [
+                { ...result, rank: 1 },
+                ...(result.runners_up ?? []).slice(0, 2).map((r, i) => ({ ...r, rank: i + 2 })),
+              ];
+              return allMatches.map((match, idx) => (
+                <Card key={idx} className="overflow-hidden border-border/60 bg-card/60 backdrop-blur">
+                  <div className="grid md:grid-cols-2 gap-0">
+                    <div className="relative aspect-square">
+                      <img
+                        src={match.image_url}
+                        alt={match.match_name}
+                        className="absolute inset-0 h-full w-full object-cover"
                       />
+                      <div className="absolute top-4 left-4 rounded-full bg-background/70 backdrop-blur px-3 py-1 text-xs uppercase tracking-wider">
+                        {match.category}
+                      </div>
+                      <div
+                        className="absolute top-4 right-4 flex items-center justify-center h-10 w-10 rounded-full font-bold text-lg text-primary-foreground"
+                        style={{ background: "var(--gradient-gold)" }}
+                      >
+                        {match.rank}
+                      </div>
+                    </div>
+                    <div className="p-8 md:p-10 flex flex-col justify-center">
+                      <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                        {t.matchRank.replace("{rank}", String(match.rank))}
+                      </p>
+                      <h2
+                        className="mt-2 text-3xl md:text-4xl font-bold bg-clip-text text-transparent"
+                        style={{ backgroundImage: "var(--gradient-gold)" }}
+                      >
+                        {match.match_name}
+                      </h2>
+                      <div className="mt-6">
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm text-muted-foreground">{t.resemblance}</span>
+                          <span
+                            className="text-2xl font-bold"
+                            style={{ color: "var(--color-gold)" }}
+                          >
+                            {match.similarity}%
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full transition-all duration-1000"
+                            style={{
+                              width: `${match.similarity}%`,
+                              background: "var(--gradient-gold)",
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <p className="mt-6 text-base text-muted-foreground leading-relaxed">
+                        {match.description}
+                      </p>
+                      {match.source_image_url && (
+                        <SourceImageToggle sourceImageUrl={match.source_image_url} name={match.match_name} />
+                      )}
+                      {idx === 0 && (
+                        <>
+                          {result.requires_ad && (
+                            <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                              {t.adNote}
+                            </div>
+                          )}
+                          <ShareButtons
+                            name={result.match_name}
+                            category={result.category}
+                            similarity={result.similarity}
+                            t={t}
+                            matchImageUrl={result.image_url}
+                            description={result.description}
+                            userImage={previewUrl}
+                          />
+                          <DownloadCardButton
+                            userImage={previewUrl}
+                            matchImage={result.image_url}
+                            name={result.match_name}
+                            category={result.category}
+                            similarity={result.similarity}
+                            description={result.description}
+                            t={t}
+                            isRtl={isRtl}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
-                  <p className="mt-6 text-base text-muted-foreground leading-relaxed">
-                    {result.description}
-                  </p>
-                  {result.source_image_url && (
-                    <SourceImageToggle sourceImageUrl={result.source_image_url} name={result.match_name} />
-                  )}
-                  {result.requires_ad && (
-                    <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-                      {t.adNote}
-                    </div>
-                  )}
-                  <ShareButtons
-                    name={result.match_name}
-                    category={result.category}
-                    similarity={result.similarity}
-                    t={t}
-                    matchImageUrl={result.image_url}
-                    description={result.description}
-                    userImage={previewUrl}
-                  />
-                  <DownloadCardButton
-                    userImage={previewUrl}
-                    matchImage={result.image_url}
-                    name={result.match_name}
-                    category={result.category}
-                    similarity={result.similarity}
-                    description={result.description}
-                    t={t}
-                    isRtl={isRtl}
-                  />
-                </div>
-              </div>
-            </Card>
+                </Card>
+              ));
+            })()}
 
             <div className="flex justify-center">
               <Button onClick={reset} variant="secondary" size="lg" className="gap-2">
