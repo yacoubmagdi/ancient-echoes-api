@@ -41,6 +41,7 @@ export async function loadFaceModels(): Promise<void> {
       faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
       faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
       faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
+      faceapi.nets.ageGenderNet.loadFromUri(modelUrl),
     ]);
     return faceapi;
   })().catch((error) => {
@@ -88,6 +89,8 @@ export type SkinTone = {
 export type FaceExtractionResult = {
   descriptor: number[];
   skinTone: SkinTone;
+  detectedGender?: "male" | "female";
+  genderProbability?: number;
 };
 
 /**
@@ -294,11 +297,17 @@ export async function extractDescriptor(
     const result = await faceapi
       .detectSingleFace(input, opts)
       .withFaceLandmarks()
-      .withFaceDescriptor();
+      .withFaceDescriptor()
+      .withAgeAndGender();
     if (result?.descriptor) {
       const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
       const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
-      return { descriptor: Array.from(result.descriptor), skinTone };
+      return {
+        descriptor: Array.from(result.descriptor),
+        skinTone,
+        detectedGender: result.gender as "male" | "female",
+        genderProbability: result.genderProbability,
+      };
     }
   }
 
@@ -310,12 +319,18 @@ export async function extractDescriptor(
       const result = await faceapi
         .detectSingleFace(enhanced, opts)
         .withFaceLandmarks()
-        .withFaceDescriptor();
+        .withFaceDescriptor()
+        .withAgeAndGender();
       if (result?.descriptor) {
         // Use original input for skin tone (enhanced has altered colors)
         const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
         const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
-        return { descriptor: Array.from(result.descriptor), skinTone };
+        return {
+          descriptor: Array.from(result.descriptor),
+          skinTone,
+          detectedGender: result.gender as "male" | "female",
+          genderProbability: result.genderProbability,
+        };
       }
     }
   }
