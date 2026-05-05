@@ -139,6 +139,7 @@ function Index() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
+    analysisCache.clear();
     if (inputRef.current) inputRef.current.value = "";
   }
 
