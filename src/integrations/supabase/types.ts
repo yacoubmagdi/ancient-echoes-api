@@ -62,6 +62,48 @@ export type Database = {
         }
         Relationships: []
       }
+      persona_deletion_log: {
+        Row: {
+          category: string
+          deleted_at: string
+          deleted_by: string | null
+          description: string | null
+          gender: string | null
+          id: string
+          image_url: string | null
+          persona_id: string
+          persona_name: string
+          role: string | null
+          source_image_url: string | null
+        }
+        Insert: {
+          category: string
+          deleted_at?: string
+          deleted_by?: string | null
+          description?: string | null
+          gender?: string | null
+          id?: string
+          image_url?: string | null
+          persona_id: string
+          persona_name: string
+          role?: string | null
+          source_image_url?: string | null
+        }
+        Update: {
+          category?: string
+          deleted_at?: string
+          deleted_by?: string | null
+          description?: string | null
+          gender?: string | null
+          id?: string
+          image_url?: string | null
+          persona_id?: string
+          persona_name?: string
+          role?: string | null
+          source_image_url?: string | null
+        }
+        Relationships: []
+      }
       persona_verification_log: {
         Row: {
           category: string
