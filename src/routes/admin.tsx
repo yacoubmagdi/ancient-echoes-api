@@ -495,6 +495,9 @@ function AdminPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
+            <Badge variant="secondary" className="self-start md:self-center text-xs">
+              إجمالي: {personas.length} شخصية
+            </Badge>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -569,6 +572,11 @@ function AdminPage() {
 
           {CIVILIZATIONS.map((c) => (
             <TabsContent key={c} value={c} className="mt-0">
+              {!loading && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  عرض {filtered.length} من {counts[activeCiv] ?? 0} شخصية
+                </p>
+              )}
               {loading ? (
                 <p className="text-muted-foreground py-12 text-center">Loading…</p>
               ) : filtered.length === 0 ? (
