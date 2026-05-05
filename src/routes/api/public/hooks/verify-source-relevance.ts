@@ -1,95 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { matchPersonaToWiki, transliterateArabic, FULL_NAME_DICTIONARY } from "@/lib/egyptian-transliteration";
 
-/**
- * Name mapping: transliterated Arabic persona names → expected Wikipedia article slug patterns.
- * We fetch the Wikipedia page, extract the title and first paragraph,
- * then check for name relevance using multiple strategies.
- */
-
-// Common Arabic-to-English name mappings for Egyptian figures
-const NAME_MAPPINGS: Record<string, string[]> = {
-  أحمس: ["ahmose", "amasis"],
-  أمنحتب: ["amenhotep", "amenophis"],
-  أمنمحات: ["amenemhat", "amenemhet"],
-  تحتمس: ["thutmose", "tuthmosis"],
-  رمسيس: ["ramesses", "ramses"],
-  حتشبسوت: ["hatshepsut"],
-  نفرتيتي: ["nefertiti"],
-  أخناتون: ["akhenaten", "akhenaton"],
-  توت: ["tut", "tutankh"],
-  سنوسرت: ["senusret", "sesostris"],
-  حور: ["hor", "horus"],
-  إيست: ["isis", "iset"],
-  أوزيريس: ["osiris"],
-  بتاح: ["ptah"],
-  آمون: ["amun", "amon"],
-  رع: ["ra", "re"],
-  ماعت: ["maat"],
-  سوبك: ["sobek"],
-  خنوم: ["khnum"],
-  مين: ["min"],
-  نخت: ["nakht", "nacht"],
-  مري: ["meri", "merit"],
-  كاموس: ["kamose"],
-  سخم: ["sekhm", "sekhem"],
-  وني: ["weni", "uni"],
-  إنني: ["ineni"],
-  رخمي: ["rekhmire"],
-  "حور محب": ["horemheb"],
-  "سننموت": ["senenmut"],
-  "خيتي": ["khety", "kheti"],
-  "كا جمني": ["kagemni"],
-  مرنبتاح: ["merneptah", "merenptah"],
-  بسوسنس: ["psusennes"],
-  أوسركون: ["osorkon"],
-  شيشنق: ["shoshenq", "sheshonq"],
-  نفرو: ["neferu", "neferure"],
-  هميونو: ["hemiunu"],
-  بيبي: ["pepi"],
-  أوناس: ["unas", "wenis"],
-  نختنبو: ["nectanebo", "nakhtaneb"],
-  عحا: ["aha"],
-  حتب: ["hotep"],
-  سخموي: ["sekhemwy", "hotepsekhemwy"],
-  منتو: ["montu", "mentu"],
-  سات: ["sat", "sit"],
-  نيت: ["neith", "neit"],
-  هيتب: ["hetep"],
-  حرس: ["heres", "hetep"],
-};
-
-function extractSlugFromUrl(url: string): string {
-  const match = url.match(/\/wiki\/(.+?)(?:#.*)?$/);
-  return match ? decodeURIComponent(match[1]).replace(/_/g, " ").toLowerCase() : "";
-}
-
-function normalizeArabicName(name: string): string {
-  return name
-    .replace(
-      /^(الفرعون|الملكة|الملك|القائد|الكاتب|الكاهن|الكاهنة|العالم|الفنان|المهندس|الطبيب|الوزير|النحات|المحاربة|المغنية|العالمة|الفنانة|الكاتبة|الطبيبة|الأميرة|الفنانة|العازف|المغنية)\s+/,
-      ""
-    )
-    .trim();
-}
-
-function getEnglishNameCandidates(arabicName: string): string[] {
-  const candidates: string[] = [];
-  const cleanName = normalizeArabicName(arabicName);
-
-  for (const [arabic, english] of Object.entries(NAME_MAPPINGS)) {
-    if (cleanName.includes(arabic)) {
-      candidates.push(...english);
-    }
-  }
-  return candidates;
-}
-
-// Categories of generic/contextual pages that are acceptable but not ideal
+// Categories of generic/contextual pages
 const GENERIC_PATTERNS = [
-  /^(ancient egyptian|deir el|theban|valley of|tomb|tt\d|kv\d|qv\d|dynasty|period|kingdom|intermediate)/i,
+  /^(ancient egyptian|deir|theban|valley|tomb|tt\d|kv\d|qv\d|dynasty|period|kingdom|intermediate)/i,
   /^(papyrus|stela|temple|pyramid|mastaba|saqqara|giza|abydos|luxor|karnak|memphis)/i,
-  /^(book of|instruction of|military of|vizier|nomarch|priests|women in)/i,
+  /^(book of|instruction of|military|vizier|nomarch|priest|women|music|royal|el kab)/i,
+  /^(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)/i,
+  /^(twenty|thirtieth|nineteenth|seventeenth|serapeum|bab el|db320|nrt|cosmetic|nurse)/i,
+  /^(god.s wife|great kenbet|edwin smith|insinger|carnarvon|satire|turin|lansing)/i,
 ];
 
 type VerificationResult = {
@@ -125,6 +45,11 @@ async function fetchWikiTitle(url: string): Promise<{ title: string; extract: st
   }
 }
 
+function extractSlugFromUrl(url: string): string {
+  const match = url.match(/\/wiki\/(.+?)(?:#.*)?$/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
 function checkRelevance(
   personaName: string,
   role: string,
@@ -133,41 +58,41 @@ function checkRelevance(
   sourceUrl: string
 ): { relevance: "direct" | "related" | "contextual" | "mismatch"; confidence: number; notes: string } {
   const slug = extractSlugFromUrl(sourceUrl);
-  const cleanName = normalizeArabicName(personaName).toLowerCase();
-  const candidates = getEnglishNameCandidates(personaName);
+  const slugLower = slug.replace(/_/g, " ").toLowerCase();
   const titleLower = wikiTitle.toLowerCase();
-  const extractLower = wikiExtract.toLowerCase();
-  const combined = `${titleLower} ${extractLower}`;
-
-  // 1. Direct match: persona name candidates appear in title
-  for (const candidate of candidates) {
-    if (titleLower.includes(candidate)) {
-      return { relevance: "direct", confidence: 0.95, notes: `العنوان يتطابق مع "${candidate}"` };
+  
+  // Use the new multi-strategy matching engine
+  const match = matchPersonaToWiki(personaName, wikiTitle, wikiExtract, slug);
+  
+  if (match.matched) {
+    if (match.confidence >= 0.85) {
+      return {
+        relevance: "direct",
+        confidence: match.confidence,
+        notes: `${match.strategy}: ${match.details}`,
+      };
+    }
+    if (match.confidence >= 0.55) {
+      return {
+        relevance: "related",
+        confidence: match.confidence,
+        notes: `${match.strategy}: ${match.details}`,
+      };
     }
   }
-
-  // 2. Direct match: slug matches a candidate
-  for (const candidate of candidates) {
-    if (slug.includes(candidate)) {
-      return { relevance: "direct", confidence: 0.9, notes: `الرابط يتطابق مع "${candidate}"` };
-    }
-  }
-
-  // 3. Related: candidates appear in extract
-  for (const candidate of candidates) {
-    if (extractLower.includes(candidate)) {
-      return { relevance: "related", confidence: 0.7, notes: `الاسم "${candidate}" مذكور في الملخص` };
-    }
-  }
-
-  // 4. Contextual: page is a generic archaeological/historical page
+  
+  // Check for contextual/generic pages
   for (const pattern of GENERIC_PATTERNS) {
-    if (pattern.test(slug) || pattern.test(titleLower)) {
-      return { relevance: "contextual", confidence: 0.5, notes: `صفحة سياقية عامة: "${wikiTitle}"` };
+    if (pattern.test(slugLower) || pattern.test(titleLower)) {
+      return {
+        relevance: "contextual",
+        confidence: 0.5,
+        notes: `صفحة سياقية عامة: "${wikiTitle}"`,
+      };
     }
   }
-
-  // 5. Check if role is mentioned in extract
+  
+  // Role-based contextual check
   const roleMap: Record<string, string[]> = {
     warrior: ["military", "soldier", "battle", "army", "war", "general", "commander"],
     priest: ["priest", "temple", "religious", "divine", "clergy"],
@@ -182,20 +107,40 @@ function checkRelevance(
     craftsman: ["craft", "artisan", "worker", "sculptor"],
     artist: ["artist", "sculptor", "painter", "relief"],
     vizier: ["vizier", "minister", "administrator"],
+    "حاكم إقليمي": ["governor", "nomarch", "ruler", "official"],
+    "مهندس عسكري": ["military", "engineer", "architect"],
+    "مربية ملكية": ["nurse", "royal nurse", "tutor"],
+    "عالم فلك": ["astronomer", "astronomy"],
+    أميرة: ["princess", "royal"],
+    ملكة: ["queen", "royal wife"],
+    نحات: ["sculptor", "sculpture", "art"],
   };
-
-  const roleTerms = roleMap[role.toLowerCase()] || [];
+  
+  const combined = `${titleLower} ${wikiExtract.toLowerCase()}`;
+  const roleTerms = roleMap[role.toLowerCase()] || roleMap[role] || [];
   const roleMatch = roleTerms.some((t) => combined.includes(t));
-
+  
   if (roleMatch) {
-    return { relevance: "contextual", confidence: 0.4, notes: `الدور "${role}" مرتبط بالصفحة` };
+    return {
+      relevance: "contextual",
+      confidence: 0.4,
+      notes: `الدور "${role}" مرتبط بالصفحة "${wikiTitle}"`,
+    };
   }
-
-  // 6. Mismatch
+  
+  // If transliteration produced a partial match, still mark as contextual
+  if (match.matched && match.confidence >= 0.4) {
+    return {
+      relevance: "contextual",
+      confidence: match.confidence,
+      notes: `${match.strategy}: ${match.details}`,
+    };
+  }
+  
   return {
     relevance: "mismatch",
     confidence: 0.1,
-    notes: `لا يوجد ارتباط واضح بين "${personaName}" والصفحة "${wikiTitle}"`,
+    notes: `لا تطابق: "${personaName}" (${transliterateArabic(personaName)}) ↔ "${wikiTitle}"`,
   };
 }
 
