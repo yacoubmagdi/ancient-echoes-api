@@ -125,7 +125,6 @@ export const FULL_NAME_DICTIONARY: Record<string, string[]> = {
   "خنت كاوس الثانية": ["khentkaus ii"],
   "خنت كاوس الثالثة": ["khentkaus iii"],
   "كيا": ["kiya"],
-  "مرنيث": ["merneith"],
   "موت تويا": ["tuya", "mut-tuya"],
   "موت نجمت": ["mutnedjmet"],
   "ميري تي تي الملكة": ["meritites i", "meritites"],
@@ -198,7 +197,6 @@ export const FULL_NAME_DICTIONARY: Record<string, string[]> = {
   "النحات مِن": ["men sculptor"],
   "تا إيمحتب": ["taimhotep"],
   "تا ديت إيسيس الكاهنة": ["tadiset"],
-  "با حري الحاكم": ["paheri"],
 };
 
 // ═══════════════════════════════════════════════════════════════
