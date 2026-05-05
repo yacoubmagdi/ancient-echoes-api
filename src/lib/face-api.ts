@@ -91,24 +91,30 @@ export type FaceExtractionResult = {
 };
 
 /**
- * Classify lightness into a Fitzpatrick-inspired skin tone category.
+ * Classify into a Fitzpatrick-inspired skin tone category.
+ * Uses both lightness and saturation for better discrimination.
  */
 function classifySkinTone(l: number, s: number): SkinTone["category"] {
+  // High-lightness + low-saturation = washed-out lighting, penalise slightly
+  if (l >= 75 && s < 15) return "light"; // likely overexposed, not truly very_light
   if (l >= 75) return "very_light";
   if (l >= 65) return "light";
-  if (l >= 50) return "medium";
+  if (l >= 50) return s < 25 ? "light" : "medium";
   if (l >= 40) return "olive";
   if (l >= 28) return "brown";
   return "dark";
 }
 
 /**
- * Extract average skin tone HSL from the face bounding box in an image.
- * Samples the central 60% of the face region to avoid hair/background.
+ * Extract skin tone from the face region using face landmarks for a tight
+ * skin-only mask, Grey-World color constancy to neutralise lighting bias,
+ * and robust median estimation to reject outlier pixels (hair, shadows,
+ * specular highlights, background bleed).
  */
 function extractSkinToneFromRegion(
   input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
   box: { x: number; y: number; width: number; height: number },
+  landmarks?: Array<{ x: number; y: number }>,
 ): SkinTone {
   const w = input instanceof HTMLVideoElement ? input.videoWidth : input.width;
   const h = input instanceof HTMLVideoElement ? input.videoHeight : input.height;
@@ -119,16 +125,42 @@ function extractSkinToneFromRegion(
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(input, 0, 0, w, h);
 
-  // Sample central 60% of face box to avoid hair/background
-  const cx = box.x + box.width * 0.2;
-  const cy = box.y + box.height * 0.25;
-  const cw = box.width * 0.6;
-  const ch = box.height * 0.5;
+  // ── Step 1: Build a tight sampling mask ──
+  // If we have 68-point landmarks, build an elliptical mask from the cheek
+  // and forehead points (indices 1-15 = jaw, 27-30 = nose bridge) to sample
+  // only actual skin. Otherwise fall back to the inner 40% of the bbox which
+  // is tighter than the old 60%.
+  let sx: number, sy: number, sw: number, sh: number;
+  let landmarkMask: Array<{ x: number; y: number }> | null = null;
 
-  const sx = Math.max(0, Math.floor(cx));
-  const sy = Math.max(0, Math.floor(cy));
-  const sw = Math.min(Math.floor(cw), w - sx);
-  const sh = Math.min(Math.floor(ch), h - sy);
+  if (landmarks && landmarks.length >= 68) {
+    // Use cheek regions (landmarks 1-5 left cheek, 11-15 right cheek)
+    // and nose bridge (27-30) to define skin-only sample areas
+    const cheekPts = [
+      ...landmarks.slice(1, 6),   // left jaw/cheek
+      ...landmarks.slice(11, 16), // right jaw/cheek
+      ...landmarks.slice(27, 31), // nose bridge
+      landmarks[30],              // nose tip
+    ];
+    landmarkMask = cheekPts;
+    // Bounding rect of cheek points
+    const xs = cheekPts.map(p => p.x);
+    const ys = cheekPts.map(p => p.y);
+    sx = Math.max(0, Math.floor(Math.min(...xs)));
+    sy = Math.max(0, Math.floor(Math.min(...ys)));
+    sw = Math.min(Math.ceil(Math.max(...xs)) - sx, w - sx);
+    sh = Math.min(Math.ceil(Math.max(...ys)) - sy, h - sy);
+  } else {
+    // Tight inner 40% of bbox (forehead-to-chin center strip)
+    const cx = box.x + box.width * 0.3;
+    const cy = box.y + box.height * 0.2;
+    const cw = box.width * 0.4;
+    const ch = box.height * 0.45;
+    sx = Math.max(0, Math.floor(cx));
+    sy = Math.max(0, Math.floor(cy));
+    sw = Math.min(Math.floor(cw), w - sx);
+    sh = Math.min(Math.floor(ch), h - sy);
+  }
 
   if (sw <= 0 || sh <= 0) {
     return { h: 25, s: 40, l: 55, category: "medium" };
@@ -137,47 +169,92 @@ function extractSkinToneFromRegion(
   const imageData = ctx.getImageData(sx, sy, sw, sh);
   const data = imageData.data;
 
-  let totalR = 0, totalG = 0, totalB = 0;
-  let count = 0;
+  // ── Step 2: Grey-World illuminant estimation ──
+  // Compute the average R, G, B across the WHOLE face bbox to estimate
+  // the scene illuminant, then scale channels so the average becomes neutral
+  // grey. This removes warm/cool colour casts from artificial lighting.
+  const fullSx = Math.max(0, Math.floor(box.x));
+  const fullSy = Math.max(0, Math.floor(box.y));
+  const fullSw = Math.min(Math.ceil(box.width), w - fullSx);
+  const fullSh = Math.min(Math.ceil(box.height), h - fullSy);
+  const fullData = ctx.getImageData(fullSx, fullSy, fullSw, fullSh).data;
 
-  // Sample every 4th pixel for performance
-  for (let i = 0; i < data.length; i += 16) {
+  let gR = 0, gG = 0, gB = 0, gN = 0;
+  for (let i = 0; i < fullData.length; i += 8) {
+    gR += fullData[i]; gG += fullData[i + 1]; gB += fullData[i + 2]; gN++;
+  }
+  const gAvg = (gR + gG + gB) / (3 * gN || 1);
+  const scaleR = gAvg / (gR / gN || 1);
+  const scaleG = gAvg / (gG / gN || 1);
+  const scaleB = gAvg / (gB / gN || 1);
+
+  // ── Step 3: Collect skin-likely pixels with colour-constancy correction ──
+  const rVals: number[] = [];
+  const gVals: number[] = [];
+  const bVals: number[] = [];
+
+  for (let i = 0; i < data.length; i += 4) {
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
     const a = data[i + 3];
     if (a < 128) continue; // Skip transparent pixels
 
-    // Filter out extreme values (likely background/hair)
     const brightness = (r + g + b) / 3;
-    if (brightness < 20 || brightness > 245) continue;
+    if (brightness < 30 || brightness > 235) continue; // discard extremes
 
-    totalR += r;
-    totalG += g;
-    totalB += b;
-    count++;
+    // Skin-colour heuristic: human skin in RGB has R > G > B and is not
+    // strongly saturated blue/green. This rejects hair, lips, eyebrows.
+    if (r < g || g < b * 0.7) continue;
+    // Reject very saturated non-skin (e.g. red lips, blue background)
+    const maxC = Math.max(r, g, b);
+    const minC = Math.min(r, g, b);
+    if (maxC > 0 && (maxC - minC) / maxC > 0.65) continue;
+
+    // If we have landmark mask, check distance to nearest cheek point
+    if (landmarkMask) {
+      const px = sx + (i / 4) % sw;
+      const py = sy + Math.floor((i / 4) / sw);
+      const r2 = box.width * 0.15; // radius tolerance
+      const inMask = landmarkMask.some(
+        lm => Math.abs(lm.x - px) < r2 * 2 && Math.abs(lm.y - py) < r2 * 2,
+      );
+      if (!inMask) continue;
+    }
+
+    // Apply grey-world correction
+    rVals.push(Math.min(255, r * scaleR));
+    gVals.push(Math.min(255, g * scaleG));
+    bVals.push(Math.min(255, b * scaleB));
   }
 
-  if (count === 0) {
+  if (rVals.length < 10) {
     return { h: 25, s: 40, l: 55, category: "medium" };
   }
 
-  const avgR = totalR / count / 255;
-  const avgG = totalG / count / 255;
-  const avgB = totalB / count / 255;
+  // ── Step 4: Robust median estimation ──
+  // Median is far more resistant to outliers (stray hair/shadow pixels)
+  // than the arithmetic mean.
+  rVals.sort((a, b) => a - b);
+  gVals.sort((a, b) => a - b);
+  bVals.sort((a, b) => a - b);
+  const mid = Math.floor(rVals.length / 2);
+  const medR = rVals[mid] / 255;
+  const medG = gVals[mid] / 255;
+  const medB = bVals[mid] / 255;
 
   // RGB to HSL conversion
-  const max = Math.max(avgR, avgG, avgB);
-  const min = Math.min(avgR, avgG, avgB);
-  const l = (max + min) / 2;
+  const maxV = Math.max(medR, medG, medB);
+  const minV = Math.min(medR, medG, medB);
+  const l = (maxV + minV) / 2;
   let hue = 0, sat = 0;
 
-  if (max !== min) {
-    const d = max - min;
-    sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    if (max === avgR) hue = ((avgG - avgB) / d + (avgG < avgB ? 6 : 0)) / 6;
-    else if (max === avgG) hue = ((avgB - avgR) / d + 2) / 6;
-    else hue = ((avgR - avgG) / d + 4) / 6;
+  if (maxV !== minV) {
+    const d = maxV - minV;
+    sat = l > 0.5 ? d / (2 - maxV - minV) : d / (maxV + minV);
+    if (maxV === medR) hue = ((medG - medB) / d + (medG < medB ? 6 : 0)) / 6;
+    else if (maxV === medG) hue = ((medB - medR) / d + 2) / 6;
+    else hue = ((medR - medG) / d + 4) / 6;
   }
 
   const hDeg = Math.round(hue * 360);
@@ -219,7 +296,8 @@ export async function extractDescriptor(
       .withFaceLandmarks()
       .withFaceDescriptor();
     if (result?.descriptor) {
-      const skinTone = extractSkinToneFromRegion(input, result.detection.box);
+      const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
+      const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
       return { descriptor: Array.from(result.descriptor), skinTone };
     }
   }
@@ -235,7 +313,8 @@ export async function extractDescriptor(
         .withFaceDescriptor();
       if (result?.descriptor) {
         // Use original input for skin tone (enhanced has altered colors)
-        const skinTone = extractSkinToneFromRegion(input, result.detection.box);
+        const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
+        const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
         return { descriptor: Array.from(result.descriptor), skinTone };
       }
     }
