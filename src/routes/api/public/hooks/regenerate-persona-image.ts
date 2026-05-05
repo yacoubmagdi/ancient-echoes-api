@@ -45,7 +45,7 @@ export const Route = createFileRoute(
             auth: { persistSession: false, autoRefreshToken: false },
           });
           const { data: userData, error: userErr } =
-            await userClient.auth.getUser();
+            await userClient.auth.getUser(token);
           if (userErr || !userData?.user) {
             return new Response(
               JSON.stringify({ error: "Unauthorized" }),
