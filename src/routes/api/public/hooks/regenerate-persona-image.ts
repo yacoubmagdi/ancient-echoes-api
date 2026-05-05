@@ -107,7 +107,11 @@ CRITICAL: NO text, letters, numbers, or watermarks. NO modern elements. Face mus
 
           // If there's a source image, use image editing to reference it
           let aiResp: Response;
-          if (persona.source_image_url) {
+          // Check if source_image_url is a direct image link (not a wiki/webpage)
+          const isDirectImage = persona.source_image_url &&
+            /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(persona.source_image_url);
+
+          if (isDirectImage) {
             aiResp = await fetch(
               "https://ai.gateway.lovable.dev/v1/chat/completions",
               {
