@@ -38,6 +38,7 @@ import { NATIONALITIES } from "@/lib/nationalities";
 import { compressImage } from "@/lib/image-compress";
 import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
 import { saveSharedResult } from "@/server/share.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 // Client-side analysis result cache — avoids redundant API calls for the
 // same face + filter combo. Keyed by a hash of the descriptor + filters.
@@ -205,7 +206,12 @@ function Index() {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
       const matchData = data as MatchResult;
-      const minSimilarity = Number(import.meta.env.VITE_MIN_SIMILARITY ?? 30);
+      // Fetch threshold from site_settings (falls back to 30)
+      let minSimilarity = 30;
+      try {
+        const { data: setting } = await supabase.from("site_settings").select("value").eq("key", "min_similarity").single();
+        if (setting) minSimilarity = Number(setting.value);
+      } catch {}
       if (matchData.similarity < minSimilarity) {
         throw new Error(
           lang === "ar"
