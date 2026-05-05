@@ -1147,65 +1147,35 @@ function DownloadCardButton({
 }
 
 function SourceImageToggle({ sourceImageUrl, name }: { sourceImageUrl: string; name: string }) {
-  const [show, setShow] = useState(false);
   const isValidUrl = /^https?:\/\//i.test(sourceImageUrl);
+  if (!isValidUrl) return null;
 
-  // Convert Wikimedia thumbnail URL to the Commons file page
-  // e.g. .../thumb/4/4f/Tutanchamun_Maske.jpg/440px-... → File:Tutanchamun_Maske.jpg
-  const getSourcePageUrl = (url: string) => {
-    const m = url.match(/upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^/]+)/i);
-    if (m) return `https://commons.wikimedia.org/wiki/File:${decodeURIComponent(m[1])}`;
-    return url;
+  // Extract readable title from Wikipedia URL
+  const getWikiTitle = (url: string) => {
+    const m = url.match(/\/wiki\/(.+?)(?:#.*)?$/);
+    if (m) return decodeURIComponent(m[1]).replace(/_/g, " ");
+    return null;
   };
 
-  // Get direct (non-thumb) image URL for display
-  const getDirectImageUrl = (url: string) => {
-    const m = url.match(/(upload\.wikimedia\.org\/wikipedia\/commons\/)thumb\/([0-9a-f]\/[0-9a-f]{2}\/[^/]+)\/.+/i);
-    if (m) return `https://${m[1]}${m[2]}`;
-    return url;
-  };
+  const wikiTitle = getWikiTitle(sourceImageUrl);
+  const isWikipedia = sourceImageUrl.includes("wikipedia.org");
 
   return (
-    <div className="mt-4">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShow((v) => !v)}
-        className="gap-2 w-full"
-      >
-        <BookOpen className="h-4 w-4" />
-        {show ? "إخفاء المصدر التاريخي" : "عرض المصدر التاريخي"}
-      </Button>
-      {show && (
-        <div className="mt-3 animate-fade-in">
-          {isValidUrl ? (
-            <>
-              <img
-                src={getDirectImageUrl(sourceImageUrl)}
-                alt={`المصدر التاريخي — ${name}`}
-                className="w-full rounded-lg border border-border/60"
-                loading="lazy"
-              />
-              <a
-                href={getSourcePageUrl(sourceImageUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-xs text-primary text-center mt-2 hover:underline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.open(getSourcePageUrl(sourceImageUrl), "_blank", "noopener,noreferrer");
-                }}
-              >
-                📜 عرض المصدر الأصلي ↗
-              </a>
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground text-center">
-              ⚠️ رابط المصدر غير صالح
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+    <a
+      href={sourceImageUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-4 flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary hover:bg-primary/10 transition-colors"
+    >
+      <BookOpen className="h-4 w-4 shrink-0" />
+      <span className="flex-1 text-start">
+        {isWikipedia ? (
+          <>📜 المصدر التاريخي: <span className="font-medium">{wikiTitle || name}</span></>
+        ) : (
+          <>📜 المصدر التاريخي ↗</>
+        )}
+      </span>
+      <span className="text-xs text-muted-foreground">↗</span>
+    </a>
   );
 }
