@@ -78,17 +78,127 @@ export async function imageFromUrl(url: string): Promise<HTMLImageElement> {
   return img;
 }
 
+export type SkinTone = {
+  h: number; // Hue 0-360
+  s: number; // Saturation 0-100
+  l: number; // Lightness 0-100
+  category: "very_light" | "light" | "medium" | "olive" | "brown" | "dark";
+};
+
+export type FaceExtractionResult = {
+  descriptor: number[];
+  skinTone: SkinTone;
+};
+
 /**
- * Extract a 128-float face descriptor from an image. Returns null if no face
- * is detected. Uses TinyFaceDetector (fast, lightweight) + landmarks + recognition.
- *
- * Improved: tries multiple input sizes and progressively lower score thresholds
- * to handle low-light, low-quality, or challenging images. Also preprocesses the
- * image with brightness/contrast normalization via canvas for better detection.
+ * Classify lightness into a Fitzpatrick-inspired skin tone category.
+ */
+function classifySkinTone(l: number, s: number): SkinTone["category"] {
+  if (l >= 75) return "very_light";
+  if (l >= 65) return "light";
+  if (l >= 50) return "medium";
+  if (l >= 40) return "olive";
+  if (l >= 28) return "brown";
+  return "dark";
+}
+
+/**
+ * Extract average skin tone HSL from the face bounding box in an image.
+ * Samples the central 60% of the face region to avoid hair/background.
+ */
+function extractSkinToneFromRegion(
+  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
+  box: { x: number; y: number; width: number; height: number },
+): SkinTone {
+  const w = input instanceof HTMLVideoElement ? input.videoWidth : input.width;
+  const h = input instanceof HTMLVideoElement ? input.videoHeight : input.height;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(input, 0, 0, w, h);
+
+  // Sample central 60% of face box to avoid hair/background
+  const cx = box.x + box.width * 0.2;
+  const cy = box.y + box.height * 0.25;
+  const cw = box.width * 0.6;
+  const ch = box.height * 0.5;
+
+  const sx = Math.max(0, Math.floor(cx));
+  const sy = Math.max(0, Math.floor(cy));
+  const sw = Math.min(Math.floor(cw), w - sx);
+  const sh = Math.min(Math.floor(ch), h - sy);
+
+  if (sw <= 0 || sh <= 0) {
+    return { h: 25, s: 40, l: 55, category: "medium" };
+  }
+
+  const imageData = ctx.getImageData(sx, sy, sw, sh);
+  const data = imageData.data;
+
+  let totalR = 0, totalG = 0, totalB = 0;
+  let count = 0;
+
+  // Sample every 4th pixel for performance
+  for (let i = 0; i < data.length; i += 16) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+    if (a < 128) continue; // Skip transparent pixels
+
+    // Filter out extreme values (likely background/hair)
+    const brightness = (r + g + b) / 3;
+    if (brightness < 20 || brightness > 245) continue;
+
+    totalR += r;
+    totalG += g;
+    totalB += b;
+    count++;
+  }
+
+  if (count === 0) {
+    return { h: 25, s: 40, l: 55, category: "medium" };
+  }
+
+  const avgR = totalR / count / 255;
+  const avgG = totalG / count / 255;
+  const avgB = totalB / count / 255;
+
+  // RGB to HSL conversion
+  const max = Math.max(avgR, avgG, avgB);
+  const min = Math.min(avgR, avgG, avgB);
+  const l = (max + min) / 2;
+  let hue = 0, sat = 0;
+
+  if (max !== min) {
+    const d = max - min;
+    sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === avgR) hue = ((avgG - avgB) / d + (avgG < avgB ? 6 : 0)) / 6;
+    else if (max === avgG) hue = ((avgB - avgR) / d + 2) / 6;
+    else hue = ((avgR - avgG) / d + 4) / 6;
+  }
+
+  const hDeg = Math.round(hue * 360);
+  const sPct = Math.round(sat * 100);
+  const lPct = Math.round(l * 100);
+
+  return {
+    h: hDeg,
+    s: sPct,
+    l: lPct,
+    category: classifySkinTone(lPct, sPct),
+  };
+}
+
+/**
+ * Extract a 128-float face descriptor AND skin tone from an image.
+ * Returns null if no face is detected.
  */
 export async function extractDescriptor(
   input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
-): Promise<number[] | null> {
+): Promise<FaceExtractionResult | null> {
   await loadFaceModels();
   const faceapi = await getFaceApi();
 
@@ -108,7 +218,10 @@ export async function extractDescriptor(
       .detectSingleFace(input, opts)
       .withFaceLandmarks()
       .withFaceDescriptor();
-    if (result?.descriptor) return Array.from(result.descriptor);
+    if (result?.descriptor) {
+      const skinTone = extractSkinToneFromRegion(input, result.detection.box);
+      return { descriptor: Array.from(result.descriptor), skinTone };
+    }
   }
 
   // If all passes failed, try with a brightness/contrast-normalized copy
@@ -120,7 +233,11 @@ export async function extractDescriptor(
         .detectSingleFace(enhanced, opts)
         .withFaceLandmarks()
         .withFaceDescriptor();
-      if (result?.descriptor) return Array.from(result.descriptor);
+      if (result?.descriptor) {
+        // Use original input for skin tone (enhanced has altered colors)
+        const skinTone = extractSkinToneFromRegion(input, result.detection.box);
+        return { descriptor: Array.from(result.descriptor), skinTone };
+      }
     }
   }
 
