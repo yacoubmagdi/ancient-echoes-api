@@ -176,6 +176,7 @@ function Index() {
         role: role && role !== "any" ? role : "",
         civ: civilization && civilization !== "any" ? civilization : "",
         nat: nationality || "",
+        skin: skinToneEnabled ? "1" : "0",
       };
       const cKey = descriptorCacheKey(descriptor, filters);
       const cached = analysisCache.get(cKey);
