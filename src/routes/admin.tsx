@@ -583,9 +583,9 @@ function AdminPage() {
                 <p className="text-muted-foreground py-12 text-center">No personas in {c} yet.</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filtered.map((p) => (
+                  {filtered.map((p, idx) => (
                     <Card key={p.id} className="overflow-hidden">
-                      <PersonaCardImage persona={p} onPreview={() => setPreviewing(p)} />
+                      <PersonaCardImage persona={p} index={idx + 1} onPreview={() => setPreviewing(p)} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -897,7 +897,7 @@ function PreviewDialog({
   );
 }
 
-function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview: () => void }) {
+function PersonaCardImage({ persona, index, onPreview }: { persona: Persona; index: number; onPreview: () => void }) {
   const [showSource, setShowSource] = useState(false);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -935,6 +935,7 @@ function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview:
         onClick={() => setShowSource(false)}
         className="relative block w-full aspect-square overflow-hidden bg-muted"
       >
+        <span className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">{index}</span>
         <img
           src={persona.source_image_url}
           alt={`مصدر ${persona.name}`}
@@ -958,6 +959,7 @@ function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview:
 
   return (
     <div className="relative block w-full aspect-square overflow-hidden bg-muted">
+      <span className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">{index}</span>
       <button
         type="button"
         onClick={onPreview}
