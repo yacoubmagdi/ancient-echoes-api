@@ -98,6 +98,7 @@ function Index() {
   const [gender, setGender] = useState<"male" | "female" | "">("");
   const [role, setRole] = useState<string>("any");
   const [civilization, setCivilization] = useState<string>("any");
+  const [skinToneEnabled, setSkinToneEnabled] = useState(true);
   // Always start with "en" on the server AND first client render to avoid
   // hydration mismatch; load saved language in an effect after mount.
   const [lang, setLang] = useState<Lang>("en");
