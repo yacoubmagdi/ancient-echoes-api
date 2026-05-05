@@ -414,6 +414,17 @@ function Index() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium">{t.skinToneLabel}</label>
+                <p className="text-xs text-muted-foreground mt-0.5">{t.skinToneHint}</p>
+              </div>
+              <Switch
+                checked={skinToneEnabled}
+                onCheckedChange={setSkinToneEnabled}
+                disabled={loading}
+              />
+            </div>
             <label
               htmlFor="photo-input"
               className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
