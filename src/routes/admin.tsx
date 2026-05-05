@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink } from "lucide-react";
-import { ShieldCheck, AlertTriangle, Link2 } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Link2, Wand2 } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -76,6 +76,7 @@ function AdminPage() {
   const [imgGenBusy, setImgGenBusy] = useState(false);
   const [imgGenProgress, setImgGenProgress] = useState<string | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
+  const [regenBusy, setRegenBusy] = useState<string | null>(null);
   const [urlCheckBusy, setUrlCheckBusy] = useState(false);
   const [urlCheckResult, setUrlCheckResult] = useState<{
     total: number;
@@ -281,29 +282,30 @@ function AdminPage() {
     loadPersonas();
   }
 
-  async function reenroll(p: Persona) {
-    setBusy(true);
+  async function regenerateImage(p: Persona) {
+    setRegenBusy(p.id);
     try {
-      const img = await imageFromUrl(p.image_url);
-      const descriptor = await extractDescriptor(img);
-      if (!descriptor) {
-        setBusy(false);
-        flash("No face detected in this portrait.");
-        return;
-      }
-      const { data, error } = await supabase.functions.invoke("save-face-descriptor", {
-        body: { id: p.id, descriptor },
+      flash(`🎨 جارٍ إعادة توليد صورة "${p.name}" بشكل واقعي…`);
+      const { data: { session } } = await supabase.auth.getSession();
+      const resp = await fetch("/api/public/hooks/regenerate-persona-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ personaId: p.id }),
       });
-      setBusy(false);
-      if (error || (data as { error?: string })?.error) {
-        flash(error?.message || (data as { error?: string }).error || "Save failed");
-        return;
+      const result = await resp.json();
+      if (!resp.ok || result.error) {
+        flash(`❌ فشل التوليد: ${result.error}`);
+      } else {
+        flash(`✅ تم إعادة توليد صورة "${result.persona_name}" بنجاح`);
+        loadPersonas();
       }
-      flash("Face descriptor saved.");
-      loadPersonas();
     } catch (e) {
-      setBusy(false);
-      flash((e as Error).message || "Re-enroll failed");
+      flash(`❌ خطأ: ${(e as Error).message}`);
+    } finally {
+      setRegenBusy(null);
     }
   }
 
@@ -624,9 +626,18 @@ function AdminPage() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          <Button size="sm" variant="outline" className="flex-1" onClick={() => reenroll(p)} disabled={busy}>
-                            <RefreshCw className="h-3 w-3" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" className="flex-1" onClick={() => regenerateImage(p)} disabled={regenBusy === p.id}>
+                                  {regenBusy === p.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>إعادة توليد الصورة بشكل واقعي من المصادر التاريخية</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button size="sm" variant="outline" className="flex-1"><Trash2 className="h-3 w-3" /></Button>
