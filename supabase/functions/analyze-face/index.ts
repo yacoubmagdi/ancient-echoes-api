@@ -2049,15 +2049,15 @@ class VectorIndex {
     for (let i = 0; i < this.personas.length; i++) {
       let distance = this.distanceTo(query, i);
 
-      // Adjust distance based on skin tone similarity (up to ±35% weight)
+      // Adjust distance based on skin tone similarity (up to ±15% weight)
       if (userSkinTone && this.personas[i].skin_tone) {
         const pTone = this.personas[i].skin_tone!;
         const skinDist = skinToneDistance(userSkinTone, pTone);
         // skinDist ranges 0-1; 0 = perfect match, 1 = opposite ends
-        // Apply as a multiplier: matching skin tone reduces distance by up to 35%,
-        // mismatching increases by up to 25%
-        const skinFactor = 1.0 + (skinDist - 0.25) * 0.55;
-        distance *= Math.max(0.65, Math.min(1.25, skinFactor));
+        // Apply as a multiplier: matching skin tone reduces distance by up to 15%,
+        // mismatching increases by up to 15%
+        const skinFactor = 1.0 + (skinDist - 0.25) * 0.24;
+        distance *= Math.max(0.85, Math.min(1.15, skinFactor));
       }
 
       results[i] = {
