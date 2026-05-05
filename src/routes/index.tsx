@@ -153,14 +153,15 @@ function Index() {
       setPreviewUrl(URL.createObjectURL(uploadFile));
       await loadFaceModels();
       const img = await imageFromFile(uploadFile);
-      const descriptor = await extractDescriptor(img);
-      if (!descriptor) {
+      const faceResult = await extractDescriptor(img);
+      if (!faceResult) {
         throw new Error(
           lang === "ar"
             ? "تعذّر اكتشاف وجه في الصورة. حاول صورة أوضح للوجه."
             : "No face detected in the image. Please try a clearer face photo.",
         );
       }
+      const { descriptor, skinTone } = faceResult;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
 
       // Check client-side cache first
@@ -188,6 +189,7 @@ function Index() {
         },
         body: JSON.stringify({
           descriptor,
+          skin_tone: skinTone,
           lang,
           ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
           ...(nationality ? { nationality } : {}),
