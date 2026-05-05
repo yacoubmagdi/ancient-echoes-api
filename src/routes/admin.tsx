@@ -232,8 +232,8 @@ function AdminPage() {
           );
           for (const existing of sameCatPersonas) {
             const existingDesc = existing.face_descriptor;
-            if (!existingDesc || existingDesc.length !== newDescriptor.length) continue;
-            const similarity = cosineSimilarity(newDescriptor, existingDesc);
+            if (!existingDesc || existingDesc.length !== newDescriptor.descriptor.length) continue;
+            const similarity = cosineSimilarity(newDescriptor.descriptor, existingDesc);
             if (similarity > 0.85) {
               setBusy(false);
               flash(`⚠️ وجه مشابه جداً (${(similarity * 100).toFixed(0)}%) للشخصية "${existing.name}" — يُحتمل تكرار`);

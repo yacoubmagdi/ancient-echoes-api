@@ -114,7 +114,7 @@ function EnrollPage() {
         const img = await imageFromUrl(p.image_url);
         const desc = await extractDescriptor(img);
         if (desc) {
-          batchItems.push({ id: p.id, descriptor: desc });
+          batchItems.push({ id: p.id, descriptor: desc.descriptor });
           ok++;
         } else {
           batchItems.push({ id: p.id, descriptor: null });

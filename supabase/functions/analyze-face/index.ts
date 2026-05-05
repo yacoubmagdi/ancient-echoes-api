@@ -1997,6 +1997,7 @@ type CachedPersona = {
   gender: string | null;
   role: string | null;
   face_descriptor: number[];
+  skin_tone: { h: number; s: number; l: number; category: string } | null;
 };
 
 // ===== Vector Index =====
@@ -2040,10 +2041,25 @@ class VectorIndex {
   }
 
   /** Return ALL personas scored & sorted by distance (needed for tiered filtering). */
-  scoreAll(query: number[]): Array<CachedPersona & { distance: number; similarity: number }> {
+  scoreAll(
+    query: number[],
+    userSkinTone?: { h: number; s: number; l: number } | null,
+  ): Array<CachedPersona & { distance: number; similarity: number }> {
     const results: Array<CachedPersona & { distance: number; similarity: number }> = new Array(this.personas.length);
     for (let i = 0; i < this.personas.length; i++) {
-      const distance = this.distanceTo(query, i);
+      let distance = this.distanceTo(query, i);
+
+      // Adjust distance based on skin tone similarity (up to ±15% weight)
+      if (userSkinTone && this.personas[i].skin_tone) {
+        const pTone = this.personas[i].skin_tone!;
+        const skinDist = skinToneDistance(userSkinTone, pTone);
+        // skinDist ranges 0-1; 0 = perfect match, 1 = opposite ends
+        // Apply as a multiplier: matching skin tone reduces distance by up to 15%,
+        // mismatching increases by up to 10%
+        const skinFactor = 1.0 + (skinDist - 0.3) * 0.25;
+        distance *= Math.max(0.85, Math.min(1.10, skinFactor));
+      }
+
       results[i] = {
         ...this.personas[i],
         distance,
@@ -2054,6 +2070,25 @@ class VectorIndex {
     results.sort((a, b) => a.distance - b.distance);
     return results;
   }
+}
+
+/**
+ * Compute a 0-1 skin tone distance between two HSL skin tones.
+ * Emphasizes lightness (most perceptible) with some hue/saturation weight.
+ */
+function skinToneDistance(
+  a: { h: number; s: number; l: number },
+  b: { h: number; s: number; l: number },
+): number {
+  // Lightness difference (0-100 range, most important)
+  const lDiff = Math.abs(a.l - b.l) / 100;
+  // Saturation difference
+  const sDiff = Math.abs(a.s - b.s) / 100;
+  // Hue difference (circular, 0-180 max)
+  const hDiff = Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h)) / 180;
+
+  // Weighted: lightness 60%, hue 25%, saturation 15%
+  return lDiff * 0.6 + hDiff * 0.25 + sDiff * 0.15;
 }
 
 let vectorIndex: VectorIndex | null = null;
@@ -2069,7 +2104,7 @@ async function getPersonasWithDescriptors(
   }
   const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor")
+    .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor, skin_tone")
     .not("face_descriptor", "is", null)
     .not("image_url", "like", "%placeholder%")
     .limit(2000);
@@ -2291,6 +2326,7 @@ Deno.serve(async (req) => {
   debug.descriptor_len = userDescriptor.length;
 
   const nationalityCode = ((payload.nationality as string) ?? "").toUpperCase();
+  const userSkinTone = payload.skin_tone as { h: number; s: number; l: number } | undefined;
   const gender = ((payload.gender as string) ?? "").toLowerCase();
   const roleFilter = ((payload.role as string) ?? "").toLowerCase().trim();
   const civilizationFilter = ((payload.civilization as string) ?? "").trim();
@@ -2388,7 +2424,7 @@ Deno.serve(async (req) => {
   debug.candidates_with_descriptor = index.length;
 
   // Use the vector index for fast batch distance computation + sorting
-  const scored = index.scoreAll(userDescriptor as number[]);
+  const scored = index.scoreAll(userDescriptor as number[], userSkinTone ?? null);
   mark("scored");
 
   // Tiered selection — try to return 3 results.

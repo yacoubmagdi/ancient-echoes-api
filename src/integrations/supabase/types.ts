@@ -159,6 +159,7 @@ export type Database = {
           image_url: string
           name: string
           role: string
+          skin_tone: Json | null
           source_image_url: string | null
           verification_status: string | null
         }
@@ -174,6 +175,7 @@ export type Database = {
           image_url: string
           name: string
           role?: string
+          skin_tone?: Json | null
           source_image_url?: string | null
           verification_status?: string | null
         }
@@ -189,6 +191,7 @@ export type Database = {
           image_url?: string
           name?: string
           role?: string
+          skin_tone?: Json | null
           source_image_url?: string | null
           verification_status?: string | null
         }
