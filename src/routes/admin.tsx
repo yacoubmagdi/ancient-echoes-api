@@ -921,6 +921,13 @@ function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview:
           alt={`مصدر ${persona.name}`}
           className="w-full h-full object-cover animate-fade-in"
           loading="lazy"
+        onError={(e) => {
+            const t = e.currentTarget;
+            if (!t.dataset.fallback) {
+              t.dataset.fallback = "1";
+              t.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name)}&size=400&background=78350f&color=fbbf24&format=svg`;
+            }
+          }}
         />
         <div className="absolute bottom-2 left-2 right-2 bg-background/80 backdrop-blur rounded-md px-2 py-1 text-[10px] text-center flex items-center justify-center gap-1">
           <BookOpen className="h-3 w-3" />
@@ -946,6 +953,13 @@ function PersonaCardImage({ persona, onPreview }: { persona: Persona; onPreview:
           alt={persona.name}
           className="w-full h-full object-cover hover:scale-105 transition"
           loading="lazy"
+          onError={(e) => {
+            const t = e.currentTarget;
+            if (!t.dataset.fallback) {
+              t.dataset.fallback = "1";
+              t.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name)}&size=400&background=78350f&color=fbbf24&format=svg`;
+            }
+          }}
           style={dragX > 0 ? { transform: `translateX(${dragX}px)`, opacity: 1 - dragX / 200 } : undefined}
         />
       </button>
