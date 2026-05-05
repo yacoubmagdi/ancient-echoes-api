@@ -205,7 +205,7 @@ function Index() {
         throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
       }
       const matchData = data as MatchResult;
-      const minSimilarity = Number(import.meta.env.VITE_MIN_SIMILARITY ?? 41);
+      const minSimilarity = Number(import.meta.env.VITE_MIN_SIMILARITY ?? 40);
       if (matchData.similarity < minSimilarity) {
         throw new Error(
           lang === "ar"
