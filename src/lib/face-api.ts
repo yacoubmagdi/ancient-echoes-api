@@ -278,9 +278,18 @@ function extractSkinToneFromRegion(
  */
 export async function extractDescriptor(
   input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
-): Promise<FaceExtractionResult | null> {
+): Promise<FaceExtractionResult | null | "multiple_faces"> {
   await loadFaceModels();
   const faceapi = await getFaceApi();
+
+  // ── Check for multiple faces first ──
+  const allFaces = await faceapi.detectAllFaces(
+    input,
+    new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }),
+  );
+  if (allFaces.length > 1) {
+    return "multiple_faces";
+  }
 
   // Multi-pass: try different input sizes and thresholds (from strict to lenient)
   const passes: Array<{ inputSize: number; scoreThreshold: number }> = [
