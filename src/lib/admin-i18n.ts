@@ -219,4 +219,4 @@ export const adminTranslations = {
   },
 } as const;
 
-export type AdminDict = (typeof adminTranslations)["en"];
+export type AdminDict = (typeof adminTranslations)["en"] | (typeof adminTranslations)["ar"];
