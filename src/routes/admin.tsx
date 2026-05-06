@@ -254,7 +254,7 @@ function AdminPage() {
       try {
         const img = await imageFromUrl(form.image_url);
         const newDescriptor = await extractDescriptor(img);
-        if (newDescriptor) {
+        if (newDescriptor && newDescriptor !== "multiple_faces") {
           // Fetch face descriptors on-demand for same category
           const { data: sameCatData } = await supabase
             .from("personas")
@@ -263,8 +263,8 @@ function AdminPage() {
             .not("face_descriptor", "is", null);
           for (const existing of sameCatData ?? []) {
             const existingDesc = existing.face_descriptor as number[] | null;
-            if (!existingDesc || typeof newDescriptor === "string" || existingDesc.length !== newDescriptor.descriptor.length) continue;
-            const similarity = cosineSimilarity(typeof newDescriptor === "string" ? [] : newDescriptor.descriptor, existingDesc);
+            if (!existingDesc || existingDesc.length !== newDescriptor.descriptor.length) continue;
+            const similarity = cosineSimilarity(newDescriptor.descriptor, existingDesc);
             if (similarity > 0.85) {
               setBusy(false);
               flash(`⚠️ وجه مشابه جداً (${(similarity * 100).toFixed(0)}%) للشخصية "${existing.name}" — يُحتمل تكرار`);
