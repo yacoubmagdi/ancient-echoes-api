@@ -219,4 +219,9 @@ export const adminTranslations = {
   },
 } as const;
 
-export type AdminDict = (typeof adminTranslations)["en"] | (typeof adminTranslations)["ar"];
+// Use a wider type so both en and ar are assignable
+export type AdminDict = {
+  [K in keyof (typeof adminTranslations)["en"]]: (typeof adminTranslations)["en"][K] extends (...args: infer A) => string
+    ? (...args: A) => string
+    : string;
+};
