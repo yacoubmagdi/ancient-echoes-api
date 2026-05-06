@@ -157,6 +157,7 @@ export type Database = {
           gender: string
           id: string
           image_url: string
+          is_drawing: boolean
           name: string
           role: string
           skin_tone: Json | null
@@ -173,6 +174,7 @@ export type Database = {
           gender?: string
           id?: string
           image_url: string
+          is_drawing?: boolean
           name: string
           role?: string
           skin_tone?: Json | null
@@ -189,6 +191,7 @@ export type Database = {
           gender?: string
           id?: string
           image_url?: string
+          is_drawing?: boolean
           name?: string
           role?: string
           skin_tone?: Json | null
