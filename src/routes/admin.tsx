@@ -62,7 +62,7 @@ type Persona = {
 type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag" | "is_drawing"> & { id?: string; source_image_url: string | null };
 
 function emptyForm(): FormState {
-  return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "", source_image_url: null };
+  return { name: "", name_en: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "", source_image_url: null };
 }
 
 function AdminPage() {
@@ -302,7 +302,7 @@ function AdminPage() {
       const { error } = await supabase
         .from("personas")
         .update({
-          name: form.name, description: form.description, category: form.category,
+          name: form.name, name_en: form.name_en || null, description: form.description, category: form.category,
           gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         })
         .eq("id", form.id);
@@ -310,7 +310,7 @@ function AdminPage() {
       flash(a.personaUpdated);
     } else {
       const { error } = await supabase.from("personas").insert({
-        name: form.name, description: form.description, category: form.category,
+        name: form.name, name_en: form.name_en || null, description: form.description, category: form.category,
         gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
       });
@@ -710,7 +710,7 @@ function AdminPage() {
                         )}
                         <div className="flex gap-1">
                           <Button size="sm" variant="outline" className="flex-1"
-                            onClick={() => { setEditing({ id: p.id, name: p.name, description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url, source_image_url: p.source_image_url }); setDialogOpen(true); }}>
+                            onClick={() => { setEditing({ id: p.id, name: p.name, name_en: p.name_en || "", description: p.description, category: p.category, gender: p.gender, role: p.role, image_url: p.image_url, source_image_url: p.source_image_url }); setDialogOpen(true); }}>
                             <Pencil className="h-3 w-3" />
                           </Button>
                           {p.source_image_url && (
@@ -934,6 +934,10 @@ function PersonaDialog({
             <div className="space-y-1">
               <Label>{a.name}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Name (EN)</Label>
+              <Input value={form.name_en || ""} onChange={(e) => setForm({ ...form, name_en: e.target.value })} placeholder="English name for Wikipedia search" />
             </div>
             <div className="space-y-1">
               <Label>{a.civilization}</Label>
