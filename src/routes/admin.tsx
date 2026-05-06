@@ -1058,11 +1058,12 @@ function PersonaDialog({
 }
 
 function PreviewDialog({
-  persona, onClose, a, onVerifyImage, imgVerifyBusy, imgVerifyResult,
+  persona, onClose, a, lang, onVerifyImage, imgVerifyBusy, imgVerifyResult,
 }: {
   persona: Persona | null;
   onClose: () => void;
   a: AdminDict;
+  lang: Lang;
   onVerifyImage: (p: Persona) => void;
   imgVerifyBusy: boolean;
   imgVerifyResult: {
@@ -1087,21 +1088,21 @@ function PreviewDialog({
     <Dialog open={!!persona} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{persona.name}</DialogTitle>
-          <DialogDescription>{persona.category} · {persona.role} · {persona.gender}</DialogDescription>
+          <DialogTitle>{translateName(persona.name, lang)}</DialogTitle>
+          <DialogDescription>{translateCategory(persona.category, lang)} · {persona.role} · {persona.gender}</DialogDescription>
         </DialogHeader>
         <div>
-          <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
+          <img src={persona.image_url} alt={translateName(persona.name, lang)} className="w-full rounded-md border border-border" />
           {persona.source_image_url && (
             <div className="mt-3">
               <p className="text-xs font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-3 w-3" /> {a.historicalSourceLabel}</p>
-              <img src={persona.source_image_url} alt={a.sourceOf(persona.name)} className="w-full rounded-md border border-border" />
+              <img src={persona.source_image_url} alt={a.sourceOf(translateName(persona.name, lang))} className="w-full rounded-md border border-border" />
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2 break-all">
             <strong>Face Descriptor:</strong> — check DB —
           </p>
-          {persona.description && <p className="text-sm mt-2">{persona.description}</p>}
+          {persona.description && <p className="text-sm mt-2">{translateDescription(persona.description, lang, persona.role, persona.gender)}</p>}
 
           {/* Image Verification */}
           <div className="mt-4 border-t pt-3">
