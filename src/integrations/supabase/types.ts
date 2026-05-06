@@ -152,6 +152,7 @@ export type Database = {
           created_at: string
           description: string
           description_audit: Json | null
+          description_en: string | null
           duplicate_flag: Json | null
           face_descriptor: Json | null
           gender: string
@@ -159,6 +160,7 @@ export type Database = {
           image_url: string
           is_drawing: boolean
           name: string
+          name_en: string | null
           role: string
           skin_tone: Json | null
           source_image_url: string | null
@@ -169,6 +171,7 @@ export type Database = {
           created_at?: string
           description: string
           description_audit?: Json | null
+          description_en?: string | null
           duplicate_flag?: Json | null
           face_descriptor?: Json | null
           gender?: string
@@ -176,6 +179,7 @@ export type Database = {
           image_url: string
           is_drawing?: boolean
           name: string
+          name_en?: string | null
           role?: string
           skin_tone?: Json | null
           source_image_url?: string | null
@@ -186,6 +190,7 @@ export type Database = {
           created_at?: string
           description?: string
           description_audit?: Json | null
+          description_en?: string | null
           duplicate_flag?: Json | null
           face_descriptor?: Json | null
           gender?: string
@@ -193,6 +198,7 @@ export type Database = {
           image_url?: string
           is_drawing?: boolean
           name?: string
+          name_en?: string | null
           role?: string
           skin_tone?: Json | null
           source_image_url?: string | null
