@@ -1,0 +1,1 @@
+ALTER TABLE public.personas ADD COLUMN IF NOT EXISTS name_en TEXT, ADD COLUMN IF NOT EXISTS description_en TEXT;
