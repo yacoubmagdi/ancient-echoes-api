@@ -53,7 +53,7 @@ type Persona = {
   is_drawing: boolean;
 };
 
-type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string; source_image_url: string | null };
+type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag" | "is_drawing"> & { id?: string; source_image_url: string | null };
 
 function emptyForm(): FormState {
   return { name: "", description: "", category: "Pharaoh", gender: "any", role: "noble", image_url: "", source_image_url: null };
