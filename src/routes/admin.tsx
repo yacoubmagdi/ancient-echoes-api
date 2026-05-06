@@ -263,8 +263,8 @@ function AdminPage() {
             .not("face_descriptor", "is", null);
           for (const existing of sameCatData ?? []) {
             const existingDesc = existing.face_descriptor as number[] | null;
-            if (!existingDesc || existingDesc.length !== newDescriptor.descriptor.length) continue;
-            const similarity = cosineSimilarity(newDescriptor.descriptor, existingDesc);
+            if (!existingDesc || typeof newDescriptor === "string" || existingDesc.length !== newDescriptor.descriptor.length) continue;
+            const similarity = cosineSimilarity(typeof newDescriptor === "string" ? [] : newDescriptor.descriptor, existingDesc);
             if (similarity > 0.85) {
               setBusy(false);
               flash(`⚠️ وجه مشابه جداً (${(similarity * 100).toFixed(0)}%) للشخصية "${existing.name}" — يُحتمل تكرار`);

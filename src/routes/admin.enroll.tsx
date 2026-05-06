@@ -113,7 +113,7 @@ function EnrollPage() {
       try {
         const img = await imageFromUrl(p.image_url);
         const desc = await extractDescriptor(img);
-        if (desc) {
+        if (desc && desc !== "multiple_faces") {
           batchItems.push({ id: p.id, descriptor: desc.descriptor });
           ok++;
         } else {
