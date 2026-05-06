@@ -15,6 +15,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
 import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
+import { PaintbrushVertical } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -49,6 +50,7 @@ type Persona = {
   created_at: string;
   face_descriptor: number[] | null;
   duplicate_flag: Array<{ type: string; similar_to_id: string; similar_to_name: string; similarity: number; scanned_at: string }> | null;
+  is_drawing: boolean;
 };
 
 type FormState = Omit<Persona, "id" | "created_at" | "face_descriptor" | "duplicate_flag"> & { id?: string; source_image_url: string | null };
@@ -159,12 +161,12 @@ function AdminPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("personas")
-      .select("id, name, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag")
+      .select("id, name, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag, is_drawing")
       .order("category")
       .order("name")
       .limit(2000);
     if (error) flash(`Load error: ${error.message}`);
-    setPersonas((data as any[])?.map(d => ({ ...d, face_descriptor: null })) as Persona[] ?? []);
+    setPersonas((data as any[])?.map(d => ({ ...d, face_descriptor: null, is_drawing: d.is_drawing ?? false })) as Persona[] ?? []);
     setLoading(false);
   }
 
@@ -659,6 +661,12 @@ function AdminPage() {
                           <Badge variant="secondary" className="text-[10px] shrink-0">
                               face
                             </Badge>
+                            {p.is_drawing && (
+                              <Badge variant="outline" className="text-[10px] shrink-0 gap-0.5 border-orange-500 text-orange-500">
+                                <PaintbrushVertical className="h-2.5 w-2.5" />
+                                رسم
+                              </Badge>
+                            )}
                             {p.duplicate_flag && p.duplicate_flag.length > 0 && (
                               <Badge variant="destructive" className="text-[10px] shrink-0 gap-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5" />
@@ -706,6 +714,25 @@ function AdminPage() {
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>إعادة توليد الصورة بشكل واقعي من المصادر التاريخية</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant={p.is_drawing ? "default" : "outline"} className={`flex-1 ${p.is_drawing ? "bg-orange-600 hover:bg-orange-700" : ""}`}
+                                  onClick={async () => {
+                                    const newVal = !p.is_drawing;
+                                    const { error } = await supabase.from("personas").update({ is_drawing: newVal }).eq("id", p.id);
+                                    if (error) { flash(error.message); return; }
+                                    setPersonas(prev => prev.map(x => x.id === p.id ? { ...x, is_drawing: newVal } : x));
+                                    flash(newVal ? `تم تعليم "${p.name}" كرسم — لن يظهر في المطابقة` : `تم إلغاء تعليم "${p.name}" كرسم`);
+                                  }}>
+                                  <PaintbrushVertical className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{p.is_drawing ? "إلغاء: الصورة ليست رسماً" : "تعليم كرسم (استبعاد من المطابقة)"}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
