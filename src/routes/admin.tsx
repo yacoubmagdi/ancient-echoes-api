@@ -23,6 +23,8 @@ import { verifyPersona } from "@/server/verify-persona.functions";
 import { verifyPersonaImageFn } from "@/server/verify-persona-image.functions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { regenerateSourceUrl } from "@/server/regenerate-source-url.functions";
+import { adminTranslations, type AdminDict } from "@/lib/admin-i18n";
+import type { Lang } from "@/lib/i18n";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -63,6 +65,8 @@ function emptyForm(): FormState {
 function AdminPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [lang, setLang] = useState<Lang>("ar");
+  const a = adminTranslations[lang];
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCiv, setActiveCiv] = useState<string>("Pharaoh");
@@ -110,6 +114,11 @@ function AdminPage() {
   const [similaritySaving, setSimilaritySaving] = useState(false);
 
   useEffect(() => {
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("lang") as Lang | null : null;
+    if (saved === "en" || saved === "ar") setLang(saved);
+  }, []);
+
+  useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/auth" });
   }, [authLoading, user, navigate]);
 
@@ -128,9 +137,9 @@ function AdminPage() {
     setSimilaritySaving(true);
     const { error } = await supabase.from("site_settings").upsert({ key: "min_similarity", value: String(val), updated_at: new Date().toISOString() });
     setSimilaritySaving(false);
-    if (error) { flash("خطأ في حفظ الإعداد: " + error.message); return; }
+    if (error) { flash(a.settingsErrorSave + error.message); return; }
     setMinSimilarity(val);
-    flash(`تم تحديث حد التطابق إلى ${val}%`);
+    flash(a.similarityUpdated(val));
   }
 
   function flash(msg: string) {
@@ -151,9 +160,9 @@ function AdminPage() {
       });
       const data = await res.json();
       setUrlCheckResult(data);
-      flash(`فحص الروابط: ${data.ok}/${data.total} صالحة، ${data.failed} معطلة`);
+      flash(a.urlCheckResult(data.ok, data.total, data.failed));
     } catch (err: any) {
-      flash("فشل فحص الروابط: " + (err?.message || "خطأ"));
+      flash(a.urlCheckFailed + (err?.message || "Error"));
     } finally {
       setUrlCheckBusy(false);
     }
@@ -202,7 +211,7 @@ function AdminPage() {
     if (!form.id) {
       // --- Historical verification for new personas ---
       try {
-        flash("🔍 جارٍ التحقق التاريخي…");
+        flash(a.verifying);
         const vResult = await verifyPersona({
           data: {
             name: form.name,
@@ -229,19 +238,19 @@ function AdminPage() {
         if (vResult.verdict === "rejected") {
           setBusy(false);
           setVerifyResult(vResult);
-          flash(`❌ مرفوضة: ${vResult.reason}`);
+          flash(a.rejected(vResult.reason));
           return;
         }
 
         if (vResult.verdict === "uncertain") {
           setVerifyResult(vResult);
-          flash(`⚠️ غير مؤكدة: ${vResult.reason}`);
+          flash(a.uncertain(vResult.reason));
         } else {
           setVerifyResult(vResult);
-          flash(`✅ مقبولة تاريخياً (ثقة ${Math.round(vResult.confidence * 100)}%)`);
+          flash(a.accepted(Math.round(vResult.confidence * 100)));
         }
       } catch (e) {
-        flash(`⚠️ تعذر التحقق التاريخي: ${(e as Error).message}`);
+        flash(a.verifyFailed + (e as Error).message);
       }
 
       // 1) Exact name match within same category
@@ -250,7 +259,7 @@ function AdminPage() {
       );
       if (nameMatch) {
         setBusy(false);
-        flash(`⚠️ شخصية بنفس الاسم "${nameMatch.name}" موجودة بالفعل في ${form.category}`);
+        flash(a.duplicateName(nameMatch.name, form.category));
         return;
       }
 
@@ -271,7 +280,7 @@ function AdminPage() {
             const similarity = cosineSimilarity(newDescriptor.descriptor, existingDesc);
             if (similarity > 0.85) {
               setBusy(false);
-              flash(`⚠️ وجه مشابه جداً (${(similarity * 100).toFixed(0)}%) للشخصية "${existing.name}" — يُحتمل تكرار`);
+              flash(a.similarFace((similarity * 100).toFixed(0), existing.name));
               return;
             }
           }
@@ -290,7 +299,7 @@ function AdminPage() {
         })
         .eq("id", form.id);
       if (error) { setBusy(false); flash(error.message); return; }
-      flash("Persona updated.");
+      flash(a.personaUpdated);
     } else {
       const { error } = await supabase.from("personas").insert({
         name: form.name, description: form.description, category: form.category,
@@ -298,7 +307,7 @@ function AdminPage() {
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
       });
       if (error) { setBusy(false); flash(error.message); return; }
-      flash("Persona created.");
+      flash(a.personaCreated);
     }
     setBusy(false);
     setDialogOpen(false);
@@ -312,14 +321,14 @@ function AdminPage() {
     const { error } = await supabase.from("personas").delete().eq("id", p.id);
     setBusy(false);
     if (error) { flash(error.message); return; }
-    flash("Persona deleted.");
+    flash(a.personaDeleted);
     loadPersonas();
   }
 
   async function regenerateImage(p: Persona) {
     setRegenBusy(p.id);
     try {
-      flash(`🎨 جارٍ إعادة توليد صورة "${p.name}" بشكل واقعي…`);
+      flash(a.regenImageStart(p.name));
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch("/api/public/hooks/regenerate-persona-image", {
         method: "POST",
@@ -331,13 +340,13 @@ function AdminPage() {
       });
       const result = await resp.json();
       if (!resp.ok || result.error) {
-        flash(`❌ فشل التوليد: ${result.error}`);
+        flash(a.regenImageFailed(result.error));
       } else {
-        flash(`✅ تم إعادة توليد صورة "${result.persona_name}" بنجاح`);
+        flash(a.regenImageSuccess(result.persona_name));
         loadPersonas();
       }
     } catch (e) {
-      flash(`❌ خطأ: ${(e as Error).message}`);
+      flash(a.errorGeneric((e as Error).message));
     } finally {
       setRegenBusy(null);
     }
@@ -345,7 +354,7 @@ function AdminPage() {
 
   const handleGenerateImages = useCallback(async () => {
     setImgGenBusy(true);
-    setImgGenProgress("جارٍ توليد الصور… (دفعة 5)");
+    setImgGenProgress(a.generatingImages);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch("/api/public/hooks/generate-persona-images", {
@@ -358,14 +367,14 @@ function AdminPage() {
       });
       const result = await resp.json();
       if (!resp.ok) {
-        setToast(`❌ خطأ: ${result.error}`);
+        setToast(a.errorGeneric(result.error));
       } else {
-        setToast(`✅ تم توليد ${result.success} صورة (متبقي: ${result.remaining})`);
+        setToast(a.imagesGenerated(result.success, result.remaining));
         const { data } = await supabase.from("personas").select("*").order("created_at", { ascending: false });
         if (data) setPersonas(data as unknown as Persona[]);
       }
     } catch (e) {
-      setToast(`❌ خطأ: ${(e as Error).message}`);
+      setToast(a.errorGeneric((e as Error).message));
     } finally {
       setImgGenBusy(false);
       setImgGenProgress(null);
@@ -374,7 +383,7 @@ function AdminPage() {
 
   const handleGenerateDescriptions = useCallback(async () => {
     setGenBusy(true);
-    setGenProgress("جارٍ توليد الأوصاف التاريخية…");
+    setGenProgress(a.generatingDescriptions);
     try {
       const result = await generatePersonaDescriptions();
       setGenProgress(null);
@@ -408,7 +417,7 @@ function AdminPage() {
         if (!error) audited++;
         if (!result.valid) issues++;
       }
-      flash(`تم تدقيق ${audited} شخصية — ${issues} بها مشاكل`);
+      flash(a.auditComplete(audited, issues));
       loadPersonas();
     } catch (e) {
       flash(`Audit error: ${(e as Error).message}`);
@@ -445,7 +454,7 @@ function AdminPage() {
   }
 
   if (authLoading) {
-    return <main className="min-h-screen flex items-center justify-center">Loading…</main>;
+    return <main className="min-h-screen flex items-center justify-center">{a.loading}</main>;
   }
 
   if (!isAdmin) {
@@ -453,17 +462,17 @@ function AdminPage() {
       <main className="min-h-screen flex items-center justify-center px-4">
         <Card className="max-w-md w-full">
           <CardHeader>
-            <CardTitle>Admin access required</CardTitle>
+            <CardTitle>{a.adminAccessRequired}</CardTitle>
             <CardDescription>
-              Your account doesn't have the admin role yet.
+              {a.noAdminRole}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Button onClick={claimAdmin} className="w-full">Claim admin role (first user only)</Button>
+            <Button onClick={claimAdmin} className="w-full">{a.claimAdmin}</Button>
             <Button variant="outline" className="w-full" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
               Sign out
             </Button>
-            <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">← Back to home</Link>
+            <Link to="/" className="block text-center text-sm text-muted-foreground hover:text-foreground">{a.backToHome}</Link>
           </CardContent>
         </Card>
       </main>
@@ -475,13 +484,13 @@ function AdminPage() {
       <header className="border-b border-border">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold">Persona Admin</h1>
+            <h1 className="text-xl font-bold">{a.personaAdmin}</h1>
             <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">Home</Link>
+            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{a.home}</Link>
             <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
-              <LogOut className="h-4 w-4 mr-1" /> Sign out
+              <LogOut className="h-4 w-4 mr-1" /> {a.signOut}
             </Button>
           </div>
         </div>
@@ -499,10 +508,10 @@ function AdminPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Link2 className="h-4 w-4" />
-                نتائج فحص الروابط
+                {a.urlCheckResults}
               </CardTitle>
               <CardDescription>
-                {urlCheckResult.ok}/{urlCheckResult.total} رابط صالح — {urlCheckResult.failed} معطل
+                {a.urlCheckSummary(urlCheckResult.ok, urlCheckResult.total, urlCheckResult.failed)}
               </CardDescription>
             </CardHeader>
             {urlCheckResult.failures.length > 0 && (
@@ -525,13 +534,13 @@ function AdminPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              إعدادات التطابق
+              {a.matchSettings}
             </CardTitle>
-            <CardDescription>تحكم في الحد الأدنى لنسبة التشابه المعروضة للمستخدمين</CardDescription>
+            <CardDescription>{a.matchSettingsDesc}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <Label className="text-sm whitespace-nowrap">حد التطابق:</Label>
+              <Label className="text-sm whitespace-nowrap">{a.matchThreshold}</Label>
               <Slider
                 value={[minSimilarity]}
                 onValueChange={([v]) => setMinSimilarity(v)}
@@ -547,7 +556,7 @@ function AdminPage() {
                 disabled={similaritySaving}
                 onClick={() => saveMinSimilarity(minSimilarity)}
               >
-                {similaritySaving ? "جارٍ الحفظ…" : "حفظ"}
+                {similaritySaving ? a.saving : a.save}
               </Button>
             </div>
           </CardContent>
@@ -563,7 +572,7 @@ function AdminPage() {
               ))}
             </TabsList>
             <Badge variant="secondary" className="self-start md:self-center text-xs">
-              إجمالي: {personas.length} شخصية
+              {a.totalPersonas(personas.length)}
             </Badge>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -571,40 +580,40 @@ function AdminPage() {
                 size="sm"
                 onClick={handleGenerateDescriptions}
                 disabled={genBusy}
-                title="توليد أوصاف تاريخية غنية بالذكاء الاصطناعي"
+                title={lang === "ar" ? "توليد أوصاف تاريخية غنية بالذكاء الاصطناعي" : "Generate rich historical descriptions with AI"}
               >
                 <Sparkles className="h-4 w-4 mr-1" />
-                {genBusy ? (genProgress ?? "جارٍ…") : "توليد الأوصاف"}
+                {genBusy ? (genProgress ?? a.generating) : a.generateDescriptions}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleGenerateImages}
                 disabled={imgGenBusy}
-                title="توليد صور بالذكاء الاصطناعي للشخصيات بدون صور"
+                title={lang === "ar" ? "توليد صور بالذكاء الاصطناعي للشخصيات بدون صور" : "Generate AI images for personas without images"}
               >
                 <ImageIcon className="h-4 w-4 mr-1" />
-                {imgGenBusy ? (imgGenProgress ?? "جارٍ…") : "توليد الصور"}
+                {imgGenBusy ? (imgGenProgress ?? a.generating) : a.generateImages}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRunAudit}
                 disabled={auditBusy || personas.length === 0}
-                title="إعادة تدقيق جميع الأوصاف"
+                title={lang === "ar" ? "إعادة تدقيق جميع الأوصاف" : "Re-audit all descriptions"}
               >
                 <ShieldCheck className="h-4 w-4 mr-1" />
-                {auditBusy ? "جارٍ التدقيق…" : "تدقيق الأوصاف"}
+                {auditBusy ? a.auditing : a.auditDescriptions}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCheckUrls}
                 disabled={urlCheckBusy}
-                title="فحص صلاحية روابط المصدر التاريخي"
+                title={lang === "ar" ? "فحص صلاحية روابط المصدر التاريخي" : "Check validity of historical source URLs"}
               >
                 <Link2 className="h-4 w-4 mr-1" />
-                {urlCheckBusy ? "جارٍ الفحص…" : "فحص الروابط"}
+                {urlCheckBusy ? a.checking : a.checkUrls}
               </Button>
 
               <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -612,7 +621,7 @@ function AdminPage() {
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="all">{a.allRoles}</SelectItem>
                   {ROLES.map((r) => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -621,18 +630,18 @@ function AdminPage() {
                   <SelectValue placeholder="Gender" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All genders</SelectItem>
+                  <SelectItem value="all">{a.allGenders}</SelectItem>
                   {GENDERS.map((g) => <SelectItem key={g} value={g} className="capitalize">{g}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input
-                placeholder="Search name / description…"
+                placeholder={a.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full md:w-56"
               />
               <Button onClick={() => { setEditing({ ...emptyForm(), category: activeCiv }); setDialogOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> New
+                <Plus className="h-4 w-4 mr-1" /> {a.new}
               </Button>
             </div>
           </div>
@@ -641,18 +650,18 @@ function AdminPage() {
             <TabsContent key={c} value={c} className="mt-0">
               {!loading && (
                 <p className="text-xs text-muted-foreground mb-2">
-                  عرض {filtered.length} من {counts[activeCiv] ?? 0} شخصية
+                  {a.showing(filtered.length, counts[activeCiv] ?? 0)}
                 </p>
               )}
               {loading ? (
-                <p className="text-muted-foreground py-12 text-center">Loading…</p>
+                <p className="text-muted-foreground py-12 text-center">{a.loading}</p>
               ) : filtered.length === 0 ? (
-                <p className="text-muted-foreground py-12 text-center">No personas in {c} yet.</p>
+                <p className="text-muted-foreground py-12 text-center">{lang === "ar" ? `لا توجد شخصيات في ${c} بعد.` : `No personas in ${c} yet.`}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filtered.map((p, idx) => (
                     <Card key={p.id} className="overflow-hidden">
-                      <PersonaCardImage persona={p} index={idx + 1} onPreview={() => setPreviewing(p)} />
+                      <PersonaCardImage persona={p} index={idx + 1} onPreview={() => setPreviewing(p)} a={a} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -666,13 +675,13 @@ function AdminPage() {
                             {p.is_drawing && (
                               <Badge variant="outline" className="text-[10px] shrink-0 gap-0.5 border-orange-500 text-orange-500">
                                 <PaintbrushVertical className="h-2.5 w-2.5" />
-                                رسم
+                                {a.drawing}
                               </Badge>
                             )}
                             {p.duplicate_flag && p.duplicate_flag.length > 0 && (
                               <Badge variant="destructive" className="text-[10px] shrink-0 gap-0.5">
                                 <AlertTriangle className="h-2.5 w-2.5" />
-                                تكرار ({p.duplicate_flag.length})
+                                {a.duplicate(p.duplicate_flag.length)}
                               </Badge>
                             )}
                           </div>
@@ -681,7 +690,7 @@ function AdminPage() {
                           <div className="text-[10px] text-destructive space-y-0.5 bg-destructive/10 rounded p-1.5">
                             {p.duplicate_flag.map((f, i) => (
                               <p key={i}>
-                                {f.type === "name" ? "📝" : "👤"} مشابه لـ <strong>{f.similar_to_name}</strong> ({Math.round(f.similarity * 100)}%)
+                                {f.type === "name" ? "📝" : "👤"} {a.similarTo(f.similar_to_name, Math.round(f.similarity * 100))}
                               </p>
                             ))}
                           </div>
@@ -702,7 +711,7 @@ function AdminPage() {
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  <p>فتح المصدر التاريخي (ويكيبيديا) في تبويب جديد</p>
+                                  <p>{a.openSource}</p>
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
@@ -715,7 +724,7 @@ function AdminPage() {
                                   onClick={async () => {
                                     setSourceRegenBusy(p.id);
                                     try {
-                                      flash(`🔄 جارٍ تحديث مصدر "${p.name}"…`);
+                                      flash(a.updatingSource(p.name));
                                       const result = await regenerateSourceUrl({
                                         data: {
                                           name: p.name,
@@ -726,9 +735,9 @@ function AdminPage() {
                                         },
                                       });
                                       setPersonas(prev => prev.map(x => x.id === p.id ? { ...x, source_image_url: result.url } : x));
-                                      flash(`✅ تم تحديث مصدر "${p.name}"`);
+                                      flash(a.sourceUpdated(p.name));
                                     } catch (e) {
-                                      flash(`❌ خطأ: ${(e as Error).message}`);
+                                      flash(a.errorGeneric((e as Error).message));
                                     } finally {
                                       setSourceRegenBusy(null);
                                     }
@@ -737,7 +746,7 @@ function AdminPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>إعادة توليد رابط مصدر المعلومات بالذكاء الاصطناعي</p>
+                                <p>{a.regenSourceTooltip}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -749,7 +758,7 @@ function AdminPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>إعادة توليد الصورة بشكل واقعي من المصادر التاريخية</p>
+                                <p>{a.regenImageTooltip}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -762,13 +771,13 @@ function AdminPage() {
                                     const { error } = await supabase.from("personas").update({ is_drawing: newVal }).eq("id", p.id);
                                     if (error) { flash(error.message); return; }
                                     setPersonas(prev => prev.map(x => x.id === p.id ? { ...x, is_drawing: newVal } : x));
-                                    flash(newVal ? `تم تعليم "${p.name}" كرسم — لن يظهر في المطابقة` : `تم إلغاء تعليم "${p.name}" كرسم`);
+                                    flash(newVal ? a.markedDrawing(p.name) : a.unmarkedDrawing(p.name));
                                   }}>
                                   <PaintbrushVertical className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                <p>{p.is_drawing ? "إلغاء: الصورة ليست رسماً" : "تعليم كرسم (استبعاد من المطابقة)"}</p>
+                                <p>{p.is_drawing ? a.isNotDrawing : a.markAsDrawing}</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -778,14 +787,14 @@ function AdminPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>Delete {p.name}?</AlertDialogTitle>
+                                <AlertDialogTitle>{a.deleteTitle(p.name)}</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  This removes the persona from the database and from Luxand if enrolled. This cannot be undone.
+                                  {a.deleteDesc}
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => deletePersona(p)}>Delete</AlertDialogAction>
+                                <AlertDialogCancel>{a.cancel}</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => deletePersona(p)}>{a.delete}</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
@@ -809,6 +818,7 @@ function AdminPage() {
         onSave={savePersona}
         onUpload={uploadImageToBucket}
         busy={busy}
+        a={a}
         onVerify={async (f) => {
           setVerifyBusy(true);
           setVerifyResult(null);
@@ -823,7 +833,7 @@ function AdminPage() {
               confidence: result.confidence, verified_by: user?.id,
             });
           } catch (e) {
-            flash(`خطأ في التحقق: ${(e as Error).message}`);
+            flash(a.verifyError((e as Error).message));
           } finally {
             setVerifyBusy(false);
           }
@@ -836,6 +846,7 @@ function AdminPage() {
       <PreviewDialog
         persona={previewing}
         onClose={() => setPreviewing(null)}
+        a={a}
         onVerifyImage={async (p: Persona) => {
           setImgVerifyBusy(true);
           setImgVerifyResult(null);
@@ -857,7 +868,7 @@ function AdminPage() {
               role: p.role,
               gender: p.gender,
               verdict: result.verdict,
-              reason: `تدقيق الصورة: ${result.score}/100 — ${result.issues.join("، ")}`,
+              reason: a.imageAuditReason(result.score, result.issues.join(lang === "ar" ? "، " : ", ")),
               sources: Object.entries(result.details).map(([k, v]) => `${k}: ${v.note}`),
               confidence: result.score / 100,
               verified_by: user?.id,
@@ -869,7 +880,7 @@ function AdminPage() {
               await supabase.from("personas").update({ verification_status: "image_rejected" }).eq("id", p.id);
             }
           } catch (e) {
-            flash(`خطأ في تدقيق الصورة: ${(e as Error).message}`);
+            flash(a.imageAuditError((e as Error).message));
           } finally {
             setImgVerifyBusy(false);
           }
@@ -882,7 +893,7 @@ function AdminPage() {
 }
 
 function PersonaDialog({
-  open, onOpenChange, form, setForm, onSave, onUpload, busy, onVerify, verifyBusy, verifyResult,
+  open, onOpenChange, form, setForm, onSave, onUpload, busy, a, onVerify, verifyBusy, verifyResult,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -891,6 +902,7 @@ function PersonaDialog({
   onSave: (f: FormState) => void;
   onUpload: (file: File) => Promise<string | null>;
   busy: boolean;
+  a: AdminDict;
   onVerify: (f: FormState) => void;
   verifyBusy: boolean;
   verifyResult: { verdict: string; reason: string; sources: string[]; confidence: number; correctedName?: string; correctedDescription?: string } | null;
@@ -900,17 +912,17 @@ function PersonaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{form.id ? "Edit persona" : "New persona"}</DialogTitle>
-          <DialogDescription>Fill in the details and provide an image (upload or URL).</DialogDescription>
+          <DialogTitle>{form.id ? a.editPersona : a.newPersona}</DialogTitle>
+          <DialogDescription>{a.dialogDesc}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label>Name</Label>
+              <Label>{a.name}</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label>Civilization</Label>
+              <Label>{a.civilization}</Label>
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -919,7 +931,7 @@ function PersonaDialog({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Role</Label>
+              <Label>{a.role}</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -928,7 +940,7 @@ function PersonaDialog({
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Gender</Label>
+              <Label>{a.gender}</Label>
               <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -939,16 +951,16 @@ function PersonaDialog({
           </div>
 
           <div className="space-y-1">
-            <Label>Description</Label>
+            <Label>{a.description}</Label>
             <Textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
           <div className="space-y-2">
-            <Label>Image</Label>
+            <Label>{a.image}</Label>
             <Tabs defaultValue="url">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="url">URL</TabsTrigger>
-                <TabsTrigger value="upload">Upload</TabsTrigger>
+                <TabsTrigger value="url">{a.url}</TabsTrigger>
+                <TabsTrigger value="upload">{a.upload}</TabsTrigger>
               </TabsList>
               <TabsContent value="url" className="space-y-2 pt-2">
                 <Input
@@ -975,7 +987,7 @@ function PersonaDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>المصدر التاريخي (نقش / تمثال / صورة أثرية)</Label>
+            <Label>{a.historicalSource}</Label>
             <Input
               placeholder="https://…/source-image.jpg"
               value={form.source_image_url ?? ""}
@@ -995,11 +1007,11 @@ function PersonaDialog({
               className="mr-auto"
             >
               <ShieldCheck className="h-4 w-4 mr-1" />
-              {verifyBusy ? "جارٍ التحقق…" : "تحقق تاريخياً"}
+              {verifyBusy ? a.verifyingShort : a.verifyHistorically}
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={() => onSave(form)} disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>{a.cancel}</Button>
+          <Button onClick={() => onSave(form)} disabled={busy}>{busy ? a.savingShort : a.save}</Button>
         </DialogFooter>
         {verifyResult && (
           <div className={`mt-3 p-3 rounded-md text-sm border ${
@@ -1008,23 +1020,23 @@ function PersonaDialog({
             "bg-yellow-50 border-yellow-200 dark:bg-yellow-950 dark:border-yellow-800"
           }`}>
             <div className="flex items-center gap-2 font-semibold mb-1">
-              {verifyResult.verdict === "accepted" ? "✅ مقبولة" :
-               verifyResult.verdict === "rejected" ? "❌ مرفوضة" : "⚠️ غير مؤكدة"}
+              {verifyResult.verdict === "accepted" ? a.acceptedShort :
+               verifyResult.verdict === "rejected" ? a.rejectedShort : a.uncertainShort}
               <span className="text-xs font-normal text-muted-foreground">
-                (ثقة {Math.round(verifyResult.confidence * 100)}%)
+                {a.confidence(Math.round(verifyResult.confidence * 100))}
               </span>
             </div>
             <p className="text-xs leading-relaxed">{verifyResult.reason}</p>
             {verifyResult.sources.length > 0 && (
               <div className="mt-2">
-                <p className="text-xs font-semibold">المصادر:</p>
+                <p className="text-xs font-semibold">{a.sources}</p>
                 <ul className="text-xs list-disc list-inside">
                   {verifyResult.sources.map((s, i) => <li key={i}>{s}</li>)}
                 </ul>
               </div>
             )}
             {verifyResult.correctedName && (
-              <p className="text-xs mt-1">📝 الاسم المقترح: <strong>{verifyResult.correctedName}</strong></p>
+              <p className="text-xs mt-1">{a.suggestedName(verifyResult.correctedName)}</p>
             )}
           </div>
         )}
@@ -1034,10 +1046,11 @@ function PersonaDialog({
 }
 
 function PreviewDialog({
-  persona, onClose, onVerifyImage, imgVerifyBusy, imgVerifyResult,
+  persona, onClose, a, onVerifyImage, imgVerifyBusy, imgVerifyResult,
 }: {
   persona: Persona | null;
   onClose: () => void;
+  a: AdminDict;
   onVerifyImage: (p: Persona) => void;
   imgVerifyBusy: boolean;
   imgVerifyResult: {
@@ -1051,11 +1064,11 @@ function PreviewDialog({
   if (!persona) return null;
 
   const detailLabels: Record<string, string> = {
-    skinTone: "لون البشرة",
-    facialFeatures: "ملامح الوجه",
-    headdressAttire: "الغطاء والملابس",
-    historicalAccuracy: "الدقة التاريخية",
-    overallQuality: "جودة الصورة",
+    skinTone: a.skinTone,
+    facialFeatures: a.facialFeatures,
+    headdressAttire: a.headdressAttire,
+    historicalAccuracy: a.historicalAccuracy,
+    overallQuality: a.overallQuality,
   };
 
   return (
@@ -1069,8 +1082,8 @@ function PreviewDialog({
           <img src={persona.image_url} alt={persona.name} className="w-full rounded-md border border-border" />
           {persona.source_image_url && (
             <div className="mt-3">
-              <p className="text-xs font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-3 w-3" /> المصدر التاريخي:</p>
-              <img src={persona.source_image_url} alt={`مصدر ${persona.name}`} className="w-full rounded-md border border-border" />
+              <p className="text-xs font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-3 w-3" /> {a.historicalSourceLabel}</p>
+              <img src={persona.source_image_url} alt={a.sourceOf(persona.name)} className="w-full rounded-md border border-border" />
             </div>
           )}
           <p className="text-xs text-muted-foreground mt-2 break-all">
@@ -1088,7 +1101,7 @@ function PreviewDialog({
               className="w-full gap-2"
             >
               <Eye className="h-4 w-4" />
-              {imgVerifyBusy ? "جارٍ تدقيق الصورة…" : "تدقيق مطابقة الصورة للأدلة التاريخية"}
+              {imgVerifyBusy ? a.verifyingImage : a.verifyImageBtn}
             </Button>
 
             {imgVerifyResult && (
@@ -1101,8 +1114,8 @@ function PreviewDialog({
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-bold">
-                    {imgVerifyResult.verdict === "approved" ? "✅ معتمدة" :
-                     imgVerifyResult.verdict === "rejected" ? "❌ مرفوضة" : "⚠️ تحتاج مراجعة"}
+                    {imgVerifyResult.verdict === "approved" ? a.approved :
+                     imgVerifyResult.verdict === "rejected" ? a.rejectedImg : a.needsReview}
                   </span>
                   <Badge variant="secondary">{imgVerifyResult.score}/100</Badge>
                 </div>
@@ -1120,7 +1133,7 @@ function PreviewDialog({
 
                 {imgVerifyResult.issues.length > 0 && (
                   <div className="text-xs mt-2">
-                    <p className="font-semibold text-destructive">المشاكل:</p>
+                    <p className="font-semibold text-destructive">{a.issues}</p>
                     <ul className="list-disc list-inside">
                       {imgVerifyResult.issues.map((issue, i) => <li key={i}>{issue}</li>)}
                     </ul>
@@ -1139,7 +1152,7 @@ function PreviewDialog({
   );
 }
 
-function PersonaCardImage({ persona, index, onPreview }: { persona: Persona; index: number; onPreview: () => void }) {
+function PersonaCardImage({ persona, index, onPreview, a }: { persona: Persona; index: number; onPreview: () => void; a: AdminDict }) {
   const [showSource, setShowSource] = useState(false);
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -1180,7 +1193,7 @@ function PersonaCardImage({ persona, index, onPreview }: { persona: Persona; ind
         <span className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">{index}</span>
         <img
           src={persona.source_image_url}
-          alt={`مصدر ${persona.name}`}
+           alt={persona.name}
           className="w-full h-full object-cover animate-fade-in"
           loading="lazy"
         onError={(e) => {
@@ -1193,7 +1206,7 @@ function PersonaCardImage({ persona, index, onPreview }: { persona: Persona; ind
         />
         <div className="absolute bottom-2 left-2 right-2 bg-background/80 backdrop-blur rounded-md px-2 py-1 text-[10px] text-center flex items-center justify-center gap-1">
           <BookOpen className="h-3 w-3" />
-          المصدر التاريخي — اضغط للعودة
+          {a.historicalSourceNav}
         </div>
       </button>
     );
