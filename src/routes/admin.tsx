@@ -799,7 +799,7 @@ function AdminPage() {
                             </AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader>
-                                <AlertDialogTitle>{a.deleteTitle(p.name)}</AlertDialogTitle>
+                                <AlertDialogTitle>{a.deleteTitle(translateName(p.name, lang))}</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   {a.deleteDesc}
                                 </AlertDialogDescription>
