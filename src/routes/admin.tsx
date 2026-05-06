@@ -22,6 +22,7 @@ import { auditDescription } from "@/lib/description-audit";
 import { verifyPersona } from "@/server/verify-persona.functions";
 import { verifyPersonaImageFn } from "@/server/verify-persona-image.functions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { regenerateSourceUrl } from "@/server/regenerate-source-url.functions";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -81,6 +82,7 @@ function AdminPage() {
   const [imgGenProgress, setImgGenProgress] = useState<string | null>(null);
   const [verifyBusy, setVerifyBusy] = useState(false);
   const [regenBusy, setRegenBusy] = useState<string | null>(null);
+  const [sourceRegenBusy, setSourceRegenBusy] = useState<string | null>(null);
   const [urlCheckBusy, setUrlCheckBusy] = useState(false);
   const [imgVerifyBusy, setImgVerifyBusy] = useState(false);
   const [imgVerifyResult, setImgVerifyResult] = useState<{
@@ -705,6 +707,40 @@ function AdminPage() {
                               </Tooltip>
                             </TooltipProvider>
                           )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" className="flex-1"
+                                  disabled={sourceRegenBusy === p.id}
+                                  onClick={async () => {
+                                    setSourceRegenBusy(p.id);
+                                    try {
+                                      flash(`🔄 جارٍ تحديث مصدر "${p.name}"…`);
+                                      const result = await regenerateSourceUrl({
+                                        data: {
+                                          name: p.name,
+                                          role: p.role,
+                                          category: p.category,
+                                          description: p.description,
+                                          personaId: p.id,
+                                        },
+                                      });
+                                      setPersonas(prev => prev.map(x => x.id === p.id ? { ...x, source_image_url: result.url } : x));
+                                      flash(`✅ تم تحديث مصدر "${p.name}"`);
+                                    } catch (e) {
+                                      flash(`❌ خطأ: ${(e as Error).message}`);
+                                    } finally {
+                                      setSourceRegenBusy(null);
+                                    }
+                                  }}>
+                                  {sourceRegenBusy === p.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <BookOpen className="h-3 w-3" />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>إعادة توليد رابط مصدر المعلومات بالذكاء الاصطناعي</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
