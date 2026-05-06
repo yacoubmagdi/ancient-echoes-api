@@ -254,7 +254,7 @@ function AdminPage() {
       try {
         const img = await imageFromUrl(form.image_url);
         const newDescriptor = await extractDescriptor(img);
-        if (newDescriptor) {
+        if (newDescriptor && newDescriptor !== "multiple_faces") {
           // Fetch face descriptors on-demand for same category
           const { data: sameCatData } = await supabase
             .from("personas")

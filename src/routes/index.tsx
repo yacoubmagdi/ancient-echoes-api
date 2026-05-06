@@ -158,6 +158,13 @@ function Index() {
       await loadFaceModels();
       const img = await imageFromFile(uploadFile);
       const faceResult = await extractDescriptor(img);
+      if (faceResult === "multiple_faces") {
+        throw new Error(
+          lang === "ar"
+            ? "تم اكتشاف أكثر من وجه في الصورة. يرجى رفع صورة تحتوي على وجه واحد فقط."
+            : "Multiple faces detected. Please upload a photo with only one face.",
+        );
+      }
       if (!faceResult) {
         throw new Error(
           lang === "ar"
