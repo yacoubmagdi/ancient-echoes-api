@@ -37,6 +37,7 @@ import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
 import { compressImage } from "@/lib/image-compress";
 import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
+import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -167,8 +168,6 @@ function Index() {
       const { descriptor, skinTone } = faceResult;
       // Use AI-detected gender when user hasn't manually selected one
       const effectiveGender = gender || faceResult.detectedGender || "";
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-face`;
-
       // Check client-side cache first
       const filters: Record<string, string> = {
         lang,
@@ -186,14 +185,8 @@ function Index() {
         return;
       }
 
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: {
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const data = await analyzeFace({
+        data: {
           descriptor,
           ...(skinToneEnabled ? { skin_tone: skinTone } : {}),
           lang,
@@ -202,11 +195,10 @@ function Index() {
           ...(effectiveGender ? { gender: effectiveGender } : {}),
           ...(role && role !== "any" ? { role } : {}),
           ...(civilization && civilization !== "any" ? { civilization } : {}),
-        }),
+        },
       });
-      const data = await resp.json().catch(() => ({ error: "Invalid server response" }));
-      if (!resp.ok || (data as { error?: string })?.error) {
-        throw new Error((data as { error?: string })?.error ?? `Request failed (${resp.status})`);
+      if ((data as { error?: string })?.error) {
+        throw new Error((data as { error?: string }).error);
       }
       const matchData = data as MatchResult;
       setResult(matchData);
