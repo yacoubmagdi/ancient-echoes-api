@@ -162,7 +162,7 @@ function AdminPage() {
       setUrlCheckResult(data);
       flash(a.urlCheckResult(data.ok, data.total, data.failed));
     } catch (err: any) {
-      flash(a.urlCheckFailed + (err?.message || "خطأ"));
+      flash(a.urlCheckFailed + (err?.message || "Error"));
     } finally {
       setUrlCheckBusy(false);
     }
@@ -1193,7 +1193,7 @@ function PersonaCardImage({ persona, index, onPreview, a }: { persona: Persona; 
         <span className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">{index}</span>
         <img
           src={persona.source_image_url}
-          alt={`مصدر ${persona.name}`}
+           alt={persona.name}
           className="w-full h-full object-cover animate-fade-in"
           loading="lazy"
         onError={(e) => {
