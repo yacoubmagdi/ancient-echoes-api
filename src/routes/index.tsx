@@ -40,6 +40,7 @@ import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api
 import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 
 // Client-side analysis result cache — avoids redundant API calls for the
 // same face + filter combo. Keyed by a hash of the descriptor + filters.
@@ -497,7 +498,7 @@ function Index() {
                         className="absolute inset-0 h-full w-full object-cover"
                       />
                       <div className="absolute top-4 left-4 rounded-full bg-background/70 backdrop-blur px-3 py-1 text-xs uppercase tracking-wider">
-                        {match.category}
+                        {translateCategory(match.category, lang)}
                       </div>
                       <div
                         className="absolute top-4 right-4 flex items-center justify-center h-10 w-10 rounded-full font-bold text-lg text-primary-foreground"
@@ -514,7 +515,7 @@ function Index() {
                         className="mt-2 text-3xl md:text-4xl font-bold bg-clip-text text-transparent"
                         style={{ backgroundImage: "var(--gradient-gold)" }}
                       >
-                        {match.match_name}
+                        {translateName(match.match_name, lang)}
                       </h2>
                       <div className="mt-6">
                         <div className="flex items-baseline justify-between">
@@ -537,10 +538,10 @@ function Index() {
                         </div>
                       </div>
                       <p className="mt-6 text-base text-muted-foreground leading-relaxed">
-                        {match.description}
+                        {translateDescription(match.description, lang)}
                       </p>
                       {match.source_image_url && (
-                        <SourceImageToggle sourceImageUrl={match.source_image_url} name={match.match_name} />
+                        <SourceImageToggle sourceImageUrl={match.source_image_url} name={translateName(match.match_name, lang)} />
                       )}
                       {idx === 0 && (
                         <>
@@ -550,21 +551,21 @@ function Index() {
                             </div>
                           )}
                           <ShareButtons
-                            name={result.match_name}
-                            category={result.category}
+                            name={translateName(result.match_name, lang)}
+                            category={translateCategory(result.category, lang)}
                             similarity={result.similarity}
                             t={t}
                             matchImageUrl={result.image_url}
-                            description={result.description}
+                            description={translateDescription(result.description, lang)}
                             userImage={previewUrl}
                           />
                           <DownloadCardButton
                             userImage={previewUrl}
                             matchImage={result.image_url}
-                            name={result.match_name}
-                            category={result.category}
+                            name={translateName(result.match_name, lang)}
+                            category={translateCategory(result.category, lang)}
                             similarity={result.similarity}
-                            description={result.description}
+                            description={translateDescription(result.description, lang)}
                             t={t}
                             isRtl={isRtl}
                           />
