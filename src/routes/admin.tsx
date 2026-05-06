@@ -179,7 +179,7 @@ function AdminPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("personas")
-      .select("id, name, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag, is_drawing")
+      .select("id, name, name_en, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag, is_drawing")
       .order("category")
       .order("name")
       .limit(2000);
@@ -739,7 +739,7 @@ function AdminPage() {
                                       flash(a.updatingSource(p.name));
                                       const result = await regenerateSourceUrl({
                                         data: {
-                                          name: p.name,
+                                          name: p.name_en || p.name,
                                           role: p.role,
                                           category: p.category,
                                           description: p.description,
