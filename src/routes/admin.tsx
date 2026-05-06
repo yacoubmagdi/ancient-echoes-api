@@ -16,6 +16,7 @@ import { Slider } from "@/components/ui/slider";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
 import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
 import { PaintbrushVertical } from "lucide-react";
+import { Languages } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
 import { generatePersonaDescriptions } from "@/server/generate-descriptions.functions";
 import { auditDescription } from "@/lib/description-audit";
@@ -25,6 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { regenerateSourceUrl } from "@/server/regenerate-source-url.functions";
 import { adminTranslations, type AdminDict } from "@/lib/admin-i18n";
 import type { Lang } from "@/lib/i18n";
+import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -67,6 +69,11 @@ function AdminPage() {
   const navigate = useNavigate();
   const [lang, setLang] = useState<Lang>("ar");
   const a = adminTranslations[lang];
+  const toggleLang = () => {
+    const next = lang === "ar" ? "en" : "ar";
+    setLang(next);
+    if (typeof window !== "undefined") window.localStorage.setItem("lang", next);
+  };
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCiv, setActiveCiv] = useState<string>("Pharaoh");
@@ -489,6 +496,10 @@ function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{a.home}</Link>
+            <Button variant="ghost" size="sm" onClick={toggleLang} aria-label="Toggle language">
+              <Languages className="h-4 w-4 mr-1" />
+              {lang === "ar" ? "English" : "العربية"}
+            </Button>
             <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
               <LogOut className="h-4 w-4 mr-1" /> {a.signOut}
             </Button>
@@ -666,7 +677,8 @@ function AdminPage() {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-medium truncate">{p.name}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{p.role} · {p.gender}</p>
+                            <p className="font-medium truncate">{translateName(p.name, lang)}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{lang === "en" ? p.role : p.role} · {p.gender}</p>
                           </div>
                           <div className="flex flex-col items-end gap-1">
                           <Badge variant="secondary" className="text-[10px] shrink-0">
