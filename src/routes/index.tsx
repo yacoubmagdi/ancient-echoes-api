@@ -466,7 +466,7 @@ function Index() {
 
         {result && (
           <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Top 3 Matches heading */}
+            {/* Top Matches heading */}
             <h2
               className="text-2xl md:text-3xl font-bold text-center bg-clip-text text-transparent"
               style={{ backgroundImage: "var(--gradient-gold)" }}
@@ -474,11 +474,11 @@ function Index() {
               {t.topMatches}
             </h2>
 
-            {/* Build array of top 3 */}
+            {/* Build array of all matches (up to 5) */}
             {(() => {
               const allMatches: (RunnerUp & { rank: number })[] = [
                 { ...result, rank: 1 },
-                ...(result.runners_up ?? []).slice(0, 2).map((r, i) => ({ ...r, rank: i + 2 })),
+                ...(result.runners_up ?? []).map((r, i) => ({ ...r, rank: i + 2 })),
               ];
               return allMatches.map((match, idx) => (
                 <Card key={idx} className="overflow-hidden border-border/60 bg-card/60 backdrop-blur">

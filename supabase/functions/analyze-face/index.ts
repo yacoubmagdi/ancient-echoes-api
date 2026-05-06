@@ -2570,12 +2570,19 @@ Deno.serve(async (req) => {
     success: true,
   });
 
-  const stripId = ({ persona_id: _pid, ...rest }: Ranked) => rest;
+  const stripId = ({ persona_id: _pid, ...rest }: Ranked, rank?: number) => ({
+    ...rest,
+    ...(rank !== undefined ? { rank } : {}),
+  });
   mark("total");
 
   const responseBody = {
+    total_matches: ranked.length,
+    best_match: stripId(top, 1),
+    matches: ranked.map((r, i) => stripId(r, i + 1)),
+    // Backward-compatible fields
     ...stripId(top),
-    runners_up: ranked.slice(1).map(stripId),
+    runners_up: ranked.slice(1).map((r, i) => stripId(r, i + 2)),
     requires_ad: requiresAd,
   };
 
