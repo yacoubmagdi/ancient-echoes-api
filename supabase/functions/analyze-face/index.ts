@@ -2185,11 +2185,11 @@ function euclideanDistance(a: number[], b: number[]): number {
 }
 
 // face-api.js descriptor distance is typically 0.3 (very similar) – 1.0+ (different).
-// Map to a 5–98% resemblance score.
+// Map to a 5–98% resemblance score with a gentler curve to accommodate more results.
 function distanceToSimilarity(distance: number): number {
-  // Non-linear mapping: 0.0→98%, 0.3→90%, 0.5→65%, 0.7→40%, 1.0→10%
-  const normalized = Math.max(0, Math.min(1.2, distance));
-  const pct = Math.round(98 * Math.exp(-2.5 * normalized * normalized));
+  // Gentler curve: 0.0→98%, 0.3→88%, 0.5→72%, 0.7→55%, 0.9→38%, 1.0→30%, 1.2→18%
+  const normalized = Math.max(0, Math.min(1.5, distance));
+  const pct = Math.round(98 * Math.exp(-1.6 * normalized * normalized));
   return Math.max(5, Math.min(98, pct));
 }
 
@@ -2428,7 +2428,7 @@ Deno.serve(async (req) => {
   const scored = index.scoreAll(userDescriptor as number[], userSkinTone ?? null);
   mark("scored");
 
-  // Tiered selection — try to return 3 results.
+  // Tiered selection — try to return 5 results for more variety.
   type Ranked = {
     match_name: string;
     category: string;
@@ -2440,7 +2440,7 @@ Deno.serve(async (req) => {
     persona_id: string;
   };
 
-  const TARGET = 3;
+  const TARGET = 5;
   const ranked: Ranked[] = [];
   const usedIds = new Set<string>();
 
@@ -2537,8 +2537,8 @@ Deno.serve(async (req) => {
 
   const top = ranked[0];
 
-  // Reject results below minimum similarity threshold (50%)
-  const MIN_SIMILARITY = 50;
+  // Reject results below minimum similarity threshold (30%)
+  const MIN_SIMILARITY = 30;
   if (top.similarity < MIN_SIMILARITY) {
     debug.rejected_similarity = top.similarity;
     await supabase.from("query_logs").insert({
