@@ -2440,7 +2440,7 @@ Deno.serve(async (req) => {
     persona_id: string;
   };
 
-  const TARGET = 5;
+  const TARGET = 3;
   const ranked: Ranked[] = [];
   const usedIds = new Set<string>();
 
