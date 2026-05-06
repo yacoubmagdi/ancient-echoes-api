@@ -2580,6 +2580,9 @@ Deno.serve(async (req) => {
     total_matches: ranked.length,
     best_match: stripId(top, 1),
     matches: ranked.map((r, i) => stripId(r, i + 1)),
+    // Backward-compatible fields
+    ...stripId(top),
+    runners_up: ranked.slice(1).map((r, i) => stripId(r, i + 2)),
     requires_ad: requiresAd,
   };
 
