@@ -859,6 +859,7 @@ function AdminPage() {
         persona={previewing}
         onClose={() => setPreviewing(null)}
         a={a}
+        lang={lang}
         onVerifyImage={async (p: Persona) => {
           setImgVerifyBusy(true);
           setImgVerifyResult(null);
