@@ -46,6 +46,7 @@ const GENDERS = ["male", "female", "any"] as const;
 type Persona = {
   id: string;
   name: string;
+  name_en?: string | null;
   description: string;
   category: string;
   gender: string;
