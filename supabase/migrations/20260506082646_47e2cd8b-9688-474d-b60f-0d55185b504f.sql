@@ -1,0 +1,1 @@
+ALTER TABLE public.personas ADD COLUMN is_drawing boolean NOT NULL DEFAULT false;
