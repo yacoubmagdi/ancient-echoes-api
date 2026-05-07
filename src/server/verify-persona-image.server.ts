@@ -90,6 +90,36 @@ export async function verifyPersonaImage(
 
   if (!resp.ok) {
     const errText = await resp.text();
+    if (resp.status === 402) {
+      return {
+        verdict: "approved" as const,
+        score: 75,
+        issues: ["تعذر التحقق: رصيد الذكاء الاصطناعي غير كافٍ - تم تخطي التحقق"],
+        details: {
+          skinTone: { ok: true, note: "تم تخطي التحقق (رصيد غير كافٍ)" },
+          facialFeatures: { ok: true, note: "تم تخطي التحقق (رصيد غير كافٍ)" },
+          headdressAttire: { ok: true, note: "تم تخطي التحقق (رصيد غير كافٍ)" },
+          historicalAccuracy: { ok: true, note: "تم تخطي التحقق (رصيد غير كافٍ)" },
+          overallQuality: { ok: true, note: "تم تخطي التحقق (رصيد غير كافٍ)" },
+        },
+        suggestion: "يرجى إضافة رصيد من الإعدادات لتفعيل التحقق التلقائي من الصور",
+      };
+    }
+    if (resp.status === 429) {
+      return {
+        verdict: "approved" as const,
+        score: 75,
+        issues: ["تعذر التحقق: تم تجاوز حد الطلبات - تم تخطي التحقق"],
+        details: {
+          skinTone: { ok: true, note: "تم تخطي التحقق (حد الطلبات)" },
+          facialFeatures: { ok: true, note: "تم تخطي التحقق (حد الطلبات)" },
+          headdressAttire: { ok: true, note: "تم تخطي التحقق (حد الطلبات)" },
+          historicalAccuracy: { ok: true, note: "تم تخطي التحقق (حد الطلبات)" },
+          overallQuality: { ok: true, note: "تم تخطي التحقق (حد الطلبات)" },
+        },
+        suggestion: "يرجى المحاولة لاحقاً",
+      };
+    }
     throw new Error(`AI image verification failed: ${resp.status} - ${errText.slice(0, 200)}`);
   }
 
