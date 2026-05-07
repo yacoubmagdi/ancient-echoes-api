@@ -24,6 +24,7 @@ import { verifyPersona } from "@/server/verify-persona.functions";
 import { verifyPersonaImageFn } from "@/server/verify-persona-image.functions";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { regenerateSourceUrl } from "@/server/regenerate-source-url.functions";
+import { regeneratePersonaImage } from "@/server/regenerate-persona-image.functions";
 import { adminTranslations, type AdminDict } from "@/lib/admin-i18n";
 import type { Lang } from "@/lib/i18n";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
@@ -333,28 +334,15 @@ function AdminPage() {
     loadPersonas();
   }
 
-  async function regenerateImage(p: Persona) {
+  async function handleRegenerateImage(p: Persona) {
     setRegenBusy(p.id);
     try {
       flash(a.regenImageStart(p.name));
-      const { data: { session } } = await supabase.auth.getSession();
-      const resp = await fetch("/api/public/hooks/regenerate-persona-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({ personaId: p.id }),
-      });
-      const result = await resp.json();
-      if (!resp.ok || result.error) {
-        flash(a.regenImageFailed(result.error));
-      } else {
-        flash(a.regenImageSuccess(result.persona_name));
-        loadPersonas();
-      }
+      const result = await regeneratePersonaImage({ data: { personaId: p.id } });
+      flash(a.regenImageSuccess(result.persona_name));
+      loadPersonas();
     } catch (e) {
-      flash(a.errorGeneric((e as Error).message));
+      flash(a.regenImageFailed((e as Error).message));
     } finally {
       setRegenBusy(null);
     }
@@ -766,7 +754,7 @@ function AdminPage() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button size="sm" variant="outline" className="flex-1" onClick={() => regenerateImage(p)} disabled={regenBusy === p.id}>
+                                <Button size="sm" variant="outline" className="flex-1" onClick={() => handleRegenerateImage(p)} disabled={regenBusy === p.id}>
                                   {regenBusy === p.id ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3 w-3" />}
                                 </Button>
                               </TooltipTrigger>
