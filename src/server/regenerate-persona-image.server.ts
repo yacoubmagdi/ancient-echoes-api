@@ -65,7 +65,13 @@ CRITICAL: NO text, letters, numbers, or watermarks. NO modern elements. Face mus
 
   if (!aiResp.ok) {
     const errText = await aiResp.text();
-    throw new Error(`AI error ${aiResp.status}: ${errText.slice(0, 200)}`);
+    if (aiResp.status === 402) {
+      throw new Error("رصيد الذكاء الاصطناعي غير كافٍ. يرجى إضافة رصيد من الإعدادات.");
+    }
+    if (aiResp.status === 429) {
+      throw new Error("تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.");
+    }
+    throw new Error(`خطأ في توليد الصورة (${aiResp.status})`);
   }
 
   const aiData = await aiResp.json();
