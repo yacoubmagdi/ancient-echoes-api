@@ -340,6 +340,32 @@ function AdminPage() {
       flash(a.regenImageStart(p.name));
       const result = await regeneratePersonaImage({ data: { personaId: p.id } });
       flash(a.regenImageSuccess(result.persona_name));
+      // Auto-extract face descriptor from the new image
+      try {
+        const img = await imageFromUrl(result.image_url + "?t=" + Date.now());
+        const extraction = await extractDescriptor(img);
+        if (extraction && extraction !== "multiple_faces") {
+          const { data: { session } } = await supabase.auth.getSession();
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-face-descriptor`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              id: p.id,
+              descriptor: extraction.descriptor,
+            }),
+          });
+          flash(`✅ تم حساب وتخزين face_descriptor لـ "${result.persona_name}" تلقائياً`);
+        } else {
+          flash(`⚠️ لم يتم اكتشاف وجه في الصورة الجديدة لـ "${result.persona_name}"`);
+        }
+      } catch (fdErr) {
+        console.error("Auto face descriptor extraction failed:", fdErr);
+        flash(`⚠️ تم توليد الصورة لكن فشل استخراج face_descriptor: ${(fdErr as Error).message}`);
+      }
       loadPersonas();
     } catch (e) {
       flash(a.regenImageFailed((e as Error).message));
