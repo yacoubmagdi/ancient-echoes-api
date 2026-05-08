@@ -177,8 +177,8 @@ function AdminPage() {
     }
   }
 
-  async function loadPersonas() {
-    setLoading(true);
+  async function loadPersonas(silent = false) {
+    if (!silent) setLoading(true);
     const { data, error } = await supabase
       .from("personas")
       .select("id, name, name_en, description, category, gender, role, image_url, source_image_url, created_at, duplicate_flag, is_drawing")
@@ -187,7 +187,7 @@ function AdminPage() {
       .limit(2000);
     if (error) flash(`Load error: ${error.message}`);
     setPersonas((data as any[])?.map(d => ({ ...d, face_descriptor: null, is_drawing: d.is_drawing ?? false })) as Persona[] ?? []);
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   async function claimAdmin() {
@@ -322,7 +322,7 @@ function AdminPage() {
     setDialogOpen(false);
     setEditing(null);
     setVerifyResult(null);
-    loadPersonas();
+    loadPersonas(true);
   }
 
   async function deletePersona(p: Persona) {
@@ -331,7 +331,7 @@ function AdminPage() {
     setBusy(false);
     if (error) { flash(error.message); return; }
     flash(a.personaDeleted);
-    loadPersonas();
+    loadPersonas(true);
   }
 
   async function handleRegenerateImage(p: Persona) {
@@ -366,7 +366,7 @@ function AdminPage() {
         console.error("Auto face descriptor extraction failed:", fdErr);
         flash(`⚠️ تم توليد الصورة لكن فشل استخراج face_descriptor: ${(fdErr as Error).message}`);
       }
-      loadPersonas();
+      loadPersonas(true);
     } catch (e) {
       flash(a.regenImageFailed((e as Error).message));
     } finally {
@@ -410,7 +410,7 @@ function AdminPage() {
       const result = await generatePersonaDescriptions();
       setGenProgress(null);
       flash(result.message + (result.errors?.length ? ` (${result.errors.length} errors)` : ""));
-      if (result.updated > 0) loadPersonas();
+      if (result.updated > 0) loadPersonas(true);
     } catch (e) {
       setGenProgress(null);
       flash(`Error: ${(e as Error).message}`);
