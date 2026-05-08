@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
 import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
 import { PaintbrushVertical } from "lucide-react";
@@ -308,30 +309,38 @@ function AdminPage() {
         })
         .eq("id", form.id);
       if (error) { setBusy(false); flash(error.message); return; }
+      // Optimistically update in local state
+      setPersonas(prev => prev.map(x => x.id === form.id ? { ...x, name: form.name, name_en: form.name_en || null, description: form.description, category: form.category, gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url } : x));
       flash(a.personaUpdated);
     } else {
-      const { error } = await supabase.from("personas").insert({
+      const { data: inserted, error } = await supabase.from("personas").insert({
         name: form.name, name_en: form.name_en || null, description: form.description, category: form.category,
         gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
-      });
+      }).select().single();
       if (error) { setBusy(false); flash(error.message); return; }
+      if (inserted) {
+        setPersonas(prev => [...prev, { ...inserted, face_descriptor: null, is_drawing: false } as Persona]);
+      }
       flash(a.personaCreated);
     }
     setBusy(false);
     setDialogOpen(false);
     setEditing(null);
     setVerifyResult(null);
-    loadPersonas(true);
   }
 
   async function deletePersona(p: Persona) {
-    setBusy(true);
+    // Optimistically remove from UI immediately
+    setPersonas(prev => prev.filter(x => x.id !== p.id));
     const { error } = await supabase.from("personas").delete().eq("id", p.id);
-    setBusy(false);
-    if (error) { flash(error.message); return; }
+    if (error) {
+      // Restore on failure
+      loadPersonas(true);
+      flash(error.message);
+      return;
+    }
     flash(a.personaDeleted);
-    loadPersonas(true);
   }
 
   async function handleRegenerateImage(p: Persona) {
@@ -674,19 +683,39 @@ function AdminPage() {
 
           {CIVILIZATIONS.map((c) => (
             <TabsContent key={c} value={c} className="mt-0">
-              {!loading && (
+              {personas.length > 0 && (
                 <p className="text-xs text-muted-foreground mb-2">
                   {a.showing(filtered.length, counts[activeCiv] ?? 0)}
                 </p>
               )}
               {loading ? (
-                <p className="text-muted-foreground py-12 text-center">{a.loading}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <Skeleton className="aspect-square w-full" />
+                      <CardContent className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <div className="flex gap-1">
+                          <Skeleton className="h-8 flex-1" />
+                          <Skeleton className="h-8 flex-1" />
+                          <Skeleton className="h-8 flex-1" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               ) : filtered.length === 0 ? (
                 <p className="text-muted-foreground py-12 text-center">{lang === "ar" ? `لا توجد شخصيات في ${c} بعد.` : `No personas in ${c} yet.`}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filtered.map((p, idx) => (
-                    <Card key={p.id} className="overflow-hidden">
+                    <Card key={p.id} className={`overflow-hidden relative transition-opacity ${regenBusy === p.id ? "opacity-60" : ""}`}>
+                      {regenBusy === p.id && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-sm rounded-lg">
+                          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      )}
                       <PersonaCardImage persona={p} index={idx + 1} onPreview={() => setPreviewing(p)} a={a} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
