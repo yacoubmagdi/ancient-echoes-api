@@ -309,21 +309,25 @@ function AdminPage() {
         })
         .eq("id", form.id);
       if (error) { setBusy(false); flash(error.message); return; }
+      // Optimistically update in local state
+      setPersonas(prev => prev.map(x => x.id === form.id ? { ...x, name: form.name, name_en: form.name_en || null, description: form.description, category: form.category, gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url } : x));
       flash(a.personaUpdated);
     } else {
-      const { error } = await supabase.from("personas").insert({
+      const { data: inserted, error } = await supabase.from("personas").insert({
         name: form.name, name_en: form.name_en || null, description: form.description, category: form.category,
         gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url,
         verification_status: verifyResult?.verdict === "accepted" ? "verified" : verifyResult?.verdict || "unverified",
-      });
+      }).select().single();
       if (error) { setBusy(false); flash(error.message); return; }
+      if (inserted) {
+        setPersonas(prev => [...prev, { ...inserted, face_descriptor: null, is_drawing: false } as Persona]);
+      }
       flash(a.personaCreated);
     }
     setBusy(false);
     setDialogOpen(false);
     setEditing(null);
     setVerifyResult(null);
-    loadPersonas(true);
   }
 
   async function deletePersona(p: Persona) {
