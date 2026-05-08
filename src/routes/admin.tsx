@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
 import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
 import { PaintbrushVertical } from "lucide-react";
@@ -674,13 +675,28 @@ function AdminPage() {
 
           {CIVILIZATIONS.map((c) => (
             <TabsContent key={c} value={c} className="mt-0">
-              {!loading && (
+              {personas.length > 0 && (
                 <p className="text-xs text-muted-foreground mb-2">
                   {a.showing(filtered.length, counts[activeCiv] ?? 0)}
                 </p>
               )}
               {loading ? (
-                <p className="text-muted-foreground py-12 text-center">{a.loading}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <Skeleton className="aspect-square w-full" />
+                      <CardContent className="p-3 space-y-2">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                        <div className="flex gap-1">
+                          <Skeleton className="h-8 flex-1" />
+                          <Skeleton className="h-8 flex-1" />
+                          <Skeleton className="h-8 flex-1" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               ) : filtered.length === 0 ? (
                 <p className="text-muted-foreground py-12 text-center">{lang === "ar" ? `لا توجد شخصيات في ${c} بعد.` : `No personas in ${c} yet.`}</p>
               ) : (
