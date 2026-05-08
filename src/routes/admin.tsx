@@ -312,6 +312,11 @@ function AdminPage() {
       // Optimistically update in local state
       setPersonas(prev => prev.map(x => x.id === form.id ? { ...x, name: form.name, name_en: form.name_en || null, description: form.description, category: form.category, gender: form.gender, role: form.role, image_url: form.image_url, source_image_url: form.source_image_url } : x));
       flash(a.personaUpdated);
+      // Auto-recalculate face_descriptor if image changed
+      const oldPersona = personas.find(x => x.id === form.id);
+      if (oldPersona && oldPersona.image_url !== form.image_url) {
+        autoExtractAndSaveFaceDescriptor(form.id, form.image_url, form.name);
+      }
     } else {
       const { data: inserted, error } = await supabase.from("personas").insert({
         name: form.name, name_en: form.name_en || null, description: form.description, category: form.category,
@@ -321,6 +326,8 @@ function AdminPage() {
       if (error) { setBusy(false); flash(error.message); return; }
       if (inserted) {
         setPersonas(prev => [...prev, { ...inserted, face_descriptor: null, is_drawing: false } as Persona]);
+        // Auto-extract face_descriptor for new persona
+        autoExtractAndSaveFaceDescriptor(inserted.id, form.image_url, form.name);
       }
       flash(a.personaCreated);
     }
@@ -328,6 +335,41 @@ function AdminPage() {
     setDialogOpen(false);
     setEditing(null);
     setVerifyResult(null);
+  }
+
+  async function autoExtractAndSaveFaceDescriptor(personaId: string, imageUrl: string, personaName: string) {
+    try {
+      flash(`🔄 جارٍ حساب بصمة الوجه لـ "${personaName}"...`);
+      const img = await imageFromUrl(imageUrl + "?t=" + Date.now());
+      const extraction = await extractDescriptor(img);
+      if (extraction && extraction !== "multiple_faces") {
+        const { data: { session } } = await supabase.auth.getSession();
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/save-face-descriptor`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            id: personaId,
+            descriptor: extraction.descriptor,
+          }),
+        });
+        flash(`✅ تم حساب وتخزين بصمة الوجه لـ "${personaName}" تلقائياً`);
+        // Also save skin_tone if available
+        if (extraction.skinTone) {
+          await supabase.from("personas").update({ skin_tone: extraction.skinTone as any }).eq("id", personaId);
+        }
+      } else if (extraction === "multiple_faces") {
+        flash(`⚠️ تم اكتشاف أكثر من وجه في صورة "${personaName}" — لم يتم حساب البصمة`);
+      } else {
+        flash(`⚠️ لم يتم اكتشاف وجه في صورة "${personaName}"`);
+      }
+    } catch (err) {
+      console.error("Auto face descriptor extraction failed:", err);
+      flash(`⚠️ فشل حساب بصمة الوجه تلقائياً لـ "${personaName}": ${(err as Error).message}`);
+    }
   }
 
   async function deletePersona(p: Persona) {
