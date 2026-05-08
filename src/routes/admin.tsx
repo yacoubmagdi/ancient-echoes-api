@@ -327,12 +327,16 @@ function AdminPage() {
   }
 
   async function deletePersona(p: Persona) {
-    setBusy(true);
+    // Optimistically remove from UI immediately
+    setPersonas(prev => prev.filter(x => x.id !== p.id));
     const { error } = await supabase.from("personas").delete().eq("id", p.id);
-    setBusy(false);
-    if (error) { flash(error.message); return; }
+    if (error) {
+      // Restore on failure
+      loadPersonas(true);
+      flash(error.message);
+      return;
+    }
     flash(a.personaDeleted);
-    loadPersonas(true);
   }
 
   async function handleRegenerateImage(p: Persona) {
