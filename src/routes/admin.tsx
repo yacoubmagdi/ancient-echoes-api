@@ -710,7 +710,12 @@ function AdminPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filtered.map((p, idx) => (
-                    <Card key={p.id} className="overflow-hidden">
+                    <Card key={p.id} className={`overflow-hidden relative transition-opacity ${regenBusy === p.id ? "opacity-60" : ""}`}>
+                      {regenBusy === p.id && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 backdrop-blur-sm rounded-lg">
+                          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                        </div>
+                      )}
                       <PersonaCardImage persona={p} index={idx + 1} onPreview={() => setPreviewing(p)} a={a} />
                       <CardContent className="p-3 space-y-2">
                         <div className="flex items-start justify-between gap-2">
