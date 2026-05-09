@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const id = 'b864b543-8aae-47ca-ae31-1f94729c93bf';
-const path = `Pharaoh/${id}_modern_${Date.now()}.png`;
-const buf = readFileSync('/tmp/hesire_modern.png');
+const path = `Pharaoh/${id}_pharaonic_${Date.now()}.png`;
+const buf = readFileSync('/tmp/hesire_pharaonic.png');
 const up = await sb.storage.from('personas').upload(path, buf, { contentType: 'image/png', upsert: true });
 if (up.error) { console.error(up.error); process.exit(1); }
 const { data: { publicUrl } } = sb.storage.from('personas').getPublicUrl(path);
