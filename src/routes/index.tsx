@@ -94,6 +94,7 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [matchIndex, setMatchIndex] = useState(0);
   const [dob, setDob] = useState<Date | undefined>(undefined);
   const [nationality, setNationality] = useState<string>("");
   const [nationalityOpen, setNationalityOpen] = useState(false);
@@ -142,6 +143,7 @@ function Index() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
+    setMatchIndex(0);
     analysisCache.clear();
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -149,6 +151,7 @@ function Index() {
   async function handleFile(file: File) {
     setError(null);
     setResult(null);
+    setMatchIndex(0);
     setLoading(true);
     try {
       // Compress/resize for preview, then extract a 128-float face descriptor
