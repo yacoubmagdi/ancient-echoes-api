@@ -94,6 +94,7 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [matchIndex, setMatchIndex] = useState(0);
   const [dob, setDob] = useState<Date | undefined>(undefined);
   const [nationality, setNationality] = useState<string>("");
   const [nationalityOpen, setNationalityOpen] = useState(false);
@@ -142,6 +143,7 @@ function Index() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
+    setMatchIndex(0);
     analysisCache.clear();
     if (inputRef.current) inputRef.current.value = "";
   }
@@ -149,6 +151,7 @@ function Index() {
   async function handleFile(file: File) {
     setError(null);
     setResult(null);
+    setMatchIndex(0);
     setLoading(true);
     try {
       // Compress/resize for preview, then extract a 128-float face descriptor
@@ -487,9 +490,14 @@ function Index() {
               const allMatches: (RunnerUp & { rank: number })[] = [
                 { ...result, rank: 1 },
                 ...(result.runners_up ?? []).map((r, i) => ({ ...r, rank: i + 2 })),
-              ];
-              return allMatches.map((match, idx) => (
-                <Card key={idx} className="overflow-hidden border-border/60 bg-card/60 backdrop-blur">
+              ].slice(0, 5);
+              const safeIndex = Math.min(matchIndex, allMatches.length - 1);
+              const match = allMatches[safeIndex];
+              const idx = safeIndex;
+              const hasMore = allMatches.length > 1;
+              return (
+                <>
+                <Card key={match.rank} className="overflow-hidden border-border/60 bg-card/60 backdrop-blur">
                   <div className="grid md:grid-cols-2 gap-0">
                     <div className="relative aspect-square">
                       <img
@@ -574,7 +582,23 @@ function Index() {
                     </div>
                   </div>
                 </Card>
-              ));
+                {hasMore && (
+                  <div className="flex flex-col items-center gap-2">
+                    <Button
+                      onClick={() => setMatchIndex((i) => (i + 1) % allMatches.length)}
+                      variant="outline"
+                      size="lg"
+                      className="gap-2"
+                    >
+                      {t.tryAnotherPersona}
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {safeIndex + 1} / {allMatches.length}
+                    </span>
+                  </div>
+                )}
+                </>
+              );
             })()}
 
             <div className="flex justify-center">
