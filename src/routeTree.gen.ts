@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ResultIdRouteImport } from './routes/result.$id'
+import { Route as AdminSourceReviewRouteImport } from './routes/admin.source-review'
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
 import { Route as ApiPublicHooksVerifySourceRelevanceRouteImport } from './routes/api/public/hooks/verify-source-relevance'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
@@ -40,6 +41,11 @@ const ResultIdRoute = ResultIdRouteImport.update({
   id: '/result/$id',
   path: '/result/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSourceReviewRoute = AdminSourceReviewRouteImport.update({
+  id: '/source-review',
+  path: '/source-review',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminEnrollRoute = AdminEnrollRouteImport.update({
   id: '/enroll',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
   '/admin/enroll': typeof AdminEnrollRoute
+  '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/auth'
     | '/admin/enroll'
+    | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/generate-persona-images'
@@ -205,6 +217,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/result/$id'
       preLoaderRoute: typeof ResultIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/source-review': {
+      id: '/admin/source-review'
+      path: '/source-review'
+      fullPath: '/admin/source-review'
+      preLoaderRoute: typeof AdminSourceReviewRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/enroll': {
       id: '/admin/enroll'
@@ -260,10 +279,12 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminEnrollRoute: typeof AdminEnrollRoute
+  AdminSourceReviewRoute: typeof AdminSourceReviewRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminEnrollRoute: AdminEnrollRoute,
+  AdminSourceReviewRoute: AdminSourceReviewRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
