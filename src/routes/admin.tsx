@@ -668,6 +668,17 @@ function AdminPage() {
                 <Link2 className="h-4 w-4 mr-1" />
                 {urlCheckBusy ? a.checking : a.checkUrls}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                title={lang === "ar" ? "مراجعة مطابقة الوصف بالمصدر التاريخى" : "Review description vs historical source"}
+              >
+                <Link to="/admin/source-review">
+                  <ShieldCheck className="h-4 w-4 mr-1" />
+                  {lang === "ar" ? "مراجعة المصادر" : "Source review"}
+                </Link>
+              </Button>
 
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-28 h-9 text-xs">
