@@ -1,0 +1,12 @@
+import { createClient } from '@supabase/supabase-js';
+import { readFileSync } from 'fs';
+const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const { data: p } = await sb.from('personas').select('id').eq('name','الأسير النوبي (مقبض عصا توت عنخ آمون)').single();
+if(!p) throw new Error('not found');
+const path = `Pharaoh/${p.id}_front_${Date.now()}.png`;
+const up = await sb.storage.from('personas').upload(path, readFileSync('/tmp/nubian_front.png'), { contentType:'image/png', upsert:true });
+if(up.error) throw up.error;
+const url = sb.storage.from('personas').getPublicUrl(path).data.publicUrl;
+const { error } = await sb.from('personas').update({ image_url: url }).eq('id', p.id);
+if(error) throw error;
+console.log('OK', url);
