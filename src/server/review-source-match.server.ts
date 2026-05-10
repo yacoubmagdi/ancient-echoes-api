@@ -47,11 +47,11 @@ async function aiCompare(
     return { verdict: "fetch_error", confidence: 0, reason: "LOVABLE_API_KEY غير مهيأ" };
   }
 
-  const prompt = `أنت خبير في التاريخ المصري القديم. قارن وصف الشخصية بمحتوى صفحة ويكيبيديا المرفقة وحدد ما إذا كانا يشيران إلى نفس الشخص التاريخي وهل الوصف متوافق مع المصدر.
+  const prompt = `أنت خبير فى التاريخ المصرى القديم. قيّم التطابق الثلاثى بين: (1) اسم الشخصية، (2) الوصف المحفوظ، (3) صفحة المصدر التاريخى من ويكيبيديا.
 
 اسم الشخصية: ${name}
 
-الوصف المحفوظ في قاعدة البيانات:
+الوصف المحفوظ فى قاعدة البيانات:
 """${description}"""
 
 عنوان صفحة ويكيبيديا: ${wikiTitle}
@@ -60,15 +60,19 @@ async function aiCompare(
 
 أعد JSON فقط بهذا الشكل:
 {
+  "name_matches_source": true | false,
+  "name_matches_description": true | false,
+  "description_matches_source": true | false,
   "verdict": "match" | "partial" | "mismatch",
   "confidence": 0.0-1.0,
-  "reason": "شرح موجز بالعربية (سطر أو سطرين) لسبب الحكم"
+  "reason": "شرح موجز بالعربية (سطر أو سطرين) يوضح أى الفحوص الثلاثة فشل ولماذا"
 }
 
-القواعد:
-- "match": الصفحة تتحدث عن نفس الشخصية والوصف متوافق مع المصدر بدون تناقضات جوهرية.
-- "partial": نفس الشخصية لكن الوصف يحتوي تفاصيل غير مذكورة أو غير دقيقة بشكل بسيط، أو الصفحة سياقية مرتبطة بالشخصية.
-- "mismatch": الصفحة تتحدث عن شخص/موضوع آخر، أو الوصف يتعارض جوهرياً مع المصدر.`;
+قواعد الحكم:
+- "match": الفحوص الثلاثة ناجحة (الاسم يطابق الصفحة والوصف، والوصف متوافق مع المصدر بدون تناقضات).
+- "partial": واحد على الأكثر من الفحوص فشل بشكل بسيط (مثل تفاصيل إضافية فى الوصف غير مذكورة فى المصدر، أو صفحة سياقية مرتبطة بالشخصية).
+- "mismatch": الاسم لا يطابق صفحة المصدر، أو الوصف يتحدث عن شخص مختلف، أو تناقض جوهرى بين الوصف والمصدر.
+- اعتبر الاختلافات فى النقحرة (مثل Ramesses/Ramses، تحوتمس/Thutmose) تطابقاً.`;
 
   try {
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -89,10 +93,17 @@ async function aiCompare(
     if (!jm) return { verdict: "fetch_error", confidence: 0, reason: "تعذر تحليل رد الذكاء الاصطناعي" };
     const parsed = JSON.parse(jm[0]);
     const v = parsed.verdict as SourceMatchVerdict;
+    const checks: string[] = [];
+    if (parsed.name_matches_source === false) checks.push("الاسم↔المصدر");
+    if (parsed.name_matches_description === false) checks.push("الاسم↔الوصف");
+    if (parsed.description_matches_source === false) checks.push("الوصف↔المصدر");
+    const reasonText = checks.length
+      ? `فشل: ${checks.join("، ")}. ${parsed.reason || ""}`.trim()
+      : parsed.reason || "";
     return {
       verdict: v === "match" || v === "partial" || v === "mismatch" ? v : "fetch_error",
       confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
-      reason: parsed.reason || "",
+      reason: reasonText,
     };
   } catch (e) {
     return { verdict: "fetch_error", confidence: 0, reason: (e as Error).message };
