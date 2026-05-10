@@ -1,0 +1,4 @@
+UPDATE public.personas
+SET description = 'كانت خميرا الثانية (خنمت‌نفر‌حجت الثانية، ويُشار إليها أيضًا باسم "ورت") ملكة من الأسرة الثانية عشرة في عصر الدولة الوسطى. كانت إحدى زوجات الفرعون سنوسرت الثالث. حملت لقب "خنمت‌نفر‌حجت" بمعنى "المتحدة مع التاج الأبيض"، وهو لقب ملكي شائع لزوجات ملوك الأسرة الثانية عشرة. دُفنت في مجمع هرم سنوسرت الثالث في دهشور، حيث عُثر على مجوهراتها الملكية.',
+    description_en = 'Khenemetneferhedjet II (also known as Weret) was an ancient Egyptian queen of the Twelfth Dynasty during the Middle Kingdom. She was a wife of Pharaoh Senusret III. Her title "Khenemetneferhedjet" means "United with the White Crown", a royal title commonly held by queens of the 12th Dynasty. She was buried in the pyramid complex of Senusret III at Dahshur, where her royal jewelry was discovered.'
+WHERE id = '1a866758-0a36-4dd5-a70e-e7adf358d3b8';
