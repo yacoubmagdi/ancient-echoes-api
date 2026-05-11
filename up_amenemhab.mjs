@@ -1,0 +1,12 @@
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+const s = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const PID = 'ad31dc2d-78c2-426b-9d0f-a032d5c5006e';
+const path = `Pharaoh/${PID}_amenemhab_${Date.now()}.jpg`;
+const bytes = fs.readFileSync('/tmp/amenemhab.jpg');
+const { error: ue } = await s.storage.from('personas').upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
+if (ue) throw ue;
+const { data } = s.storage.from('personas').getPublicUrl(path);
+const { error: dbe } = await s.from('personas').update({ image_url: data.publicUrl, face_descriptor: null }).eq('id', PID);
+if (dbe) throw dbe;
+console.log('OK', data.publicUrl);
