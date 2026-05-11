@@ -648,38 +648,6 @@ function AdminPage() {
                 <ImageIcon className="h-4 w-4 mr-1" />
                 {imgGenBusy ? (imgGenProgress ?? a.generating) : a.generateImages}
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRunAudit}
-                disabled={auditBusy || personas.length === 0}
-                title={lang === "ar" ? "إعادة تدقيق جميع الأوصاف" : "Re-audit all descriptions"}
-              >
-                <ShieldCheck className="h-4 w-4 mr-1" />
-                {auditBusy ? a.auditing : a.auditDescriptions}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCheckUrls}
-                disabled={urlCheckBusy}
-                title={lang === "ar" ? "فحص صلاحية روابط المصدر التاريخي" : "Check validity of historical source URLs"}
-              >
-                <Link2 className="h-4 w-4 mr-1" />
-                {urlCheckBusy ? a.checking : a.checkUrls}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                title={lang === "ar" ? "مراجعة مطابقة الوصف بالمصدر التاريخى" : "Review description vs historical source"}
-              >
-                <Link to="/admin/source-review">
-                  <ShieldCheck className="h-4 w-4 mr-1" />
-                  {lang === "ar" ? "مراجعة المصادر" : "Source review"}
-                </Link>
-              </Button>
-
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger className="w-28 h-9 text-xs">
                   <SelectValue placeholder="Role" />
