@@ -1,9 +1,8 @@
-import * as faceapi from "@vladmandic/face-api";
-import fs from "fs";
-import { createCanvas, loadImage, ImageData } from "canvas";
-import { createClient } from "@supabase/supabase-js";
-faceapi.env.monkeyPatch({ Canvas: createCanvas, Image: loadImage, ImageData });
-const M = "/dev-server/public/models";
+import * as faceapi from '@vladmandic/face-api';
+import { Canvas, Image, ImageData, loadImage } from 'canvas';
+import { createClient } from '@supabase/supabase-js';
+faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
+const M = '/dev-server/public/models';
 await faceapi.nets.tinyFaceDetector.loadFromDisk(M);
 await faceapi.nets.faceLandmark68Net.loadFromDisk(M);
 await faceapi.nets.faceRecognitionNet.loadFromDisk(M);
@@ -11,13 +10,14 @@ const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_R
 const PID = 'bd2c7f89-bbf5-44c0-b097-dadddafbbbde';
 const { data: p } = await sb.from('personas').select('image_url').eq('id', PID).single();
 const buf = Buffer.from(await (await fetch(p.image_url)).arrayBuffer());
-fs.writeFileSync('/tmp/_pst.jpg', buf);
-const img = await loadImage('/tmp/_pst.jpg');
-const c = createCanvas(img.width, img.height);
-c.getContext("2d").drawImage(img, 0, 0);
-let det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 })).withFaceLandmarks().withFaceDescriptor();
-if (!det) det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.2 })).withFaceLandmarks().withFaceDescriptor();
-if (!det) { console.error("NO FACE"); process.exit(1); }
+const img = await loadImage(buf);
+let det;
+for (const sz of [416, 512, 608]) {
+  det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: sz, scoreThreshold: 0.3 }))
+    .withFaceLandmarks().withFaceDescriptor();
+  if (det) break;
+}
+if (!det) { console.error('no face'); process.exit(1); }
 const desc = Array.from(det.descriptor);
 const { error } = await sb.from('personas').update({ face_descriptor: desc }).eq('id', PID);
-console.log(error || `OK len=${desc.length}`);
+console.log(error ? `ERR ${error.message}` : `OK len=${desc.length}`);
