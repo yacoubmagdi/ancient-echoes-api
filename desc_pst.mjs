@@ -1,4 +1,5 @@
 import * as faceapi from "@vladmandic/face-api";
+import fs from "fs";
 import { createCanvas, loadImage, ImageData } from "canvas";
 import { createClient } from "@supabase/supabase-js";
 faceapi.env.monkeyPatch({ Canvas: createCanvas, Image: loadImage, ImageData });
@@ -10,7 +11,8 @@ const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_R
 const PID = 'bd2c7f89-bbf5-44c0-b097-dadddafbbbde';
 const { data: p } = await sb.from('personas').select('image_url').eq('id', PID).single();
 const buf = Buffer.from(await (await fetch(p.image_url)).arrayBuffer());
-const img = await loadImage(buf);
+fs.writeFileSync('/tmp/_pst.jpg', buf);
+const img = await loadImage('/tmp/_pst.jpg');
 const c = createCanvas(img.width, img.height);
 c.getContext("2d").drawImage(img, 0, 0);
 let det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 })).withFaceLandmarks().withFaceDescriptor();
