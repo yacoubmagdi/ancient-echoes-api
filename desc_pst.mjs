@@ -1,0 +1,21 @@
+import * as faceapi from "@vladmandic/face-api";
+import { createCanvas, loadImage, ImageData } from "canvas";
+import { createClient } from "@supabase/supabase-js";
+faceapi.env.monkeyPatch({ Canvas: createCanvas, Image: loadImage, ImageData });
+const M = "/dev-server/public/models";
+await faceapi.nets.tinyFaceDetector.loadFromDisk(M);
+await faceapi.nets.faceLandmark68Net.loadFromDisk(M);
+await faceapi.nets.faceRecognitionNet.loadFromDisk(M);
+const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const PID = 'bd2c7f89-bbf5-44c0-b097-dadddafbbbde';
+const { data: p } = await sb.from('personas').select('image_url').eq('id', PID).single();
+const buf = Buffer.from(await (await fetch(p.image_url)).arrayBuffer());
+const img = await loadImage(buf);
+const c = createCanvas(img.width, img.height);
+c.getContext("2d").drawImage(img, 0, 0);
+let det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 })).withFaceLandmarks().withFaceDescriptor();
+if (!det) det = await faceapi.detectSingleFace(c, new faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.2 })).withFaceLandmarks().withFaceDescriptor();
+if (!det) { console.error("NO FACE"); process.exit(1); }
+const desc = Array.from(det.descriptor);
+const { error } = await sb.from('personas').update({ face_descriptor: desc }).eq('id', PID);
+console.log(error || `OK len=${desc.length}`);
