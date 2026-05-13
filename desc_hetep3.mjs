@@ -9,7 +9,7 @@ await faceapi.nets.faceLandmark68Net.loadFromDisk(M);
 await faceapi.nets.faceRecognitionNet.loadFromDisk(M);
 const s = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const PID = '3e815118-ef79-4a20-a450-4fa4b1feedeb';
-const img = await loadImage(fs.readFileSync('/tmp/hakor_out.png'));
+const img = await loadImage(fs.readFileSync('/tmp/hetep3.jpg'));
 let det;
 for (const sz of [416, 512, 608, 320]) {
   for (const th of [0.5, 0.3, 0.2]) {
