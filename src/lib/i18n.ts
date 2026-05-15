@@ -12,6 +12,8 @@ export const translations = {
     uploadCta: "Upload a clear face photo",
     uploadHint: "JPG, PNG or WEBP · max 8 MB · one face, well-lit",
     tryAnother: "Try another photo",
+    chooseFile: "Choose photo",
+    takePhoto: "Take photo",
     youEcho: "You echo",
     resemblance: "Resemblance",
     adNote:
@@ -87,6 +89,8 @@ export const translations = {
     uploadCta: "ارفع صورة واضحة لوجهك",
     uploadHint: "JPG أو PNG أو WEBP · بحدّ أقصى 8 ميغابايت · وجه واحد بإضاءة جيدة",
     tryAnother: "جرّب صورة أخرى",
+    chooseFile: "اختر صورة",
+    takePhoto: "التقط بالكاميرا",
     youEcho: "أنت تشبه",
     resemblance: "نسبة التشابه",
     adNote: "✨ سيظهر إعلان هنا في القراءات الإضافية (القراءة الأولى مجانية يوميًا).",

@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download, BookOpen } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download, BookOpen, Camera } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -457,6 +457,35 @@ function Index() {
                 }}
               />
             </label>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <label
+                htmlFor="photo-input"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-background/40 px-4 py-3 cursor-pointer text-sm font-medium transition hover:border-primary/60 hover:bg-background/60"
+              >
+                <Upload className="h-4 w-4" />
+                {t.chooseFile}
+              </label>
+              <label
+                htmlFor="photo-camera-input"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-background/40 px-4 py-3 cursor-pointer text-sm font-medium transition hover:border-primary/60 hover:bg-background/60"
+              >
+                <Camera className="h-4 w-4" />
+                {t.takePhoto}
+              </label>
+              <input
+                id="photo-camera-input"
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="sr-only"
+                disabled={loading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFile(f);
+                }}
+              />
+            </div>
 
             {error && (
               <div className="mt-6 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
