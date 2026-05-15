@@ -83,6 +83,7 @@ function AdminPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [drawingFilter, setDrawingFilter] = useState<"all" | "drawing" | "photo">("all");
   const [editing, setEditing] = useState<FormState | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewing, setPreviewing] = useState<Persona | null>(null);
@@ -482,8 +483,9 @@ function AdminPage() {
       .filter((p) => p.category === activeCiv)
       .filter((p) => !search.trim() || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase()))
       .filter((p) => roleFilter === "all" || p.role === roleFilter)
-      .filter((p) => genderFilter === "all" || p.gender === genderFilter);
-  }, [personas, activeCiv, search, roleFilter, genderFilter]);
+      .filter((p) => genderFilter === "all" || p.gender === genderFilter)
+      .filter((p) => drawingFilter === "all" || (drawingFilter === "drawing" ? p.is_drawing : !p.is_drawing));
+  }, [personas, activeCiv, search, roleFilter, genderFilter, drawingFilter]);
 
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -491,6 +493,15 @@ function AdminPage() {
     for (const p of personas) out[p.category] = (out[p.category] ?? 0) + 1;
     return out;
   }, [personas]);
+
+  const drawingCounts = useMemo(() => {
+    const inCiv = personas.filter((p) => p.category === activeCiv);
+    const drawings = inCiv.filter((p) => p.is_drawing).length;
+    const photos = inCiv.length - drawings;
+    const totalDrawings = personas.filter((p) => p.is_drawing).length;
+    const totalPhotos = personas.length - totalDrawings;
+    return { drawings, photos, total: inCiv.length, totalDrawings, totalPhotos };
+  }, [personas, activeCiv]);
 
   function cosineSimilarity(a: number[], b: number[]): number {
     let dot = 0, magA = 0, magB = 0;
@@ -624,9 +635,14 @@ function AdminPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <Badge variant="secondary" className="self-start md:self-center text-xs">
-              {a.totalPersonas(personas.length)}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+              <Badge variant="secondary" className="text-xs">
+                {a.totalBreakdown(personas.length, drawingCounts.totalDrawings, drawingCounts.totalPhotos)}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {activeCiv}: {drawingCounts.total} · 📷 {drawingCounts.photos} · ✏️ {drawingCounts.drawings}
+              </Badge>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -664,6 +680,16 @@ function AdminPage() {
                 <SelectContent>
                   <SelectItem value="all">{a.allGenders}</SelectItem>
                   {GENDERS.map((g) => <SelectItem key={g} value={g} className="capitalize">{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={drawingFilter} onValueChange={(v) => setDrawingFilter(v as "all" | "drawing" | "photo")}>
+                <SelectTrigger className="w-32 h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{a.allTypes}</SelectItem>
+                  <SelectItem value="photo">📷 {a.onlyPhotos}</SelectItem>
+                  <SelectItem value="drawing">✏️ {a.onlyDrawings}</SelectItem>
                 </SelectContent>
               </Select>
               <Input
