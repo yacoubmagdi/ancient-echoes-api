@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,9 @@ import { regeneratePersonaImage } from "@/server/regenerate-persona-image.functi
 import { adminTranslations, type AdminDict } from "@/lib/admin-i18n";
 import type { Lang } from "@/lib/i18n";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
+import { requestAdminOtp, verifyAdminOtp } from "@/lib/admin-otp.functions";
+
+const SESSION_OTP_KEY = "admin_otp_verified";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -70,6 +74,58 @@ function emptyForm(): FormState {
 function AdminPage() {
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const requestOtp = useServerFn(requestAdminOtp);
+  const verifyOtp = useServerFn(verifyAdminOtp);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpSent, setOtpSent] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpAutoSent, setOtpAutoSent] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.sessionStorage.getItem(SESSION_OTP_KEY) === "1") {
+      setOtpVerified(true);
+    }
+  }, []);
+
+  async function sendOtp() {
+    setOtpError(null);
+    setOtpSending(true);
+    try {
+      const r = await requestOtp();
+      setOtpSent(r.sentTo);
+    } catch (e: any) {
+      setOtpError(e?.message || "تعذر إرسال الرمز");
+    } finally {
+      setOtpSending(false);
+    }
+  }
+
+  async function submitOtp() {
+    if (!/^\d{6}$/.test(otpCode)) { setOtpError("أدخل رمزاً مكوناً من 6 أرقام"); return; }
+    setOtpError(null);
+    setOtpVerifying(true);
+    try {
+      await verifyOtp({ data: { code: otpCode } });
+      window.sessionStorage.setItem(SESSION_OTP_KEY, "1");
+      setOtpVerified(true);
+    } catch (e: any) {
+      setOtpError(e?.message || "رمز غير صحيح");
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isAdmin && !otpVerified && !otpAutoSent && !otpSending && !otpSent) {
+      setOtpAutoSent(true);
+      sendOtp();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, otpVerified]);
+
   const [lang, setLang] = useState<Lang>("ar");
   const a = adminTranslations[lang];
   const toggleLang = () => {
