@@ -595,6 +595,44 @@ function AdminPage() {
     );
   }
 
+  if (!otpVerified) {
+    return (
+      <main className="min-h-screen flex items-center justify-center px-4" dir="rtl">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle>تصريح الدخول</CardTitle>
+            <CardDescription>
+              تم إرسال رمز تحقق مكون من 6 أرقام إلى البريد الإلكتروني المعتمد للموافقة. أدخل الرمز للمتابعة.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {otpSent && (
+              <p className="text-xs text-muted-foreground">تم الإرسال إلى: {otpSent}</p>
+            )}
+            <Input
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="••••••"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="text-center text-2xl tracking-[0.5em]"
+            />
+            {otpError && <p className="text-sm text-destructive">{otpError}</p>}
+            <Button onClick={submitOtp} disabled={otpVerifying || otpCode.length !== 6} className="w-full">
+              {otpVerifying ? "جاري التحقق..." : "تأكيد الدخول"}
+            </Button>
+            <Button variant="outline" onClick={sendOtp} disabled={otpSending} className="w-full">
+              {otpSending ? "جاري الإرسال..." : "إعادة إرسال الرمز"}
+            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => supabase.auth.signOut().then(() => navigate({ to: "/auth" }))}>
+              تسجيل الخروج
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background">
       <header className="border-b border-border">
