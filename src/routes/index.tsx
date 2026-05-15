@@ -303,7 +303,7 @@ function Index() {
                 </Select>
               </div>
             </div>
-            <div className="mb-6">
+            <div className="mb-6 hidden">
               <label className="block text-sm font-medium mb-2">{t.nationalityLabel}</label>
               <Popover open={nationalityOpen} onOpenChange={setNationalityOpen}>
                 <PopoverTrigger asChild>
