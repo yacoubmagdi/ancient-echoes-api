@@ -34,13 +34,13 @@ for (let i = 0; i < rows.length; i++) {
       issues.push({ name: p.name, status: resp.status, error: body.error });
       continue;
     }
-    const matchedSelf = body.persona_id === p.id;
+    const matchedSelf = body.match_name === p.name;
     const sim = body.similarity;
     if (matchedSelf && sim >= 95) perfect++;
     else if (matchedSelf) correct++;
     else {
       wrong++;
-      issues.push({ name: p.name, expected_id: p.id, got_id: body.persona_id, got_name: body.match_name, similarity: sim });
+      issues.push({ name: p.name, expected: p.name, got: body.match_name, similarity: sim });
     }
   } catch (e) {
     errors++;
