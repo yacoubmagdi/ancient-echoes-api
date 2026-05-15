@@ -83,6 +83,7 @@ function AdminPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [genderFilter, setGenderFilter] = useState<string>("all");
+  const [drawingFilter, setDrawingFilter] = useState<"all" | "drawing" | "photo">("all");
   const [editing, setEditing] = useState<FormState | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [previewing, setPreviewing] = useState<Persona | null>(null);
@@ -482,8 +483,9 @@ function AdminPage() {
       .filter((p) => p.category === activeCiv)
       .filter((p) => !search.trim() || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase()))
       .filter((p) => roleFilter === "all" || p.role === roleFilter)
-      .filter((p) => genderFilter === "all" || p.gender === genderFilter);
-  }, [personas, activeCiv, search, roleFilter, genderFilter]);
+      .filter((p) => genderFilter === "all" || p.gender === genderFilter)
+      .filter((p) => drawingFilter === "all" || (drawingFilter === "drawing" ? p.is_drawing : !p.is_drawing));
+  }, [personas, activeCiv, search, roleFilter, genderFilter, drawingFilter]);
 
   const counts = useMemo(() => {
     const out: Record<string, number> = {};
@@ -491,6 +493,15 @@ function AdminPage() {
     for (const p of personas) out[p.category] = (out[p.category] ?? 0) + 1;
     return out;
   }, [personas]);
+
+  const drawingCounts = useMemo(() => {
+    const inCiv = personas.filter((p) => p.category === activeCiv);
+    const drawings = inCiv.filter((p) => p.is_drawing).length;
+    const photos = inCiv.length - drawings;
+    const totalDrawings = personas.filter((p) => p.is_drawing).length;
+    const totalPhotos = personas.length - totalDrawings;
+    return { drawings, photos, total: inCiv.length, totalDrawings, totalPhotos };
+  }, [personas, activeCiv]);
 
   function cosineSimilarity(a: number[], b: number[]): number {
     let dot = 0, magA = 0, magB = 0;
