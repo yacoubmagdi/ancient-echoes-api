@@ -410,7 +410,7 @@ function Index() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="mb-6">
+            <div className="mb-6 hidden">
               <label className="block text-sm font-medium mb-2">{t.civilizationLabel}</label>
               <Select value={civilization} onValueChange={setCivilization} disabled={loading}>
                 <SelectTrigger className="w-full">
