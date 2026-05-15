@@ -96,7 +96,8 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
   const [matchIndex, setMatchIndex] = useState(0);
-  const [dob, setDob] = useState<Date | undefined>(undefined);
+  const [dobDay, setDobDay] = useState<string>("");
+  const [dobMonth, setDobMonth] = useState<string>("");
   const [nationality, setNationality] = useState<string>("");
   const [nationalityOpen, setNationalityOpen] = useState(false);
   const [gender, setGender] = useState<"male" | "female" | "">("");
