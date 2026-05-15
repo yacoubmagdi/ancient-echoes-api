@@ -635,9 +635,14 @@ function AdminPage() {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <Badge variant="secondary" className="self-start md:self-center text-xs">
-              {a.totalPersonas(personas.length)}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2 self-start md:self-center">
+              <Badge variant="secondary" className="text-xs">
+                {a.totalBreakdown(personas.length, drawingCounts.totalDrawings, drawingCounts.totalPhotos)}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {activeCiv}: {drawingCounts.total} · 📷 {drawingCounts.photos} · ✏️ {drawingCounts.drawings}
+              </Badge>
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
@@ -675,6 +680,16 @@ function AdminPage() {
                 <SelectContent>
                   <SelectItem value="all">{a.allGenders}</SelectItem>
                   {GENDERS.map((g) => <SelectItem key={g} value={g} className="capitalize">{g}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={drawingFilter} onValueChange={(v) => setDrawingFilter(v as "all" | "drawing" | "photo")}>
+                <SelectTrigger className="w-32 h-9 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{a.allTypes}</SelectItem>
+                  <SelectItem value="photo">📷 {a.onlyPhotos}</SelectItem>
+                  <SelectItem value="drawing">✏️ {a.onlyDrawings}</SelectItem>
                 </SelectContent>
               </Select>
               <Input
