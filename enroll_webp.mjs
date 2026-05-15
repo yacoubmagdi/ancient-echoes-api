@@ -13,7 +13,7 @@ const { data: rows } = await s.from('personas').select('id,name,image_url').eq('
 const p = rows[0];
 const resp = await fetch(p.image_url);
 fs.writeFileSync('/tmp/in.webp', Buffer.from(await resp.arrayBuffer()));
-execSync('nix run nixpkgs#libwebp -- dwebp /tmp/in.webp -o /tmp/out.png');
+execSync('nix run nixpkgs#imagemagick -- convert /tmp/in.webp /tmp/out.png');
 const img = await loadImage(fs.readFileSync('/tmp/out.png'));
 let det;
 for (const sz of [416,512,608,320]) for (const th of [0.4,0.3,0.2,0.1]) { det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({inputSize:sz,scoreThreshold:th})).withFaceLandmarks().withFaceDescriptor(); if(det) break; if(det) break;}
