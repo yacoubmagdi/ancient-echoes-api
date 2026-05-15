@@ -5,13 +5,7 @@ const SRC = 'https://egypt-museum.com/henuttaneb-daughter-of-amenhotep-iii-queen
 
 const ex = `Henuttaneb's name means "Mistress of All Lands"; daughter of Amenhotep III and Queen Tiye, 18th Dynasty. Less prominent than sisters Sitamun and Iset; depicted at the Colossi of Memnon and the Mortuary Temple of Amenhotep III at Kom el-Hetan; also a limestone statuette in Cairo Museum (JE33906).`;
 
-const r = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-  method:'POST', headers:{Authorization:`Bearer ${process.env.LOVABLE_API_KEY}`,'Content-Type':'application/json'},
-  body: JSON.stringify({model:'google/gemini-2.5-flash',messages:[{role:'user',content:`بناءً على المصدر التاريخي التالي عن الأميرة المصرية القديمة "حنوت تا نب":\n\n${ex}\n\nاكتب وصفاً تاريخياً موجزاً باللغة العربية الفصحى في حدود ثلاثة أسطر فقط، يتضمن: الأسرة الحاكمة، نسبها (والداها)، وأبرز ما عُرف عنها. بدون مقدمات أو عناوين، فقط النص مباشرة.`}]})
-});
-const j = await r.json();
-if (!r.ok) { console.error(j); process.exit(1); }
-const description = j.choices[0].message.content.trim();
+const description = 'الأميرة حنوت تا نب ("سيدة كل الأراضي") من الأسرة الثامنة عشرة في عصر الدولة الحديثة، وهي إحدى بنات الفرعون أمنحتب الثالث والملكة تيي. عُرفت من تصويرها إلى جانب والديها وإخوتها في آثار أبيها، خاصة عند تماثيل ممنون ومعبد الكوم الحيتان الجنازي. ومن أبرز ما تبقى من تماثيلها تمثال جيري محفوظ في المتحف المصري بالقاهرة (JE33906).';
 console.log('DESC:', description);
 
 const ins = await s.from('personas').insert({
