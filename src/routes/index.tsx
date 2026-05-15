@@ -91,6 +91,7 @@ interface MatchResult extends RunnerUp {
 function Index() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
@@ -141,11 +142,23 @@ function Index() {
 
   function reset() {
     setPreviewUrl(null);
+    setPendingFile(null);
     setResult(null);
     setError(null);
     setMatchIndex(0);
     analysisCache.clear();
     if (inputRef.current) inputRef.current.value = "";
+  }
+
+  function selectFile(file: File) {
+    setError(null);
+    setResult(null);
+    setMatchIndex(0);
+    setPendingFile(file);
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
   }
 
   async function handleFile(file: File) {
