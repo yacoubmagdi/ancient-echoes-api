@@ -215,7 +215,9 @@ function Index() {
           descriptor,
           ...(skinToneEnabled ? { skin_tone: skinTone } : {}),
           lang,
-          ...(dob ? { date_of_birth: dob.toISOString().slice(0, 10) } : {}),
+          ...(dobDay && dobMonth
+            ? { date_of_birth: `${dobMonth.padStart(2, "0")}-${dobDay.padStart(2, "0")}` }
+            : {}),
           ...(nationality ? { nationality } : {}),
           ...(effectiveGender ? { gender: effectiveGender } : {}),
           ...(role && role !== "any" ? { role } : {}),
