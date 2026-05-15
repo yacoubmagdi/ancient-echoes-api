@@ -14,6 +14,8 @@ export const translations = {
     tryAnother: "Try another photo",
     chooseFile: "Choose photo",
     takePhoto: "Take photo",
+    confirmAnalyze: "Analyze this photo",
+    changePhoto: "Change photo",
     youEcho: "You echo",
     resemblance: "Resemblance",
     adNote:
@@ -91,6 +93,8 @@ export const translations = {
     tryAnother: "جرّب صورة أخرى",
     chooseFile: "اختر صورة",
     takePhoto: "التقط بالكاميرا",
+    confirmAnalyze: "حلّل هذه الصورة",
+    changePhoto: "غيّر الصورة",
     youEcho: "أنت تشبه",
     resemblance: "نسبة التشابه",
     adNote: "✨ سيظهر إعلان هنا في القراءات الإضافية (القراءة الأولى مجانية يوميًا).",
