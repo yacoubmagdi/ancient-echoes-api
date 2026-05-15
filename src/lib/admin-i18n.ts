@@ -40,6 +40,11 @@ export const adminTranslations = {
     saving: "Saving…",
     save: "Save",
     totalPersonas: (count: number) => `Total: ${count} personas`,
+    totalBreakdown: (total: number, drawings: number, photos: number) =>
+      `Total: ${total} (Photos: ${photos} · Drawings: ${drawings})`,
+    allTypes: "All types",
+    onlyDrawings: "Drawings only",
+    onlyPhotos: "Photos only",
     generateDescriptions: "Generate Descriptions",
     generating: "Generating…",
     generateImages: "Generate Images",
@@ -148,6 +153,11 @@ export const adminTranslations = {
     saving: "جارٍ الحفظ…",
     save: "حفظ",
     totalPersonas: (count: number) => `إجمالي: ${count} شخصية`,
+    totalBreakdown: (total: number, drawings: number, photos: number) =>
+      `الإجمالي: ${total} (صور: ${photos} · رسومات: ${drawings})`,
+    allTypes: "كل الأنواع",
+    onlyDrawings: "الرسومات فقط",
+    onlyPhotos: "الصور فقط",
     generateDescriptions: "توليد الأوصاف",
     generating: "جارٍ…",
     generateImages: "توليد الصور",
