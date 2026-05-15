@@ -277,38 +277,31 @@ function Index() {
           <Card className="border-border/60 bg-card/60 backdrop-blur p-8 md:p-12">
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">{t.dobLabel}</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-start font-normal",
-                      !dob && "text-muted-foreground",
-                    )}
-                    disabled={loading}
-                  >
-                    <CalendarIcon className="h-4 w-4 opacity-70" />
-                    {dob
-                      ? format(dob, "PPP", { locale: isRtl ? arLocale : undefined })
-                      : t.dobPlaceholder}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dob}
-                    onSelect={setDob}
-                    captionLayout="dropdown"
-                    startMonth={new Date(1920, 0)}
-                    endMonth={new Date(new Date().getFullYear(), 11)}
-                    defaultMonth={dob ?? new Date(1995, 0, 1)}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date("1920-01-01")
-                    }
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="grid grid-cols-2 gap-3">
+                <Select value={dobDay} onValueChange={setDobDay} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isRtl ? "اليوم" : "Day"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={dobMonth} onValueChange={setDobMonth} disabled={loading}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isRtl ? "الشهر" : "Month"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(isRtl
+                      ? ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"]
+                      : ["January","February","March","April","May","June","July","August","September","October","November","December"]
+                    ).map((name, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">{t.nationalityLabel}</label>
