@@ -1,14 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getRequestIP, getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import crypto from "crypto";
 
 const ALLOWED_ADMIN_EMAIL = "yacoubmgy@gmail.com";
 const APPROVER_EMAIL = "yacoubmagdyyacoub@gmail.com";
+const MAX_PER_HOUR = 5;
 
 function hashCode(code: string) {
   return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function hashIp(ip: string) {
+  return crypto.createHash("sha256").update(ip).digest("hex");
 }
 
 export const requestAdminOtp = createServerFn({ method: "POST" })
@@ -19,6 +25,33 @@ export const requestAdminOtp = createServerFn({ method: "POST" })
     if (email !== ALLOWED_ADMIN_EMAIL) {
       throw new Error("Unauthorized");
     }
+
+    const rawIp =
+      getRequestIP({ xForwardedFor: true }) ||
+      getRequestHeader("x-real-ip") ||
+      "unknown";
+    const ipHash = hashIp(rawIp);
+    const sinceIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+    const { count: ipCount } = await supabaseAdmin
+      .from("admin_otp_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("ip_hash", ipHash)
+      .gte("created_at", sinceIso);
+
+    const { count: userCount } = await supabaseAdmin
+      .from("admin_otp_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("created_at", sinceIso);
+
+    if ((ipCount ?? 0) >= MAX_PER_HOUR || (userCount ?? 0) >= MAX_PER_HOUR) {
+      throw new Error("تم تجاوز الحد المسموح من طلبات الرمز. حاول بعد ساعة.");
+    }
+
+    await supabaseAdmin
+      .from("admin_otp_requests")
+      .insert({ user_id: userId, ip_hash: ipHash });
 
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
