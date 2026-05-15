@@ -1,0 +1,11 @@
+import { createClient } from '@supabase/supabase-js';
+import fs from 'fs';
+const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const id = '15b97332-b018-4912-8cf9-98c30f9b6942';
+const buf = fs.readFileSync('/tmp/cleo.jpg');
+const path = `Pharaoh/${id}_${Date.now()}.jpg`;
+const up = await sb.storage.from('personas').upload(path, buf, { contentType: 'image/jpeg', upsert: true });
+if (up.error) throw up.error;
+const { data } = sb.storage.from('personas').getPublicUrl(path);
+const r = await sb.from('personas').update({ image_url: data.publicUrl, is_drawing: false }).eq('id', id);
+console.log(r.error || 'OK', data.publicUrl);
