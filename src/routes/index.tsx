@@ -466,7 +466,7 @@ function Index() {
                 disabled={loading}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleFile(f);
+                  if (f) selectFile(f);
                 }}
               />
             </label>
@@ -495,10 +495,32 @@ function Index() {
                 disabled={loading}
                 onChange={(e) => {
                   const f = e.target.files?.[0];
-                  if (f) handleFile(f);
+                  if (f) selectFile(f);
                 }}
               />
             </div>
+
+            {previewUrl && pendingFile && !loading && !result && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => pendingFile && handleFile(pendingFile)}
+                  className="flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
+                  style={{ background: "var(--gradient-gold)" }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {t.confirmAnalyze}
+                </button>
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="flex items-center justify-center gap-2 rounded-lg border border-border/70 bg-background/40 px-4 py-3 text-sm font-medium transition hover:border-primary/60 hover:bg-background/60"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  {t.changePhoto}
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="mt-6 flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm">
