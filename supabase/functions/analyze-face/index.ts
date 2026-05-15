@@ -2721,7 +2721,9 @@ function buildLocalized(
 } {
   const role = p.role ?? "noble";
   const gender = p.gender ?? "any";
-  const figure = figureFor(p.id, p.category, role, gender);
+  // NOTE: figureFor() overlay disabled — always use the actual matched
+  // persona's name and description from the DB to avoid showing an
+  // unrelated famous figure's name/biography on top of the real match.
 
   // If the DB name already contains Arabic characters, use it directly
   // instead of the generic fallback translation.
@@ -2736,27 +2738,11 @@ function buildLocalized(
     ? (hasArabicDesc ? p.description : arabicDescriptionFor(p.category, role, gender))
     : (hasArabicDesc ? englishDescriptionFor(p.category, role, gender) : p.description);
 
-  if (!figure) {
-    return {
-      name: archetypeName,
-      category: localCategory,
-      description: archetypeDesc,
-      figure: null,
-    };
-  }
-
-  const figName = lang === "ar" ? figure.name_ar : figure.name_en;
-  const figBio = lang === "ar" ? figure.bio_ar : figure.bio_en;
-  const intro = lang === "ar"
-    ? `تشبه ملامحك ${figName} — ${archetypeName}.`
-    : `Your features echo ${figName} — the ${archetypeName}.`;
-  const achievementsLabel = lang === "ar" ? "أبرز إنجازاتها/إنجازاته" : "Notable achievements";
-
   return {
-    name: lang === "ar" ? `${figName} — ${archetypeName}` : `${figName} — ${archetypeName}`,
+    name: archetypeName,
     category: localCategory,
-    description: `${intro}\n\n${achievementsLabel}: ${figBio}`,
-    figure: { name: figName, bio: figBio },
+    description: archetypeDesc,
+    figure: null,
   };
 }
 
