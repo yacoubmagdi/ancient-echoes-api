@@ -2978,17 +2978,22 @@ Deno.serve(async (req) => {
     pushFromScored(
       (p) =>
         genderMatches(p) &&
+        (!roleFilter || (p.role ?? "") === roleFilter) &&
         (!eligibleCategories || eligibleCategories.includes(p.category)),
     );
   }
   // Tier 3: gender only
   if (ranked.length < TARGET) {
-    pushFromScored((p) => genderMatches(p));
+    pushFromScored(
+      (p) => genderMatches(p) && (!roleFilter || (p.role ?? "") === roleFilter),
+    );
   }
   // Tier 4: anyone with a descriptor — but NEVER cross gender if the user
   // explicitly picked one. A male user must not get a female result.
   if (ranked.length < TARGET) {
-    pushFromScored((p) => genderMatches(p));
+    pushFromScored(
+      (p) => genderMatches(p) && (!roleFilter || (p.role ?? "") === roleFilter),
+    );
   }
 
   // If nothing has descriptors yet, fall back to a random persona so the user
