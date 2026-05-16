@@ -439,7 +439,8 @@ function Index() {
             </div>
             <label
               htmlFor="photo-input"
-              className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
+              className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 transition ${loading ? "cursor-not-allowed opacity-70 pointer-events-none" : "cursor-pointer hover:border-primary/60 hover:bg-background/50"}`}
+              aria-disabled={loading}
             >
               {previewUrl ? (
                 <div className="flex flex-col items-center gap-3">
