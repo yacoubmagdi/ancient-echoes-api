@@ -592,34 +592,32 @@ function Index() {
                       {match.source_image_url && (
                         <SourceImageToggle sourceImageUrl={match.source_image_url} name={translateName(match.match_name, lang)} />
                       )}
-                      {idx === 0 && (
-                        <>
-                          {result.requires_ad && (
-                            <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-                              {t.adNote}
-                            </div>
-                          )}
-                          <ShareButtons
-                            name={translateName(result.match_name, lang)}
-                            category={translateCategory(result.category, lang)}
-                            similarity={result.similarity}
-                            t={t}
-                            matchImageUrl={result.image_url}
-                            description={translateDescription(result.description, lang)}
-                            userImage={previewUrl}
-                          />
-                          <DownloadCardButton
-                            userImage={previewUrl}
-                            matchImage={result.image_url}
-                            name={translateName(result.match_name, lang)}
-                            category={translateCategory(result.category, lang)}
-                            similarity={result.similarity}
-                            description={translateDescription(result.description, lang)}
-                            t={t}
-                            isRtl={isRtl}
-                          />
-                        </>
+                      {idx === 0 && result.requires_ad && (
+                        <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                          {t.adNote}
+                        </div>
                       )}
+                      <ShareButtons
+                        key={`share-${match.rank}`}
+                        name={translateName(match.match_name, lang)}
+                        category={translateCategory(match.category, lang)}
+                        similarity={match.similarity}
+                        t={t}
+                        matchImageUrl={match.image_url}
+                        description={translateDescription(match.description, lang)}
+                        userImage={previewUrl}
+                      />
+                      <DownloadCardButton
+                        key={`dl-${match.rank}`}
+                        userImage={previewUrl}
+                        matchImage={match.image_url}
+                        name={translateName(match.match_name, lang)}
+                        category={translateCategory(match.category, lang)}
+                        similarity={match.similarity}
+                        description={translateDescription(match.description, lang)}
+                        t={t}
+                        isRtl={isRtl}
+                      />
                     </div>
                   </div>
                 </Card>
