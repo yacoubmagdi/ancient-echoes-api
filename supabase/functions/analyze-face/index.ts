@@ -2505,6 +2505,8 @@ type CachedPersona = {
   role: string | null;
   face_descriptor: number[];
   skin_tone: { h: number; s: number; l: number; category: string } | null;
+  name_en: string | null;
+  description_en: string | null;
 };
 
 // ===== Vector Index =====
@@ -2611,7 +2613,7 @@ async function getPersonasWithDescriptors(
   }
   const { data: allPersonas, error: fetchErr } = await supabase
     .from("personas")
-    .select("id, name, category, description, image_url, source_image_url, gender, role, face_descriptor, skin_tone")
+    .select("id, name, name_en, category, description, description_en, image_url, source_image_url, gender, role, face_descriptor, skin_tone")
     .not("face_descriptor", "is", null)
     .not("image_url", "like", "%placeholder%")
     .eq("is_drawing", false)
