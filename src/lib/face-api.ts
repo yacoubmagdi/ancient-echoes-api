@@ -37,6 +37,17 @@ export async function loadFaceModels(): Promise<void> {
   loadingPromise = (async () => {
     const faceapi = await getFaceApi();
     const modelUrl = getModelUrl();
+    // Force the CPU backend. WebGL is unavailable in some preview/iframe
+    // contexts and the WASM backend's .wasm asset can fail to load through
+    // the dev proxy, leaving TF.js uninitialized ("backend 'wasm' has not
+    // yet been initialized"). CPU is slower but always available.
+    try {
+      const tf = (faceapi as unknown as { tf: { setBackend: (b: string) => Promise<boolean>; ready: () => Promise<void> } }).tf;
+      await tf.setBackend("cpu");
+      await tf.ready();
+    } catch (e) {
+      console.warn("Failed to set TF.js CPU backend", e);
+    }
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
       faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
