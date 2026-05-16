@@ -7,7 +7,7 @@ export const translations = {
     badge: "AI Face Matching",
     title: "Echoes of the Ancients",
     subtitle:
-      "Upload your portrait. Discover which legendary persona — pharaoh, viking, samurai, philosopher, or emperor — your face echoes through history.",
+      "Upload your portrait and discover which legendary ancient Egyptian persona — pharaoh, queen, priest, scribe, or noble — your face echoes across the ages.",
     consulting: "Consulting the ancients…",
     uploadCta: "Upload a clear face photo",
     uploadHint: "JPG, PNG or WEBP · max 8 MB · one face, well-lit",
@@ -86,7 +86,7 @@ export const translations = {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
     title: "أصداء القدماء",
     subtitle:
-      "ارفع صورتك واكتشف أيّ شخصية أسطورية — فرعون، فايكنغ، ساموراي، فيلسوف، أو إمبراطور — يشبهها وجهك عبر التاريخ.",
+      "ارفع صورتك واكتشف أيّ شخصية فرعونية أسطورية — فرعون، ملكة، كاهن، كاتب، أو نبيل — يشبهها وجهك عبر العصور.",
     consulting: "نستشير القدماء…",
     uploadCta: "ارفع صورة واضحة لوجهك",
     uploadHint: "JPG أو PNG أو WEBP · بحدّ أقصى 8 ميغابايت · وجه واحد بإضاءة جيدة",
