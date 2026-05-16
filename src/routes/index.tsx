@@ -442,11 +442,25 @@ function Index() {
               className="flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-border/70 bg-background/30 p-12 cursor-pointer transition hover:border-primary/60 hover:bg-background/50"
             >
               {previewUrl ? (
-                <img
-                  src={previewUrl}
-                  alt="Your upload preview"
-                  className="h-48 w-48 rounded-full object-cover ring-4 ring-primary/30"
-                />
+                <div className="flex flex-col items-center gap-3">
+                  <img
+                    src={previewUrl}
+                    alt="Your upload preview"
+                    className="h-48 w-48 rounded-full object-cover ring-4 ring-primary/30"
+                  />
+                  {loading && (
+                    <div
+                      className="w-48 h-1.5 rounded-full overflow-hidden bg-border/40"
+                      role="progressbar"
+                      aria-label={t.consulting}
+                    >
+                      <div
+                        className="h-full w-1/3 rounded-full animate-[loading-bar_1.2s_ease-in-out_infinite]"
+                        style={{ background: "var(--gradient-gold)" }}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div
                   className="flex h-20 w-20 items-center justify-center rounded-full"
