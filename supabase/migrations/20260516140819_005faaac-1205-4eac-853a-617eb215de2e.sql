@@ -1,0 +1,1 @@
+UPDATE public.personas SET image_url = 'https://kfycwzfhyermjhupyrpk.supabase.co/storage/v1/object/public/personas/Pharaoh/c6a1a135-07a6-40b8-b9c5-8893d0922020_squared.jpg' WHERE id = 'c6a1a135-07a6-40b8-b9c5-8893d0922020';
