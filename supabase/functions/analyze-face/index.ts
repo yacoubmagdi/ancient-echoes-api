@@ -2713,6 +2713,8 @@ function buildLocalized(
     description: string;
     gender?: string | null;
     role?: string | null;
+    name_en?: string | null;
+    description_en?: string | null;
   },
   lang: "en" | "ar",
 ): {
@@ -2732,13 +2734,17 @@ function buildLocalized(
   const hasArabicName = /[\u0600-\u06FF]/.test(p.name);
   const archetypeName = lang === "ar"
     ? (hasArabicName ? p.name : arabicNameFor(p.name, p.category, role, gender))
-    : (hasArabicName ? englishNameFor(p.name, p.category, role, gender) : p.name);
+    : (p.name_en && p.name_en.trim()
+        ? p.name_en
+        : (hasArabicName ? englishNameFor(p.name, p.category, role, gender) : p.name));
   const localCategory = lang === "ar" ? arabicCategoryFor(p.category) : p.category;
   // If the DB description already contains Arabic text, use it directly.
   const hasArabicDesc = /[\u0600-\u06FF]/.test(p.description ?? "");
   const archetypeDesc = lang === "ar"
     ? (hasArabicDesc ? p.description : arabicDescriptionFor(p.category, role, gender))
-    : (hasArabicDesc ? englishDescriptionFor(p.category, role, gender) : p.description);
+    : (p.description_en && p.description_en.trim()
+        ? p.description_en
+        : (hasArabicDesc ? englishDescriptionFor(p.category, role, gender) : p.description));
 
   return {
     name: archetypeName,
@@ -2948,7 +2954,7 @@ Deno.serve(async (req) => {
       if (usedIds.has(s.id)) continue;
       if (!predicate(s)) continue;
       const loc = buildLocalized(
-        { id: s.id, name: s.name, category: s.category, description: s.description, gender: s.gender, role: s.role },
+        { id: s.id, name: s.name, category: s.category, description: s.description, gender: s.gender, role: s.role, name_en: s.name_en, description_en: s.description_en },
         lang,
       );
       ranked.push({
