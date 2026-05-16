@@ -258,21 +258,21 @@ function Index() {
             {t.langLabel}
           </Button>
         </div>
-        <header
-          className="relative text-center mb-12 overflow-hidden rounded-2xl border border-border/60 px-6 py-16 md:py-24"
-          style={{
-            backgroundImage: `linear-gradient(to bottom, oklch(0.13 0.02 50 / 0.55), oklch(0.13 0.02 50 / 0.85)), url(${heroBg})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center bottom",
-          }}
-        >
+        <header className="text-center mb-12">
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/30">
+            <img
+              src={heroBg}
+              alt="Egypteca"
+              className="w-full h-auto block object-contain"
+            />
+          </div>
           <h1
-            className="mt-6 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent drop-shadow-lg"
+            className="mt-8 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent"
             style={{ backgroundImage: "var(--gradient-gold)" }}
           >
             {t.title}
           </h1>
-          <p className="mt-4 text-base md:text-lg text-foreground/90 max-w-xl mx-auto">
+          <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
             {t.subtitle}
           </p>
         </header>
