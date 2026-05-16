@@ -651,7 +651,7 @@ function Index() {
               href="/admin"
               aria-label="."
               title=""
-              className="block w-2.5 h-2.5 rounded-full bg-red-600 hover:bg-red-500 transition-colors"
+              className="block w-2.5 h-2.5 rounded-full bg-black hover:bg-neutral-800 transition-colors"
             />
           </div>
         </footer>
