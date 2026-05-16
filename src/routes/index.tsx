@@ -278,7 +278,7 @@ function Index() {
               href="/admin"
               aria-label="."
               title=""
-              className="inline-block align-middle ms-2 w-2.5 h-2.5 rounded-full bg-[#3e2a1a] hover:bg-[#2a1c10] transition-colors"
+              className="ms-2 inline-block w-[0.45em] h-[0.45em] rounded-full bg-[#3e2a1a] hover:bg-[#2a1c10] transition-colors align-middle relative -translate-y-[0.1em]"
             />
           </p>
         </header>
