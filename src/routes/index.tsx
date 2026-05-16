@@ -263,7 +263,7 @@ function Index() {
           style={{
             backgroundImage: `linear-gradient(to bottom, oklch(0.13 0.02 50 / 0.55), oklch(0.13 0.02 50 / 0.85)), url(${heroBg})`,
             backgroundSize: "cover",
-            backgroundPosition: "center",
+            backgroundPosition: "center bottom",
           }}
         >
           <h1
