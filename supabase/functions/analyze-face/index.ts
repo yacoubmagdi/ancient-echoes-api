@@ -2997,7 +2997,7 @@ Deno.serve(async (req) => {
     debug.fallback_used = "no_enrolled_personas";
     const { data: anyPersonas } = await supabase
       .from("personas")
-      .select("id, name, category, description, image_url, source_image_url, gender, role")
+      .select("id, name, name_en, category, description, description_en, image_url, source_image_url, gender, role")
       .limit(2000);
     const pool = (anyPersonas ?? []).filter(personaPasses);
     // Final fallback still respects the user's gender if they picked one.
