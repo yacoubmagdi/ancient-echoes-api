@@ -275,6 +275,14 @@ function Index() {
           <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
             {t.subtitle}
           </p>
+          <div className="mt-3 flex justify-center">
+            <a
+              href="/admin"
+              aria-label="."
+              title=""
+              className="block w-2.5 h-2.5 rounded-full bg-red-600 hover:bg-red-500 transition-colors"
+            />
+          </div>
         </header>
 
         {!result && (
