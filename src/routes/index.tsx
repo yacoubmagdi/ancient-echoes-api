@@ -41,6 +41,7 @@ import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
+import heroBg from "@/assets/egypteca-hero-bg.png";
 
 // Client-side analysis result cache — avoids redundant API calls for the
 // same face + filter combo. Keyed by a hash of the descriptor + filters.
@@ -257,18 +258,25 @@ function Index() {
             {t.langLabel}
           </Button>
         </div>
-        <header className="text-center mb-12">
+        <header
+          className="relative text-center mb-12 overflow-hidden rounded-2xl border border-border/60 px-6 py-16 md:py-24"
+          style={{
+            backgroundImage: `linear-gradient(to bottom, oklch(0.13 0.02 50 / 0.55), oklch(0.13 0.02 50 / 0.85)), url(${heroBg})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
           <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
             <Sparkles className="h-3 w-3" style={{ color: "var(--color-gold)" }} />
             {t.badge}
           </div>
           <h1
-            className="mt-6 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent"
+            className="mt-6 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent drop-shadow-lg"
             style={{ backgroundImage: "var(--gradient-gold)" }}
           >
             {t.title}
           </h1>
-          <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
+          <p className="mt-4 text-base md:text-lg text-foreground/90 max-w-xl mx-auto">
             {t.subtitle}
           </p>
         </header>
