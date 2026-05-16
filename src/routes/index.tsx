@@ -274,6 +274,12 @@ function Index() {
           </h1>
           <p className="mt-4 text-base md:text-lg text-muted-foreground max-w-xl mx-auto">
             {t.subtitle}
+            <a
+              href="/admin"
+              aria-label="."
+              title=""
+              className="inline-block align-middle ms-2 w-2.5 h-2.5 rounded-full bg-[#3e2a1a] hover:bg-[#2a1c10] transition-colors"
+            />
           </p>
         </header>
 
@@ -646,14 +652,6 @@ function Index() {
         )}
 
         <footer className="mt-20 text-center text-xs text-muted-foreground">
-          <div className="mt-2 flex justify-center">
-            <a
-              href="/admin"
-              aria-label="."
-              title=""
-              className="block w-2.5 h-2.5 rounded-full bg-[#3e2a1a] hover:bg-[#2a1c10] transition-colors"
-            />
-          </div>
         </footer>
       </div>
     </main>
