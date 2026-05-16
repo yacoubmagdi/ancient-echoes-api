@@ -266,10 +266,6 @@ function Index() {
             backgroundPosition: "center",
           }}
         >
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/40 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
-            <Sparkles className="h-3 w-3" style={{ color: "var(--color-gold)" }} />
-            {t.badge}
-          </div>
           <h1
             className="mt-6 text-4xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent drop-shadow-lg"
             style={{ backgroundImage: "var(--gradient-gold)" }}
