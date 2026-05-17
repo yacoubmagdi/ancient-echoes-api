@@ -1,4 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useRouterState } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { ContactButton } from "@/components/ContactButton";
@@ -71,10 +71,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const showContact = pathname === "/";
   return (
     <>
       <Outlet />
-      <ContactButton />
+      {showContact && <ContactButton />}
       <Toaster />
     </>
   );
