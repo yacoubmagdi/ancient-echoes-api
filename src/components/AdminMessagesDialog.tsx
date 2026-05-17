@@ -20,6 +20,7 @@ export function AdminMessagesDialog() {
   const [messages, setMessages] = useState<UserMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
 
   const loadCount = useCallback(async () => {
     const { count } = await supabase
@@ -64,6 +65,11 @@ export function AdminMessagesDialog() {
     loadCount();
   }
 
+  const filtered = messages.filter((m) =>
+    filter === "all" ? true : filter === "unread" ? !m.is_read : m.is_read
+  );
+  const readCount = messages.length - unread;
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -84,11 +90,40 @@ export function AdminMessagesDialog() {
             </Button>
           </div>
         </DialogHeader>
+        <div className="flex items-center gap-2 flex-wrap pb-2 border-b">
+          <Button
+            size="sm"
+            variant={filter === "all" ? "default" : "outline"}
+            onClick={() => setFilter("all")}
+            className="h-7 text-xs gap-1.5"
+          >
+            الكل
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{messages.length}</Badge>
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === "unread" ? "default" : "outline"}
+            onClick={() => setFilter("unread")}
+            className="h-7 text-xs gap-1.5"
+          >
+            غير المقروءة
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{unread}</Badge>
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === "read" ? "default" : "outline"}
+            onClick={() => setFilter("read")}
+            className="h-7 text-xs gap-1.5"
+          >
+            المقروءة
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{readCount}</Badge>
+          </Button>
+        </div>
         <div className="overflow-y-auto flex-1 space-y-2 pr-1">
-          {!loading && messages.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <p className="text-center text-sm text-muted-foreground py-8">لا توجد رسائل بعد.</p>
           )}
-          {messages.map((m) => (
+          {filtered.map((m) => (
             <div
               key={m.id}
               className={`rounded-lg border p-3 space-y-2 ${m.is_read ? "bg-muted/30" : "bg-card border-primary/40"}`}
