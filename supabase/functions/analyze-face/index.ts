@@ -2789,16 +2789,8 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid API key" }, 401);
   }
 
-  // Rate limit
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    req.headers.get("cf-connecting-ip") ??
-    "unknown";
-  const rl = checkRateLimit(ip);
-  if (!rl.allowed) {
-    return jsonResponse({ error: "Rate limit exceeded. Try again in a minute." }, 429);
-  }
-  debug.rate_limit_remaining = rl.remaining;
+  // Rate limit disabled (per user request)
+  debug.rate_limit_remaining = -1;
 
   // Parse JSON payload
   let payload: Record<string, unknown> = {};
