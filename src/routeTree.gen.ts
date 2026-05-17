@@ -20,6 +20,7 @@ import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public
 import { Route as ApiPublicHooksRegeneratePersonaImageRouteImport } from './routes/api/public/hooks/regenerate-persona-image'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
+import { Route as ApiPublicHooksGamePersonasRouteImport } from './routes/api/public/hooks/game-personas'
 import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
 
 const AuthRoute = AuthRouteImport.update({
@@ -80,6 +81,12 @@ const ApiPublicHooksGeneratePersonaImagesRoute =
     path: '/api/public/hooks/generate-persona-images',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksGamePersonasRoute =
+  ApiPublicHooksGamePersonasRouteImport.update({
+    id: '/api/public/hooks/game-personas',
+    path: '/api/public/hooks/game-personas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksCheckSourceUrlsRoute =
   ApiPublicHooksCheckSourceUrlsRouteImport.update({
     id: '/api/public/hooks/check-source-urls',
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
+  '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
@@ -109,6 +117,7 @@ export interface FileRoutesByTo {
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
+  '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
@@ -124,6 +133,7 @@ export interface FileRoutesById {
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
+  '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
+    | '/api/public/hooks/game-personas'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
+    | '/api/public/hooks/game-personas'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
@@ -168,6 +180,7 @@ export interface FileRouteTypes {
     | '/admin/source-review'
     | '/result/$id'
     | '/api/public/hooks/check-source-urls'
+    | '/api/public/hooks/game-personas'
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
@@ -181,6 +194,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResultIdRoute: typeof ResultIdRoute
   ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
+  ApiPublicHooksGamePersonasRoute: typeof ApiPublicHooksGamePersonasRoute
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
   ApiPublicHooksRegeneratePersonaImageRoute: typeof ApiPublicHooksRegeneratePersonaImageRoute
@@ -267,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksGeneratePersonaImagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/game-personas': {
+      id: '/api/public/hooks/game-personas'
+      path: '/api/public/hooks/game-personas'
+      fullPath: '/api/public/hooks/game-personas'
+      preLoaderRoute: typeof ApiPublicHooksGamePersonasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/check-source-urls': {
       id: '/api/public/hooks/check-source-urls'
       path: '/api/public/hooks/check-source-urls'
@@ -295,6 +316,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResultIdRoute: ResultIdRoute,
   ApiPublicHooksCheckSourceUrlsRoute: ApiPublicHooksCheckSourceUrlsRoute,
+  ApiPublicHooksGamePersonasRoute: ApiPublicHooksGamePersonasRoute,
   ApiPublicHooksGeneratePersonaImagesRoute:
     ApiPublicHooksGeneratePersonaImagesRoute,
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,

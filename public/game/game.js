@@ -1,7 +1,12 @@
 /* Ancient Echoes — Phaser 3 + Facebook Instant Games bootstrap */
 
+/* ---- Lovable backend (Ancient Echoes app) ---- */
+const APP_BASE_URL = "https://ancient-echoes-api.lovable.app";
+const PERSONAS_ENDPOINT = APP_BASE_URL + "/api/public/hooks/game-personas?limit=12";
+
 let player;
 let cursors;
+let personas = []; // fetched from Lovable app
 
 const config = {
   type: Phaser.AUTO,
@@ -18,10 +23,32 @@ const config = {
 function preload() {
   this.load.image("bg", "https://labs.phaser.io/assets/skies/space3.png");
   this.load.image("player", "https://labs.phaser.io/assets/sprites/phaser-dude.png");
+
+  // Load persona portraits fetched from the Lovable app
+  personas.forEach((p, i) => {
+    if (p.image_url) this.load.image("persona_" + i, p.image_url);
+  });
 }
 
 function create() {
   this.add.image(400, 300, "bg");
+
+  // Render persona names + portraits along the top
+  personas.slice(0, 6).forEach((p, i) => {
+    const x = 80 + i * 120;
+    if (this.textures.exists("persona_" + i)) {
+      const img = this.add.image(x, 70, "persona_" + i);
+      img.setDisplaySize(80, 80);
+    }
+    this.add
+      .text(x, 120, p.name || "?", {
+        fontSize: "12px",
+        color: "#ffd166",
+        align: "center",
+      })
+      .setOrigin(0.5);
+  });
+
   player = this.physics.add.sprite(400, 300, "player");
   player.setCollideWorldBounds(true);
   cursors = this.input.keyboard.createCursorKeys();
@@ -49,6 +76,26 @@ function startGame() {
   new Phaser.Game(config);
 }
 
+/* Fetch personas from Lovable app, then boot Phaser */
+async function loadPersonasThenStart() {
+  try {
+    const res = await fetch(PERSONAS_ENDPOINT, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      personas = Array.isArray(data.personas) ? data.personas : [];
+      console.log("Loaded " + personas.length + " personas from Lovable app");
+    } else {
+      console.warn("Persona endpoint returned", res.status);
+    }
+  } catch (err) {
+    console.error("Failed to fetch personas:", err);
+  }
+  startGame();
+}
+
 if (window.FBInstant) {
   FBInstant.initializeAsync()
     .then(() => {
@@ -59,15 +106,15 @@ if (window.FBInstant) {
         FBInstant.setLoadingProgress(progress);
         if (progress >= 100) {
           clearInterval(interval);
-          startGame();
+          loadPersonasThenStart();
         }
       }, 100);
     })
     .catch((err) => {
       console.error("FBInstant init failed, starting standalone:", err);
-      startGame();
+      loadPersonasThenStart();
     });
 } else {
   // Running outside Facebook (local / web) — just start
-  startGame();
+  loadPersonasThenStart();
 }
