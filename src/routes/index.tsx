@@ -28,7 +28,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download, BookOpen, Camera } from "lucide-react";
+import { Upload, Sparkles, RotateCcw, AlertCircle, Languages, CalendarIcon, Check, ChevronsUpDown, Facebook, Twitter, Linkedin, Send, MessageCircle, Link2, Music2, Instagram, Download, BookOpen, Camera, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -1013,6 +1014,8 @@ function DownloadCardButton({
   isRtl: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   function loadImg(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -1187,25 +1190,64 @@ function DownloadCardButton({
         H - 60,
       );
 
-      // Trigger download
-      const blob: Blob | null = await new Promise((res) =>
-        canvas.toBlob((b) => res(b), "image/png"),
-      );
-      if (!blob) throw new Error("Failed");
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `echoes-${name.replace(/\s+/g, "-")}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast.success(t.downloadCardSaved);
+      // Show in dialog
+      const dataUrl = canvas.toDataURL("image/png");
+      setPreviewSrc(dataUrl);
+      setOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
       setBusy(false);
     }
+  }
+
+  function downloadImage() {
+    if (!previewSrc) return;
+    const a = document.createElement("a");
+    a.href = previewSrc;
+    a.download = `echoes-${name.replace(/\s+/g, "-")}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast.success(t.downloadCardSaved);
+  }
+
+  async function nativeShareImage() {
+    if (!previewSrc) return;
+    try {
+      const blob = await (await fetch(previewSrc)).blob();
+      const file = new File([blob], `echoes-${name.replace(/\s+/g, "-")}.png`, { type: "image/png" });
+      const shareText = t.shareText
+        .replace("{name}", name)
+        .replace("{category}", category)
+        .replace("{similarity}", String(Math.round(similarity)));
+      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: name, text: shareText });
+      } else if (navigator.share) {
+        await navigator.share({ title: name, text: shareText, url: window.location.href });
+      } else {
+        downloadImage();
+      }
+    } catch {
+      /* cancelled */
+    }
+  }
+
+  function openShare(network: "whatsapp" | "facebook" | "twitter" | "telegram") {
+    const shareText = t.shareText
+      .replace("{name}", name)
+      .replace("{category}", category)
+      .replace("{similarity}", String(Math.round(similarity)));
+    const url = window.location.href;
+    const enc = encodeURIComponent;
+    const map: Record<string, string> = {
+      whatsapp: `https://wa.me/?text=${enc(shareText + " " + url)}`,
+      facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(shareText)}`,
+      twitter: `https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(url)}`,
+      telegram: `https://t.me/share/url?url=${enc(url)}&text=${enc(shareText)}`,
+    };
+    window.open(map[network], "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -1216,9 +1258,48 @@ function DownloadCardButton({
         variant="default"
         className="w-full gap-2"
       >
-        <Download className="h-4 w-4" />
+        <Eye className="h-4 w-4" />
         {busy ? t.downloadingCard : t.downloadCard}
       </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.shareImageTitle}</DialogTitle>
+          </DialogHeader>
+          {previewSrc && (
+            <div className="space-y-4">
+              <img
+                src={previewSrc}
+                alt={name}
+                className="w-full rounded-lg border border-border/40"
+              />
+              <div className="flex flex-wrap items-center justify-center gap-2 border-t border-border/40 pt-3">
+                <Button variant="default" size="sm" onClick={downloadImage} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  {t.downloadImage}
+                </Button>
+                {typeof navigator !== "undefined" && !!navigator.share && (
+                  <Button variant="secondary" size="icon" onClick={nativeShareImage} aria-label={t.shareTitle} title={t.shareTitle}>
+                    <Send className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button variant="outline" size="icon" onClick={() => openShare("whatsapp")} aria-label="WhatsApp" title="WhatsApp">
+                  <MessageCircle className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => openShare("facebook")} aria-label="Facebook" title="Facebook">
+                  <Facebook className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => openShare("twitter")} aria-label="X / Twitter" title="X / Twitter">
+                  <Twitter className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => openShare("telegram")} aria-label="Telegram" title="Telegram">
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
