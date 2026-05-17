@@ -292,6 +292,24 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+        }
+        Relationships: []
+      }
       shared_results: {
         Row: {
           category: string
@@ -432,6 +450,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: { _key: string; _max: number; _window_seconds: number }
+        Returns: boolean
+      }
       claim_first_admin: { Args: never; Returns: boolean }
       has_role: {
         Args: {
