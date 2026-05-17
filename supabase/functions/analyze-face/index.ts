@@ -2791,6 +2791,11 @@ Deno.serve(async (req) => {
 
   // Rate limit disabled (per user request)
   debug.rate_limit_remaining = -1;
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    "0.0.0.0";
+  const rl = { remaining: -1 };
 
   // Parse JSON payload
   let payload: Record<string, unknown> = {};
