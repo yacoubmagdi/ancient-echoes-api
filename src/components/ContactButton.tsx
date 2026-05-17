@@ -1,12 +1,13 @@
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { MessageCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { submitContactMessage } from "@/lib/contact.functions";
 
 export function ContactButton() {
   const [open, setOpen] = useState(false);
@@ -14,21 +15,26 @@ export function ContactButton() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const submit_ = useServerFn(submitContactMessage);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (message.trim().length < 1) return;
     setSending(true);
-    const { error } = await supabase.from("user_messages").insert({
-      name: name.trim() || null,
-      email: email.trim() || null,
-      message: message.trim(),
-    });
-    setSending(false);
-    if (error) {
-      toast.error("تعذّر إرسال الرسالة");
+    try {
+      await submit_({
+        data: {
+          name: name.trim() || null,
+          email: email.trim() || null,
+          message: message.trim(),
+        },
+      });
+    } catch (err) {
+      setSending(false);
+      toast.error(err instanceof Error ? err.message : "تعذّر إرسال الرسالة");
       return;
     }
+    setSending(false);
     toast.success("تم إرسال رسالتك، شكراً لك!");
     setName(""); setEmail(""); setMessage("");
     setOpen(false);
