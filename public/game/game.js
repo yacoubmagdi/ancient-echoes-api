@@ -1,120 +1,175 @@
-/* Ancient Echoes — Phaser 3 + Facebook Instant Games bootstrap */
+/* Ancient Echoes — Facebook Instant Games standalone client.
+   Same flow as the React app: name + photo -> 128d face descriptor
+   -> POST to Lovable backend -> show top match. */
 
-/* ---- Lovable backend (Ancient Echoes app) ---- */
-const APP_BASE_URL = "https://ancient-echoes-api.lovable.app";
-const PERSONAS_ENDPOINT = APP_BASE_URL + "/api/public/hooks/game-personas?limit=12";
+const APP_BASE = "https://ancient-echoes-api.lovable.app";
+const MODELS_URL = APP_BASE + "/models";
+const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
 
-let player;
-let cursors;
-let personas = []; // fetched from Lovable app
+const $ = (id) => document.getElementById(id);
+const screens = {
+  start:   $("screen-start"),
+  loading: $("screen-loading"),
+  result:  $("screen-result"),
+};
+function show(name) {
+  Object.values(screens).forEach((s) => s.classList.remove("active"));
+  screens[name].classList.add("active");
+}
+function setStep(msg) { $("loading-step").textContent = msg; }
+function setError(msg) { $("form-error").textContent = msg || ""; }
 
-const config = {
-  type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  parent: "game-container",
-  physics: {
-    default: "arcade",
-    arcade: { debug: false },
-  },
-  scene: { preload, create, update },
+let state = {
+  name: "",
+  fileDataUrl: null,
+  modelsLoaded: false,
 };
 
-function preload() {
-  this.load.image("bg", "https://labs.phaser.io/assets/skies/space3.png");
-  this.load.image("player", "https://labs.phaser.io/assets/sprites/phaser-dude.png");
-
-  // Load persona portraits fetched from the Lovable app
-  personas.forEach((p, i) => {
-    if (p.image_url) this.load.image("persona_" + i, p.image_url);
-  });
-}
-
-function create() {
-  this.add.image(400, 300, "bg");
-
-  // Render persona names + portraits along the top
-  personas.slice(0, 6).forEach((p, i) => {
-    const x = 80 + i * 120;
-    if (this.textures.exists("persona_" + i)) {
-      const img = this.add.image(x, 70, "persona_" + i);
-      img.setDisplaySize(80, 80);
-    }
-    this.add
-      .text(x, 120, p.name || "?", {
-        fontSize: "12px",
-        color: "#ffd166",
-        align: "center",
-      })
-      .setOrigin(0.5);
-  });
-
-  player = this.physics.add.sprite(400, 300, "player");
-  player.setCollideWorldBounds(true);
-  cursors = this.input.keyboard.createCursorKeys();
-
-  // Notify FB Instant Games that gameplay has started
-  if (window.FBInstant && FBInstant.startGameAsync) {
-    FBInstant.startGameAsync().catch(() => {});
-  }
-}
-
-function update() {
-  if (!player) return;
-  player.setVelocity(0);
-  const speed = 200;
-  if (cursors.left.isDown) player.setVelocityX(-speed);
-  if (cursors.right.isDown) player.setVelocityX(speed);
-  if (cursors.up.isDown) player.setVelocityY(-speed);
-  if (cursors.down.isDown) player.setVelocityY(speed);
-}
-
-/* ------------------------------------------------------------------ */
-/* Facebook Instant Games SDK bootstrap                                */
-/* ------------------------------------------------------------------ */
-function startGame() {
-  new Phaser.Game(config);
-}
-
-/* Fetch personas from Lovable app, then boot Phaser */
-async function loadPersonasThenStart() {
-  try {
-    const res = await fetch(PERSONAS_ENDPOINT, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      personas = Array.isArray(data.personas) ? data.personas : [];
-      console.log("Loaded " + personas.length + " personas from Lovable app");
-    } else {
-      console.warn("Persona endpoint returned", res.status);
-    }
-  } catch (err) {
-    console.error("Failed to fetch personas:", err);
-  }
-  startGame();
-}
-
-if (window.FBInstant) {
-  FBInstant.initializeAsync()
+/* ---------- FB Instant Games bootstrap (optional) ---------- */
+function fbBoot() {
+  if (!window.FBInstant) return Promise.resolve();
+  return FBInstant.initializeAsync()
     .then(() => {
-      // Fake loading progress (replace with real asset loader if needed)
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        FBInstant.setLoadingProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-          loadPersonasThenStart();
+      let p = 0;
+      const i = setInterval(() => {
+        p += 20;
+        FBInstant.setLoadingProgress(Math.min(p, 100));
+        if (p >= 100) {
+          clearInterval(i);
+          FBInstant.startGameAsync().catch(() => {});
         }
-      }, 100);
+      }, 80);
     })
-    .catch((err) => {
-      console.error("FBInstant init failed, starting standalone:", err);
-      loadPersonasThenStart();
-    });
-} else {
-  // Running outside Facebook (local / web) — just start
-  loadPersonasThenStart();
+    .catch(() => {});
 }
+
+/* ---------- Form ---------- */
+function refreshStartButton() {
+  $("btn-start").disabled = !(state.name.trim() && state.fileDataUrl);
+}
+
+$("user-name").addEventListener("input", (e) => {
+  state.name = e.target.value;
+  refreshStartButton();
+});
+
+$("user-photo").addEventListener("change", (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    state.fileDataUrl = reader.result;
+    $("preview-img").src = state.fileDataUrl;
+    $("preview-wrap").classList.remove("hidden");
+    refreshStartButton();
+  };
+  reader.readAsDataURL(file);
+});
+
+$("btn-start").addEventListener("click", () => {
+  setError("");
+  runAnalysis().catch((err) => {
+    console.error(err);
+    show("start");
+    setError(err.message || "Something went wrong. Try a clearer photo.");
+  });
+});
+
+$("btn-restart").addEventListener("click", () => {
+  show("start");
+  setError("");
+});
+
+$("btn-share").addEventListener("click", () => {
+  const name = $("result-name").textContent;
+  const sim  = $("sim-value").textContent;
+  const msg  = `I'm ${sim} ${name} on Ancient Echoes!`;
+  if (window.FBInstant && FBInstant.shareAsync) {
+    FBInstant.shareAsync({
+      intent: "SHARE",
+      image: state.fileDataUrl,
+      text: msg,
+    }).catch(() => {});
+  } else if (navigator.share) {
+    navigator.share({ title: "Ancient Echoes", text: msg }).catch(() => {});
+  } else {
+    alert(msg);
+  }
+});
+
+/* ---------- Face descriptor (face-api.js) ---------- */
+async function ensureModels() {
+  if (state.modelsLoaded) return;
+  setStep("Loading face models…");
+  await faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL);
+  await faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL);
+  await faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL);
+  state.modelsLoaded = true;
+}
+
+function loadImg(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => res(img);
+    img.onerror = rej;
+    img.src = src;
+  });
+}
+
+async function extractDescriptor(dataUrl) {
+  const img = await loadImg(dataUrl);
+  const detection = await faceapi
+    .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }))
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+  if (!detection) throw new Error("No face detected. Please use a clear front-facing photo.");
+  return Array.from(detection.descriptor);
+}
+
+/* ---------- Main flow ---------- */
+async function runAnalysis() {
+  show("loading");
+  await ensureModels();
+
+  setStep("Reading your face…");
+  const descriptor = await extractDescriptor(state.fileDataUrl);
+
+  setStep("Searching the archives…");
+  const resp = await fetch(ANALYZE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ descriptor, lang: "en" }),
+  });
+  const data = await resp.json();
+  if (!resp.ok || data.error) throw new Error(data.error || "Match service failed.");
+
+  renderResult(data);
+  show("result");
+}
+
+function renderResult(data) {
+  const name = data.match_name || data.name || "Unknown";
+  const category = data.category || "";
+  const similarity = Math.round(Number(data.similarity) || 0);
+  const matchImg = data.image_url || "";
+  const desc = data.description || "";
+
+  $("result-greeting").textContent = `${state.name.trim()}, your echo is`;
+  $("result-name").textContent = name;
+  $("result-category").textContent = category;
+  $("result-user-img").src = state.fileDataUrl;
+  $("result-match-img").src = matchImg;
+  $("result-match-label").textContent = name;
+  $("sim-value").textContent = similarity + "%";
+  $("result-description").textContent = desc;
+
+  // Animate bar after paint
+  requestAnimationFrame(() => {
+    $("sim-fill").style.width = similarity + "%";
+  });
+}
+
+/* ---------- Boot ---------- */
+fbBoot();
+show("start");
