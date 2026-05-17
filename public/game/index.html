@@ -2,14 +2,87 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <title>Ancient Echoes</title>
   <script src="https://connect.facebook.net/en_US/fbinstant.7.1.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="game-container"></div>
+  <div id="app">
+
+    <!-- SCREEN 1: START / FORM -->
+    <section id="screen-start" class="screen active">
+      <div class="card">
+        <h1 class="title">Ancient Echoes</h1>
+        <p class="subtitle">Discover which legendary historical figure shares your face.</p>
+
+        <label class="field">
+          <span>Your name</span>
+          <input id="user-name" type="text" placeholder="e.g. Omar" maxlength="40" />
+        </label>
+
+        <label class="field">
+          <span>Upload your photo</span>
+          <input id="user-photo" type="file" accept="image/*" />
+        </label>
+
+        <div id="preview-wrap" class="preview-wrap hidden">
+          <img id="preview-img" alt="Your photo preview" />
+        </div>
+
+        <button id="btn-start" class="btn-primary" disabled>Reveal my echo</button>
+        <p id="form-error" class="error"></p>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: LOADING -->
+    <section id="screen-loading" class="screen">
+      <div class="card center">
+        <div class="spinner"></div>
+        <h2 class="title-sm">Analyzing your face…</h2>
+        <p id="loading-step" class="subtitle">Loading models</p>
+      </div>
+    </section>
+
+    <!-- SCREEN 3: RESULT -->
+    <section id="screen-result" class="screen">
+      <div class="card">
+        <p class="eyebrow" id="result-greeting">Your echo</p>
+        <h2 class="title-sm" id="result-name">—</h2>
+        <p class="category" id="result-category">—</p>
+
+        <div class="portraits">
+          <div class="portrait">
+            <img id="result-user-img" alt="You" />
+            <span>You</span>
+          </div>
+          <div class="vs">↔</div>
+          <div class="portrait">
+            <img id="result-match-img" alt="Match" />
+            <span id="result-match-label">Match</span>
+          </div>
+        </div>
+
+        <div class="similarity">
+          <div class="sim-label">
+            <span>Similarity</span>
+            <span id="sim-value">0%</span>
+          </div>
+          <div class="sim-bar"><div id="sim-fill" class="sim-fill"></div></div>
+        </div>
+
+        <p class="description" id="result-description">—</p>
+
+        <div class="actions">
+          <button id="btn-share" class="btn-secondary">Share</button>
+          <button id="btn-restart" class="btn-primary">Try again</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
   <script src="game.js"></script>
 </body>
 </html>
