@@ -31,6 +31,7 @@ import { adminTranslations, type AdminDict } from "@/lib/admin-i18n";
 import type { Lang } from "@/lib/i18n";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 import { requestAdminOtp, verifyAdminOtp } from "@/lib/admin-otp.functions";
+import { AdminMessagesDialog } from "@/components/AdminMessagesDialog";
 
 const SESSION_OTP_KEY = "admin_otp_verified";
 
@@ -690,10 +691,13 @@ function AdminPage() {
         {/* Settings Card */}
         <Card className="mb-4">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              {a.matchSettings}
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                {a.matchSettings}
+              </CardTitle>
+              <AdminMessagesDialog />
+            </div>
             <CardDescription>{a.matchSettingsDesc}</CardDescription>
           </CardHeader>
           <CardContent>
