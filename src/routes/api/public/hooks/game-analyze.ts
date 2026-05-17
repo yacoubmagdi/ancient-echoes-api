@@ -28,19 +28,34 @@ export const Route = createFileRoute("/api/public/hooks/game-analyze")({
             return json({ error: "Server misconfigured" }, 500);
           }
 
-          const payload = await request.json().catch(() => null);
+          const payload = (await request.json().catch(() => null)) as
+            | Record<string, unknown>
+            | null;
           if (
             !payload ||
-            !Array.isArray((payload as { descriptor?: unknown }).descriptor) ||
-            (payload as { descriptor: unknown[] }).descriptor.length !== 128
+            !Array.isArray(payload.descriptor) ||
+            (payload.descriptor as unknown[]).length !== 128
           ) {
             return json({ error: "Invalid descriptor (need 128 numbers)" }, 400);
           }
 
-          const body = {
-            descriptor: (payload as { descriptor: number[] }).descriptor,
-            lang: (payload as { lang?: string }).lang === "ar" ? "ar" : "en",
+          const body: Record<string, unknown> = {
+            descriptor: payload.descriptor as number[],
+            lang: payload.lang === "ar" ? "ar" : "en",
           };
+          // Forward optional filters supported by analyze-face
+          for (const k of [
+            "gender",
+            "date_of_birth",
+            "nationality",
+            "role",
+            "civilization",
+            "skin_tone",
+          ]) {
+            if (payload[k] !== undefined && payload[k] !== null && payload[k] !== "") {
+              body[k] = payload[k];
+            }
+          }
 
           const resp = await fetch(`${supabaseUrl}/functions/v1/analyze-face`, {
             method: "POST",
