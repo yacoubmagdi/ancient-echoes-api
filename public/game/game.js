@@ -81,21 +81,112 @@ $("btn-restart").addEventListener("click", () => {
 });
 
 $("btn-share").addEventListener("click", () => {
+  shareResult().catch((e) => console.error(e));
+});
+
+async function buildShareImage() {
+  const userImg  = await loadImg($("result-user-img").src);
+  const matchImg = await loadImg($("result-match-img").src);
+  const name     = $("result-name").textContent;
+  const category = $("result-category").textContent;
+  const sim      = $("sim-value").textContent;
+
+  const W = 1080, H = 1080;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Background
+  const grad = ctx.createRadialGradient(W/2, 200, 100, W/2, H/2, W);
+  grad.addColorStop(0, "#3a2410");
+  grad.addColorStop(1, "#1a120a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = "#d4a84c";
+  ctx.font = "bold 56px Georgia, serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Ancient Echoes", W/2, 110);
+
+  // Two portraits
+  const size = 360;
+  const y = 200;
+  const xLeft  = W/2 - size - 40;
+  const xRight = W/2 + 40;
+
+  const drawPortrait = (img, x, label) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(img, x, y, size, size);
+    ctx.restore();
+    ctx.strokeStyle = "#d4a84c";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI*2);
+    ctx.stroke();
+    ctx.fillStyle = "#f5ecd6";
+    ctx.font = "32px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText(label, x + size/2, y + size + 50);
+  };
+  drawPortrait(userImg, xLeft, "You");
+  drawPortrait(matchImg, xRight, name);
+
+  // Match name + similarity
+  ctx.fillStyle = "#f0d78c";
+  ctx.font = "bold 64px Georgia, serif";
+  ctx.textAlign = "center";
+  ctx.fillText(name, W/2, 720);
+
+  ctx.fillStyle = "#b6a486";
+  ctx.font = "italic 36px Georgia, serif";
+  ctx.fillText(category, W/2, 770);
+
+  ctx.fillStyle = "#c44a2a";
+  ctx.font = "bold 96px Georgia, serif";
+  ctx.fillText(sim + " match", W/2, 900);
+
+  ctx.fillStyle = "#b6a486";
+  ctx.font = "28px Georgia, serif";
+  ctx.fillText("ancient-echoes-api.lovable.app", W/2, 1020);
+
+  return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+async function shareResult() {
   const name = $("result-name").textContent;
   const sim  = $("sim-value").textContent;
   const msg  = `I'm ${sim} ${name} on Ancient Echoes!`;
+
+  let image;
+  try { image = await buildShareImage(); }
+  catch (e) { console.warn("share image build failed", e); image = state.fileDataUrl; }
+
   if (window.FBInstant && FBInstant.shareAsync) {
-    FBInstant.shareAsync({
-      intent: "SHARE",
-      image: state.fileDataUrl,
-      text: msg,
-    }).catch(() => {});
-  } else if (navigator.share) {
-    navigator.share({ title: "Ancient Echoes", text: msg }).catch(() => {});
-  } else {
-    alert(msg);
+    FBInstant.shareAsync({ intent: "SHARE", image, text: msg }).catch(()=>{});
+    return;
   }
-});
+
+  // Web fallback: try Web Share with file, else download
+  try {
+    const blob = await (await fetch(image)).blob();
+    const file = new File([blob], "ancient-echoes.jpg", { type: "image/jpeg" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Ancient Echoes", text: msg });
+      return;
+    }
+  } catch (_) {}
+
+  // Download fallback
+  const a = document.createElement("a");
+  a.href = image;
+  a.download = "ancient-echoes.jpg";
+  document.body.appendChild(a); a.click(); a.remove();
+}
 
 /* ---------- Face descriptor (face-api.js) ---------- */
 async function ensureModels() {
