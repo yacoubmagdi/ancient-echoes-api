@@ -271,3 +271,96 @@ function renderResult(data) {
 /* ---------- Boot ---------- */
 fbBoot();
 show("start");
+
+/* ---------- Image normalisation (HEIC convert + resize + compress) ---------- */
+function isHeic(file) {
+  const n = (file.name || "").toLowerCase();
+  const t = (file.type || "").toLowerCase();
+  return t === "image/heic" || t === "image/heif" ||
+         t === "image/heic-sequence" || t === "image/heif-sequence" ||
+         n.endsWith(".heic") || n.endsWith(".heif");
+}
+
+let heic2anyPromise = null;
+function loadHeic2any() {
+  if (window.heic2any) return Promise.resolve(window.heic2any);
+  if (heic2anyPromise) return heic2anyPromise;
+  heic2anyPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
+    s.onload = () => resolve(window.heic2any);
+    s.onerror = () => reject(new Error("Could not load HEIC support. Check your connection."));
+    document.head.appendChild(s);
+  });
+  return heic2anyPromise;
+}
+
+function readAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error("Could not read the image file."));
+    r.readAsDataURL(blob);
+  });
+}
+
+function decodeImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) {
+        reject(new Error("Image is empty or corrupted."));
+      } else resolve(img);
+    };
+    img.onerror = () => reject(new Error("This image format isn't supported on your device. Try JPG or PNG."));
+    img.src = dataUrl;
+  });
+}
+
+async function normalizeImage(file) {
+  if (!file || file.size === 0) throw new Error("Empty file.");
+
+  let blob = file;
+  if (isHeic(file)) {
+    $("preview-wrap").classList.add("hidden");
+    $("form-error").textContent = "Converting iPhone photo… one moment.";
+    try {
+      const heic2any = await loadHeic2any();
+      const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+      blob = Array.isArray(out) ? out[0] : out;
+    } catch (e) {
+      console.warn("[upload] HEIC conversion failed, trying native decode", e);
+    }
+    $("form-error").textContent = "";
+  }
+
+  const sourceDataUrl = await readAsDataUrl(blob);
+  const img = await decodeImage(sourceDataUrl);
+
+  const MAX_DIM = 1200;
+  const MAX_BYTES = 1 * 1024 * 1024;
+  const dims = [MAX_DIM, 1000, 900, 800, 640];
+  const qualities = [0.8, 0.72, 0.65, 0.55, 0.45];
+
+  const tryEncode = (dim, q) => new Promise((res) => {
+    const ratio = Math.min(1, dim / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * ratio));
+    const h = Math.max(1, Math.round(img.height * ratio));
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    if (!ctx) return res(null);
+    ctx.drawImage(img, 0, 0, w, h);
+    res(c.toDataURL("image/jpeg", q));
+  });
+
+  for (const d of dims) {
+    for (const q of qualities) {
+      const url = await tryEncode(d, q);
+      if (!url) continue;
+      const approxBytes = Math.floor((url.length - "data:image/jpeg;base64,".length) * 0.75);
+      if (approxBytes <= MAX_BYTES) return url;
+    }
+  }
+  return (await tryEncode(640, 0.4)) || sourceDataUrl;
+}
