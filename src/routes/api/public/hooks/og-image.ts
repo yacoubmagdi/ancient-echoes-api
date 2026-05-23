@@ -142,8 +142,8 @@ Content layout:
             {
               method: "POST",
               headers: {
-                apikey: anonKey,
-                Authorization: `Bearer ${anonKey}`,
+                apikey: serviceKey,
+                Authorization: `Bearer ${serviceKey}`,
                 "Content-Type": "image/png",
                 "x-upsert": "true",
               },
