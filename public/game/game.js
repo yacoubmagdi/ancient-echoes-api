@@ -273,32 +273,69 @@ fbBoot();
 show("start");
 
 /* ---------- Facebook Instant Games guard ----------
-   The Instant Games WebView does NOT support <input type="file">. Detect that
-   we're running inside the IG container and show a clear message + a button
-   to open the same flow in the system browser via FBInstant.openLink.
+   The Instant Games WebView does NOT support <input type="file">. When we
+   detect the IG container, swap the file input for a hybrid UI:
+    1. "Use my Facebook photo" -> FBInstant.player.getPhoto() -> same
+       normalize + face-api pipeline as a normal upload.
+    2. "Choose another photo"  -> FBInstant.openLink(...) opens the same
+       experience in the system browser, where the file input works.
 */
 (function guardInstantGames() {
   if (!window.FBInstant || !FBInstant.getPlatform) return;
   try {
     const plat = FBInstant.getPlatform && FBInstant.getPlatform();
     // 'IOS' / 'ANDROID' / 'WEB' / 'MOBILE_WEB'. IOS/ANDROID = native IG WebView.
-    if (plat === "IOS" || plat === "ANDROID") {
-      const input = document.getElementById("user-photo");
-      const err = document.getElementById("form-error");
-      if (input) input.disabled = true;
-      if (err) {
-        err.innerHTML =
-          "Photo upload isn't supported inside the Facebook app. " +
-          "<a href='#' id='open-external' style='color:#d4a84c;text-decoration:underline'>Open in browser</a> to continue.";
-        const a = document.getElementById("open-external");
-        if (a) a.addEventListener("click", (e) => {
-          e.preventDefault();
-          const url = "https://ancient-echoes-api.lovable.app/game/";
-          if (FBInstant.openLink) FBInstant.openLink(url).catch(() => {});
-          else window.open(url, "_blank");
-        });
+    if (plat !== "IOS" && plat !== "ANDROID") return;
+
+    const input = document.getElementById("user-photo");
+    const inputLabel = input && input.closest("label.field");
+    const fbActions = document.getElementById("fb-actions");
+    if (inputLabel) inputLabel.classList.add("hidden");
+    if (input) input.disabled = true;
+    if (fbActions) fbActions.classList.remove("hidden");
+
+    const externalUrl = "https://ancient-echoes-api.lovable.app/game/";
+    const btnExternal = document.getElementById("btn-open-external");
+    if (btnExternal) btnExternal.addEventListener("click", () => {
+      if (FBInstant.openLink) FBInstant.openLink(externalUrl).catch(() => {});
+      else window.open(externalUrl, "_blank");
+    });
+
+    const btnFb = document.getElementById("btn-fb-photo");
+    if (btnFb) btnFb.addEventListener("click", async () => {
+      setError("");
+      btnFb.disabled = true;
+      const originalLabel = btnFb.textContent;
+      btnFb.textContent = "Loading your photo…";
+      try {
+        if (!FBInstant.player || !FBInstant.player.getPhoto) {
+          throw new Error("Facebook photo isn't available right now.");
+        }
+        const url = await FBInstant.player.getPhoto();
+        if (!url) throw new Error("Couldn't read your Facebook photo.");
+        console.info("[upload] step=fb-photo-url", { hasUrl: !!url });
+        // Fetch the URL into a Blob so the same normalize pipeline runs.
+        const resp = await fetch(url, { mode: "cors", credentials: "omit" });
+        if (!resp.ok) throw new Error("Couldn't download your Facebook photo.");
+        const blob = await resp.blob();
+        const file = new File(
+          [blob],
+          "facebook-photo.jpg",
+          { type: blob.type || "image/jpeg", lastModified: Date.now() },
+        );
+        const dataUrl = await normalizeImage(file);
+        state.fileDataUrl = dataUrl;
+        $("preview-img").src = dataUrl;
+        $("preview-wrap").classList.remove("hidden");
+        refreshStartButton();
+      } catch (e) {
+        console.error("[upload] FAIL stage=fb-photo", e);
+        setError(e.message || "Couldn't use your Facebook photo. Try 'Choose another photo' instead.");
+      } finally {
+        btnFb.disabled = false;
+        btnFb.textContent = originalLabel;
       }
-    }
+    });
   } catch (_) { /* not in IG context */ }
 })();
 
