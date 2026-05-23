@@ -56,20 +56,27 @@ $("user-name").addEventListener("input", (e) => {
 $("user-photo").addEventListener("change", (e) => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    state.fileDataUrl = reader.result;
-    $("preview-img").src = state.fileDataUrl;
-    $("preview-wrap").classList.remove("hidden");
-    refreshStartButton();
-  };
-  reader.readAsDataURL(file);
+  setError("");
+  normalizeImage(file)
+    .then((dataUrl) => {
+      state.fileDataUrl = dataUrl;
+      $("preview-img").src = dataUrl;
+      $("preview-wrap").classList.remove("hidden");
+      refreshStartButton();
+    })
+    .catch((err) => {
+      console.error("[upload] normalize failed:", err);
+      state.fileDataUrl = null;
+      $("preview-wrap").classList.add("hidden");
+      refreshStartButton();
+      setError(err.message || "Could not read that photo. Try JPG or PNG.");
+    });
 });
 
 $("btn-start").addEventListener("click", () => {
   setError("");
   runAnalysis().catch((err) => {
-    console.error(err);
+    console.error("[analysis] failed:", err);
     show("start");
     setError(err.message || "Something went wrong. Try a clearer photo.");
   });
