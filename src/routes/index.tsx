@@ -173,7 +173,8 @@ function Index() {
       // Compress/resize for preview, then extract a 128-float face descriptor
       // in the browser using face-api.js. Only the descriptor is sent to the
       // server — the user's photo never leaves their device.
-      const uploadFile = await compressImage(file, 4 * 1024 * 1024);
+      // Normalise: HEIC→JPEG, max 1200px, ~80% quality, target <1MB.
+      const uploadFile = await compressImage(file, 1 * 1024 * 1024, 1200);
       setPreviewUrl(URL.createObjectURL(uploadFile));
       await loadFaceModels();
       const img = await imageFromFile(uploadFile);
@@ -234,6 +235,7 @@ function Index() {
       // Store in client cache
       analysisCache.set(cKey, { result: matchData, at: Date.now() });
     } catch (e) {
+      console.error("[upload] face analysis failed:", e);
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
@@ -483,7 +485,7 @@ function Index() {
                 ref={inputRef}
                 id="photo-input"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*,.heic,.heif"
                 className="sr-only"
                 disabled={loading}
                 onChange={(e) => {
