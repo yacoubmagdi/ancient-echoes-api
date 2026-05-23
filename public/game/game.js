@@ -272,7 +272,45 @@ function renderResult(data) {
 fbBoot();
 show("start");
 
-/* ---------- Image normalisation (HEIC convert + resize + compress) ---------- */
+/* ---------- Facebook Instant Games guard ----------
+   The Instant Games WebView does NOT support <input type="file">. Detect that
+   we're running inside the IG container and show a clear message + a button
+   to open the same flow in the system browser via FBInstant.openLink.
+*/
+(function guardInstantGames() {
+  if (!window.FBInstant || !FBInstant.getPlatform) return;
+  try {
+    const plat = FBInstant.getPlatform && FBInstant.getPlatform();
+    // 'IOS' / 'ANDROID' / 'WEB' / 'MOBILE_WEB'. IOS/ANDROID = native IG WebView.
+    if (plat === "IOS" || plat === "ANDROID") {
+      const input = document.getElementById("user-photo");
+      const err = document.getElementById("form-error");
+      if (input) input.disabled = true;
+      if (err) {
+        err.innerHTML =
+          "Photo upload isn't supported inside the Facebook app. " +
+          "<a href='#' id='open-external' style='color:#d4a84c;text-decoration:underline'>Open in browser</a> to continue.";
+        const a = document.getElementById("open-external");
+        if (a) a.addEventListener("click", (e) => {
+          e.preventDefault();
+          const url = "https://ancient-echoes-api.lovable.app/game/";
+          if (FBInstant.openLink) FBInstant.openLink(url).catch(() => {});
+          else window.open(url, "_blank");
+        });
+      }
+    }
+  } catch (_) { /* not in IG context */ }
+})();
+
+/* ---------- Image normalisation (HEIC convert + resize + compress) ----------
+   Mobile-safe pipeline:
+    - Prefer createImageBitmap({ imageOrientation: "from-image" }) — decodes
+      off-thread AND auto-rotates iPhone portrait photos (EXIF orientation 6).
+    - Avoid FileReader.readAsDataURL: base64 inflates the file 33% and is
+      held in heap for the full decode → OOM on low-RAM iPhones.
+    - Only fall back to heic2any if the native decoder rejects a HEIC file
+      (iOS Safari 17+ decodes HEIC natively; Android Chrome does not).
+*/
 function isHeic(file) {
   const n = (file.name || "").toLowerCase();
   const t = (file.type || "").toLowerCase();
@@ -287,6 +325,7 @@ function loadHeic2any() {
   if (heic2anyPromise) return heic2anyPromise;
   heic2anyPromise = new Promise((resolve, reject) => {
     const s = document.createElement("script");
+    // Newer build than 0.0.4 — handles iPhone 14/15 HDR HEIC variants.
     s.src = "https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js";
     s.onload = () => resolve(window.heic2any);
     s.onerror = () => reject(new Error("Could not load HEIC support. Check your connection."));
@@ -295,63 +334,83 @@ function loadHeic2any() {
   return heic2anyPromise;
 }
 
-function readAsDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result);
-    r.onerror = () => reject(new Error("Could not read the image file."));
-    r.readAsDataURL(blob);
-  });
-}
-
-function decodeImage(dataUrl) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      if (!img.naturalWidth || !img.naturalHeight) {
-        reject(new Error("Image is empty or corrupted."));
-      } else resolve(img);
-    };
+async function decodeBlob(blob) {
+  // Path A — createImageBitmap with EXIF orientation. Off-thread, no base64.
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bmp = await createImageBitmap(blob, { imageOrientation: "from-image" });
+      if (bmp.width && bmp.height) {
+        return { drawable: bmp, width: bmp.width, height: bmp.height, cleanup: () => bmp.close && bmp.close() };
+      }
+      bmp.close && bmp.close();
+    } catch (e) {
+      console.warn("[upload] createImageBitmap failed, falling back to <img>", e);
+    }
+  }
+  // Path B — object URL + <img>. Cheaper than data URL; no base64 inflation.
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.decoding = "async";
+  img.style.imageOrientation = "from-image";
+  await new Promise((resolve, reject) => {
+    img.onload = () => resolve();
     img.onerror = () => reject(new Error("This image format isn't supported on your device. Try JPG or PNG."));
-    img.src = dataUrl;
+    img.src = url;
   });
+  if (typeof img.decode === "function") { try { await img.decode(); } catch (_) {} }
+  if (!img.naturalWidth || !img.naturalHeight) {
+    URL.revokeObjectURL(url);
+    throw new Error("Image is empty or corrupted.");
+  }
+  return { drawable: img, width: img.naturalWidth, height: img.naturalHeight, cleanup: () => URL.revokeObjectURL(url) };
 }
 
 async function normalizeImage(file) {
   if (!file || file.size === 0) throw new Error("Empty file.");
+  console.info("[upload] step=select", { name: file.name, size: file.size, type: file.type });
 
+  // Try native decode first (works for JPEG/PNG/WEBP everywhere, and HEIC on
+  // iOS Safari 17+). Only invoke heic2any if HEIC and native decode failed.
   let blob = file;
-  if (isHeic(file)) {
+  let decoded;
+  try {
+    decoded = await decodeBlob(blob);
+  } catch (nativeErr) {
+    if (!isHeic(blob)) throw nativeErr;
     $("preview-wrap").classList.add("hidden");
     $("form-error").textContent = "Converting iPhone photo… one moment.";
     try {
       const heic2any = await loadHeic2any();
-      const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+      const out = await heic2any({ blob, toType: "image/jpeg", quality: 0.7 });
       blob = Array.isArray(out) ? out[0] : out;
     } catch (e) {
-      console.warn("[upload] HEIC conversion failed, trying native decode", e);
+      console.warn("[upload] FAIL stage=heic-convert", e);
+      throw new Error("Could not read this iPhone photo. Try saving it as JPG first.");
     }
     $("form-error").textContent = "";
+    decoded = await decodeBlob(blob);
   }
-
-  const sourceDataUrl = await readAsDataUrl(blob);
-  const img = await decodeImage(sourceDataUrl);
+  console.info("[upload] step=decode", { w: decoded.width, h: decoded.height });
 
   const MAX_DIM = 1200;
   const MAX_BYTES = 1 * 1024 * 1024;
   const dims = [MAX_DIM, 1000, 900, 800, 640];
   const qualities = [0.8, 0.72, 0.65, 0.55, 0.45];
 
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    decoded.cleanup();
+    throw new Error("Canvas is not available on this device.");
+  }
   const tryEncode = (dim, q) => new Promise((res) => {
-    const ratio = Math.min(1, dim / Math.max(img.width, img.height));
-    const w = Math.max(1, Math.round(img.width * ratio));
-    const h = Math.max(1, Math.round(img.height * ratio));
-    const c = document.createElement("canvas");
-    c.width = w; c.height = h;
-    const ctx = c.getContext("2d");
-    if (!ctx) return res(null);
-    ctx.drawImage(img, 0, 0, w, h);
-    res(c.toDataURL("image/jpeg", q));
+    const ratio = Math.min(1, dim / Math.max(decoded.width, decoded.height));
+    const w = Math.max(1, Math.round(decoded.width * ratio));
+    const h = Math.max(1, Math.round(decoded.height * ratio));
+    canvas.width = w; canvas.height = h;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(decoded.drawable, 0, 0, w, h);
+    res(canvas.toDataURL("image/jpeg", q));
   });
 
   for (const d of dims) {
@@ -359,8 +418,12 @@ async function normalizeImage(file) {
       const url = await tryEncode(d, q);
       if (!url) continue;
       const approxBytes = Math.floor((url.length - "data:image/jpeg;base64,".length) * 0.75);
-      if (approxBytes <= MAX_BYTES) return url;
+      if (approxBytes <= MAX_BYTES) {
+        console.info("[upload] step=encode", { dim: d, q, approxBytes });
+        return url;
+      }
     }
   }
-  return (await tryEncode(640, 0.4)) || sourceDataUrl;
+  console.warn("[upload] encode fell through to last-resort");
+  return await tryEncode(640, 0.4);
 }
