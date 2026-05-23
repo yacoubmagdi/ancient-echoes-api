@@ -6,6 +6,7 @@
   <title>Ancient Echoes</title>
   <script src="https://connect.facebook.net/en_US/fbinstant.7.1.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <!-- heic2any: lazy-loaded only when the user picks a HEIC photo (see game.js) -->
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -24,7 +25,7 @@
 
         <label class="field">
           <span>Upload your photo</span>
-          <input id="user-photo" type="file" accept="image/*" />
+          <input id="user-photo" type="file" accept="image/*,.heic,.heif" />
         </label>
 
         <div id="preview-wrap" class="preview-wrap hidden">
