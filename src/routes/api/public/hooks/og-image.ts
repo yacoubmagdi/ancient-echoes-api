@@ -14,9 +14,9 @@ export const Route = createFileRoute("/api/public/hooks/og-image")({
           const size = url.searchParams.get("size") || "large";
 
           const supabaseUrl = process.env.SUPABASE_URL;
-          const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-          if (!supabaseUrl || !anonKey) {
+          if (!supabaseUrl || !serviceKey) {
             return new Response("Server misconfigured", { status: 500 });
           }
 
@@ -34,12 +34,12 @@ export const Route = createFileRoute("/api/public/hooks/og-image")({
             // not cached
           }
 
-          // Fetch shared result via REST API
+          // Fetch shared result via REST API (service role — table is no longer publicly readable)
           const restUrl = `${supabaseUrl}/rest/v1/shared_results?id=eq.${encodeURIComponent(id)}&select=*&limit=1`;
           const dbResp = await fetch(restUrl, {
             headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${anonKey}`,
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
               Accept: "application/json",
             },
           });
