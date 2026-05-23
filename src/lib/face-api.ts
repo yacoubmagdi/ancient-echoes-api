@@ -35,6 +35,7 @@ export async function loadFaceModels(): Promise<void> {
     return;
   }
   loadingPromise = (async () => {
+    const t0 = performance.now();
     const faceapi = await getFaceApi();
     const modelUrl = getModelUrl();
     // Force the CPU backend. WebGL is unavailable in some preview/iframe
@@ -54,9 +55,14 @@ export async function loadFaceModels(): Promise<void> {
       faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
       faceapi.nets.ageGenderNet.loadFromUri(modelUrl),
     ]);
+    console.info("[face] step=models-loaded", {
+      backend: "cpu",
+      ms: Math.round(performance.now() - t0),
+    });
     return faceapi;
   })().catch((error) => {
     loadingPromise = null;
+    console.error("[face] FAIL stage=models-load", error);
     throw error;
   });
   await loadingPromise;
@@ -291,14 +297,14 @@ function extractSkinToneFromRegion(
  * Returns null if no face is detected.
  */
 export async function extractDescriptor(
-  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
+  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ImageBitmap,
 ): Promise<FaceExtractionResult | null | "multiple_faces"> {
   await loadFaceModels();
   const faceapi = await getFaceApi();
 
   // ── Check for multiple faces first ──
   const allFaces = await faceapi.detectAllFaces(
-    input,
+    input as HTMLImageElement,
     new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }),
   );
   if (allFaces.length > 1) {
@@ -315,16 +321,25 @@ export async function extractDescriptor(
   ];
 
   // First try with the original input
-  for (const { inputSize, scoreThreshold } of passes) {
+  for (let i = 0; i < passes.length; i++) {
+    const { inputSize, scoreThreshold } = passes[i];
+    const tp = performance.now();
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
     const result = await faceapi
-      .detectSingleFace(input, opts)
+      .detectSingleFace(input as HTMLImageElement, opts)
       .withFaceLandmarks()
       .withFaceDescriptor()
       .withAgeAndGender();
+    console.info("[face] step=detect", {
+      pass: i + 1,
+      inputSize,
+      threshold: scoreThreshold,
+      found: !!result?.descriptor,
+      ms: Math.round(performance.now() - tp),
+    });
     if (result?.descriptor) {
       const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
-      const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
+      const skinTone = extractSkinToneFromRegion(input as HTMLImageElement, result.detection.box, lmPts);
       return {
         descriptor: Array.from(result.descriptor),
         skinTone,
@@ -335,8 +350,9 @@ export async function extractDescriptor(
   }
 
   // If all passes failed, try with a brightness/contrast-normalized copy
-  const enhanced = enhanceImage(input);
+  const enhanced = enhanceImage(input as HTMLImageElement);
   if (enhanced) {
+    console.info("[face] step=enhance-retry");
     for (const { inputSize, scoreThreshold } of passes) {
       const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
       const result = await faceapi
@@ -347,7 +363,7 @@ export async function extractDescriptor(
       if (result?.descriptor) {
         // Use original input for skin tone (enhanced has altered colors)
         const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
-        const skinTone = extractSkinToneFromRegion(input, result.detection.box, lmPts);
+        const skinTone = extractSkinToneFromRegion(input as HTMLImageElement, result.detection.box, lmPts);
         return {
           descriptor: Array.from(result.descriptor),
           skinTone,
@@ -358,6 +374,7 @@ export async function extractDescriptor(
     }
   }
 
+  console.warn("[face] FAIL stage=detect no face found after all passes");
   return null;
 }
 
