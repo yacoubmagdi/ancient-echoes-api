@@ -67,11 +67,14 @@ export async function imageFromFile(file: File): Promise<HTMLImageElement> {
   try {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = url;
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Failed to load image"));
+      img.onerror = () => reject(new Error("Could not load this image. Try a different photo (JPG or PNG)."));
+      img.src = url;
     });
+    if (!img.naturalWidth || !img.naturalHeight) {
+      throw new Error("Image is empty or corrupted.");
+    }
     return img;
   } finally {
     // Don't revoke immediately — caller may need pixels. Caller should revoke.
