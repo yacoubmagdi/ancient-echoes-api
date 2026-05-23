@@ -12,17 +12,17 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
           }
 
           const supabaseUrl = process.env.SUPABASE_URL;
-          const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-          if (!supabaseUrl || !anonKey) {
+          if (!supabaseUrl || !serviceKey) {
             return new Response("Server misconfigured", { status: 500 });
           }
 
-          const restUrl = `${supabaseUrl}/rest/v1/shared_results?id=eq.${encodeURIComponent(id)}&select=*&limit=1`;
+          const restUrl = `${supabaseUrl}/rest/v1/shared_results?id=eq.${encodeURIComponent(id)}&select=match_name,category,similarity,description,match_image_url&limit=1`;
           const resp = await fetch(restUrl, {
             headers: {
-              apikey: anonKey,
-              Authorization: `Bearer ${anonKey}`,
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
               Accept: "application/json",
             },
           });
