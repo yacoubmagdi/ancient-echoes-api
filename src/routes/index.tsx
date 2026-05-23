@@ -36,8 +36,8 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { translations, type Lang } from "@/lib/i18n";
 import { NATIONALITIES } from "@/lib/nationalities";
-import { compressImage } from "@/lib/image-compress";
-import { loadFaceModels, imageFromFile, extractDescriptor } from "@/lib/face-api";
+import { normalizeForFaceApi } from "@/lib/image-compress";
+import { loadFaceModels, extractDescriptor } from "@/lib/face-api";
 import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -170,15 +170,16 @@ function Index() {
     setMatchIndex(0);
     setLoading(true);
     try {
-      // Compress/resize for preview, then extract a 128-float face descriptor
-      // in the browser using face-api.js. Only the descriptor is sent to the
-      // server — the user's photo never leaves their device.
-      // Normalise: HEIC→JPEG, max 1200px, ~80% quality, target <1MB.
-      const uploadFile = await compressImage(file, 1 * 1024 * 1024, 1200);
+      // Single-pass mobile-safe pipeline:
+      //  - HEIC→JPEG only if the browser can't decode it natively
+      //  - createImageBitmap with EXIF orientation (fixes sideways iPhone photos)
+      //  - max 1200px, ~80% JPEG, target <1MB
+      //  - returns BOTH the upload File and the already-decoded image so we
+      //    don't re-decode the JPEG before face-api runs.
+      const { file: uploadFile, image } = await normalizeForFaceApi(file, 1 * 1024 * 1024, 1200);
       setPreviewUrl(URL.createObjectURL(uploadFile));
       await loadFaceModels();
-      const img = await imageFromFile(uploadFile);
-      const faceResult = await extractDescriptor(img);
+      const faceResult = await extractDescriptor(image);
       if (faceResult === "multiple_faces") {
         throw new Error(
           lang === "ar"
