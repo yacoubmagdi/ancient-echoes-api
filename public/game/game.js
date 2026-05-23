@@ -272,6 +272,36 @@ function renderResult(data) {
 fbBoot();
 show("start");
 
+/* ---------- Facebook Instant Games guard ----------
+   The Instant Games WebView does NOT support <input type="file">. Detect that
+   we're running inside the IG container and show a clear message + a button
+   to open the same flow in the system browser via FBInstant.openLink.
+*/
+(function guardInstantGames() {
+  if (!window.FBInstant || !FBInstant.getPlatform) return;
+  try {
+    const plat = FBInstant.getPlatform && FBInstant.getPlatform();
+    // 'IOS' / 'ANDROID' / 'WEB' / 'MOBILE_WEB'. IOS/ANDROID = native IG WebView.
+    if (plat === "IOS" || plat === "ANDROID") {
+      const input = document.getElementById("user-photo");
+      const err = document.getElementById("form-error");
+      if (input) input.disabled = true;
+      if (err) {
+        err.innerHTML =
+          "Photo upload isn't supported inside the Facebook app. " +
+          "<a href='#' id='open-external' style='color:#d4a84c;text-decoration:underline'>Open in browser</a> to continue.";
+        const a = document.getElementById("open-external");
+        if (a) a.addEventListener("click", (e) => {
+          e.preventDefault();
+          const url = "https://ancient-echoes-api.lovable.app/game/";
+          if (FBInstant.openLink) FBInstant.openLink(url).catch(() => {});
+          else window.open(url, "_blank");
+        });
+      }
+    }
+  } catch (_) { /* not in IG context */ }
+})();
+
 /* ---------- Image normalisation (HEIC convert + resize + compress) ----------
    Mobile-safe pipeline:
     - Prefer createImageBitmap({ imageOrientation: "from-image" }) — decodes
