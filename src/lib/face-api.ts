@@ -384,38 +384,6 @@ export async function extractDescriptor(
   return null;
 }
 
-/**
- * Create a brightness/contrast-enhanced copy of the image on a canvas.
- * Helps with low-light or washed-out photos.
- */
-function enhanceImage(
-  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
-): HTMLCanvasElement | null {
-  try {
-    const w = input instanceof HTMLVideoElement ? input.videoWidth : input.width;
-    const h = input instanceof HTMLVideoElement ? input.videoHeight : input.height;
-    if (!w || !h) return null;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    // Draw original
-    ctx.drawImage(input, 0, 0, w, h);
-
-    // Apply brightness + contrast boost via CSS filter on a second pass
-    ctx.filter = "brightness(1.3) contrast(1.4)";
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = "none";
-
-    return canvas;
-  } catch {
-    return null;
-  }
-}
-
 /** Euclidean distance between two equally-sized number arrays. */
 export function euclideanDistance(a: number[], b: number[]): number {
   if (a.length !== b.length) return Infinity;
