@@ -320,115 +320,68 @@ export async function extractDescriptor(
     media = input as HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
   }
 
-  // Lighter pipeline for mobile / in-app browsers: fewer passes, no separate
-  // detectAllFaces sweep, and age/gender only after we already have a hit.
-  const passes: Array<{ inputSize: number; scoreThreshold: number }> = [
-    { inputSize: 320, scoreThreshold: 0.4 },
-    { inputSize: 416, scoreThreshold: 0.3 },
-    { inputSize: 512, scoreThreshold: 0.2 },
+  // Lightweight pipeline for mobile / in-app browsers:
+  // - Only 2 passes (one fast, one fallback) to keep total time bounded.
+  // - Per-pass internal timeout so a wedged TF.js call never leaves the
+  //   promise pending forever (the outer timeout in index.tsx is a safety net,
+  //   not the primary guard).
+  // - No separate age/gender pass — saves a full model run; gender stays
+  //   user-selected.
+  const passes: Array<{ inputSize: number; scoreThreshold: number; timeoutMs: number }> = [
+    { inputSize: 320, scoreThreshold: 0.35, timeoutMs: 15_000 },
+    { inputSize: 512, scoreThreshold: 0.2, timeoutMs: 20_000 },
   ];
 
-  // First try with the original input
+  type DetectResult = {
+    descriptor: Float32Array;
+    landmarks: { positions: Array<{ x: number; y: number; _x?: number; _y?: number }> };
+    detection: { box: { x: number; y: number; width: number; height: number } };
+  };
+
   for (let i = 0; i < passes.length; i++) {
-    const { inputSize, scoreThreshold } = passes[i];
+    const pass = passes[i];
     const tp = performance.now();
-    const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
-    const result = await faceapi
-      .detectSingleFace(media as HTMLImageElement, opts)
-      .withFaceLandmarks()
-      .withFaceDescriptor();
+    const detectorOpts = new faceapi.TinyFaceDetectorOptions({
+      inputSize: pass.inputSize,
+      scoreThreshold: pass.scoreThreshold,
+    });
+    let result: DetectResult | undefined;
+    try {
+      result = (await Promise.race([
+        faceapi
+          .detectSingleFace(media as HTMLImageElement, detectorOpts)
+          .withFaceLandmarks()
+          .withFaceDescriptor(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("face-api detect timeout")), pass.timeoutMs),
+        ),
+      ])) as DetectResult | undefined;
+    } catch (e) {
+      console.warn("[face] step=detect pass timed out", { pass: i + 1, err: String(e) });
+    }
     console.info("[face] step=detect", {
       pass: i + 1,
-      inputSize,
-      threshold: scoreThreshold,
+      inputSize: pass.inputSize,
       found: !!result?.descriptor,
       ms: Math.round(performance.now() - tp),
     });
     if (result?.descriptor) {
-      const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
+      const lmPts = result.landmarks.positions.map((p: any) => ({
+        x: p.x ?? p._x,
+        y: p.y ?? p._y,
+      }));
       const skinTone = extractSkinToneFromRegion(media, result.detection.box, lmPts);
-      // Best-effort gender detection — don't block the main result if it fails
-      let detectedGender: "male" | "female" | undefined;
-      let genderProbability: number | undefined;
-      try {
-        const ag = await faceapi
-          .detectSingleFace(media as HTMLImageElement, opts)
-          .withAgeAndGender();
-        if (ag) {
-          detectedGender = ag.gender as "male" | "female";
-          genderProbability = ag.genderProbability;
-        }
-      } catch (e) {
-        console.warn("[face] age/gender failed, continuing without", e);
-      }
       bitmapToClose?.close?.();
       return {
         descriptor: Array.from(result.descriptor),
         skinTone,
-        detectedGender,
-        genderProbability,
       };
-    }
-  }
-
-  // If all passes failed, try with a brightness/contrast-normalized copy
-  const enhanced = enhanceImage(media);
-  if (enhanced) {
-    console.info("[face] step=enhance-retry");
-    for (const { inputSize, scoreThreshold } of passes) {
-      const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
-      const result = await faceapi
-        .detectSingleFace(enhanced, opts)
-        .withFaceLandmarks()
-        .withFaceDescriptor();
-      if (result?.descriptor) {
-        // Use original input for skin tone (enhanced has altered colors)
-        const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
-        const skinTone = extractSkinToneFromRegion(media, result.detection.box, lmPts);
-        bitmapToClose?.close?.();
-        return {
-          descriptor: Array.from(result.descriptor),
-          skinTone,
-        };
-      }
     }
   }
 
   console.warn("[face] FAIL stage=detect no face found after all passes");
   bitmapToClose?.close?.();
   return null;
-}
-
-/**
- * Create a brightness/contrast-enhanced copy of the image on a canvas.
- * Helps with low-light or washed-out photos.
- */
-function enhanceImage(
-  input: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
-): HTMLCanvasElement | null {
-  try {
-    const w = input instanceof HTMLVideoElement ? input.videoWidth : input.width;
-    const h = input instanceof HTMLVideoElement ? input.videoHeight : input.height;
-    if (!w || !h) return null;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    // Draw original
-    ctx.drawImage(input, 0, 0, w, h);
-
-    // Apply brightness + contrast boost via CSS filter on a second pass
-    ctx.filter = "brightness(1.3) contrast(1.4)";
-    ctx.drawImage(canvas, 0, 0);
-    ctx.filter = "none";
-
-    return canvas;
-  } catch {
-    return null;
-  }
 }
 
 /** Euclidean distance between two equally-sized number arrays. */
