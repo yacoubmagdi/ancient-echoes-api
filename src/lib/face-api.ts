@@ -302,12 +302,31 @@ export async function extractDescriptor(
   await loadFaceModels();
   const faceapi = await getFaceApi();
 
+  // face-api only accepts HTMLImageElement | HTMLCanvasElement | HTMLVideoElement
+  // | tf.Tensor3D. ImageBitmap (returned by createImageBitmap on iOS/Android)
+  // throws "toNetInput - expected media to be of type ...". Wrap it in a canvas.
+  let media: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
+  let bitmapToClose: ImageBitmap | null = null;
+  if (typeof ImageBitmap !== "undefined" && input instanceof ImageBitmap) {
+    const c = document.createElement("canvas");
+    c.width = input.width;
+    c.height = input.height;
+    const cctx = c.getContext("2d");
+    if (!cctx) throw new Error("Canvas 2D context unavailable");
+    cctx.drawImage(input, 0, 0);
+    media = c;
+    bitmapToClose = input;
+  } else {
+    media = input as HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
+  }
+
   // ── Check for multiple faces first ──
   const allFaces = await faceapi.detectAllFaces(
-    input as HTMLImageElement,
+    media as HTMLImageElement,
     new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }),
   );
   if (allFaces.length > 1) {
+    bitmapToClose?.close?.();
     return "multiple_faces";
   }
 
@@ -326,7 +345,7 @@ export async function extractDescriptor(
     const tp = performance.now();
     const opts = new faceapi.TinyFaceDetectorOptions({ inputSize, scoreThreshold });
     const result = await faceapi
-      .detectSingleFace(input as HTMLImageElement, opts)
+      .detectSingleFace(media as HTMLImageElement, opts)
       .withFaceLandmarks()
       .withFaceDescriptor()
       .withAgeAndGender();
@@ -339,7 +358,8 @@ export async function extractDescriptor(
     });
     if (result?.descriptor) {
       const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
-      const skinTone = extractSkinToneFromRegion(input as HTMLImageElement, result.detection.box, lmPts);
+      const skinTone = extractSkinToneFromRegion(media, result.detection.box, lmPts);
+      bitmapToClose?.close?.();
       return {
         descriptor: Array.from(result.descriptor),
         skinTone,
@@ -350,7 +370,7 @@ export async function extractDescriptor(
   }
 
   // If all passes failed, try with a brightness/contrast-normalized copy
-  const enhanced = enhanceImage(input as HTMLImageElement);
+  const enhanced = enhanceImage(media);
   if (enhanced) {
     console.info("[face] step=enhance-retry");
     for (const { inputSize, scoreThreshold } of passes) {
@@ -363,7 +383,8 @@ export async function extractDescriptor(
       if (result?.descriptor) {
         // Use original input for skin tone (enhanced has altered colors)
         const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
-        const skinTone = extractSkinToneFromRegion(input as HTMLImageElement, result.detection.box, lmPts);
+        const skinTone = extractSkinToneFromRegion(media, result.detection.box, lmPts);
+        bitmapToClose?.close?.();
         return {
           descriptor: Array.from(result.descriptor),
           skinTone,
@@ -375,6 +396,7 @@ export async function extractDescriptor(
   }
 
   console.warn("[face] FAIL stage=detect no face found after all passes");
+  bitmapToClose?.close?.();
   return null;
 }
 
