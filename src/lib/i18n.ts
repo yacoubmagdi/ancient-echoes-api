@@ -83,6 +83,9 @@ export const translations = {
     tryAnotherPersona: "Try another persona",
     skinToneLabel: "Skin tone matching",
     skinToneHint: "Reduces result variability when disabled",
+    privacyTitle: "Privacy Policy",
+    privacyText:
+      "This app does not store user photos or personal data. Images are processed for analysis only and are not retained on our servers.",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -163,6 +166,9 @@ export const translations = {
     tryAnotherPersona: "جرّب شخصية أخرى",
     skinToneLabel: "مطابقة لون البشرة",
     skinToneHint: "تعطيلها يحسّن ثبات النتائج",
+    privacyTitle: "سياسة الخصوصية",
+    privacyText:
+      "هذا التطبيق لا يقوم بحفظ صور المستخدمين أو بياناتهم. تتم معالجة الصور لأغراض التحليل فقط ولا يتم الاحتفاظ بها على خوادمنا.",
   },
 } as const;
 

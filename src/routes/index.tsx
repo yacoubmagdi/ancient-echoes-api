@@ -701,6 +701,14 @@ function Index() {
         )}
 
         <footer className="mt-20 text-center text-xs text-muted-foreground">
+          <div className="mx-auto max-w-2xl rounded-lg border border-border/50 bg-card/30 p-6">
+            <h2 className="mb-2 text-sm font-semibold text-foreground">
+              {t.privacyTitle}
+            </h2>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {t.privacyText}
+            </p>
+          </div>
         </footer>
       </div>
     </main>
