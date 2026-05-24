@@ -170,16 +170,42 @@ function Index() {
     setMatchIndex(0);
     setLoading(true);
     try {
-      // Single-pass mobile-safe pipeline:
-      //  - HEIC→JPEG only if the browser can't decode it natively
-      //  - createImageBitmap with EXIF orientation (fixes sideways iPhone photos)
-      //  - max 1200px, ~80% JPEG, target <1MB
-      //  - returns BOTH the upload File and the already-decoded image so we
-      //    don't re-decode the JPEG before face-api runs.
-      const { file: uploadFile, image } = await normalizeForFaceApi(file, 1 * 1024 * 1024, 1200);
+      // Timeout helper — guarantees the UI never gets stuck on a slow device
+      // or a wedged face-api call.
+      const withTimeout = <T,>(p: Promise<T>, ms: number, label: string) =>
+        Promise.race<T>([
+          p,
+          new Promise<T>((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    lang === "ar"
+                      ? `استغرقت العملية وقتًا أطول من المتوقع (${label}). جرّب صورة أصغر أو اتصال أفضل.`
+                      : `Operation timed out (${label}). Try a smaller photo or a better connection.`,
+                  ),
+                ),
+              ms,
+            ),
+          ),
+        ]);
+
+      const { file: uploadFile, image } = await withTimeout(
+        normalizeForFaceApi(file, 1 * 1024 * 1024, 1200),
+        20_000,
+        lang === "ar" ? "تحضير الصورة" : "image prep",
+      );
       setPreviewUrl(URL.createObjectURL(uploadFile));
-      await loadFaceModels();
-      const faceResult = await extractDescriptor(image);
+      await withTimeout(
+        loadFaceModels(),
+        30_000,
+        lang === "ar" ? "تحميل النموذج" : "model load",
+      );
+      const faceResult = await withTimeout(
+        extractDescriptor(image),
+        45_000,
+        lang === "ar" ? "تحليل الوجه" : "face analysis",
+      );
       if (faceResult === "multiple_faces") {
         throw new Error(
           lang === "ar"
@@ -214,7 +240,8 @@ function Index() {
         return;
       }
 
-      const data = await analyzeFace({
+      const data = await withTimeout(
+        analyzeFace({
         data: {
           descriptor,
           ...(skinToneEnabled ? { skin_tone: skinTone } : {}),
@@ -227,7 +254,10 @@ function Index() {
           ...(role && role !== "any" ? { role } : {}),
           ...(civilization && civilization !== "any" ? { civilization } : {}),
         },
-      });
+        }),
+        30_000,
+        lang === "ar" ? "الاتصال بالخادم" : "server call",
+      );
       if ((data as { error?: string })?.error) {
         throw new Error((data as { error?: string }).error);
       }
@@ -237,7 +267,9 @@ function Index() {
       analysisCache.set(cKey, { result: matchData, at: Date.now() });
     } catch (e) {
       console.error("[upload] face analysis failed:", e);
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      const msg = e instanceof Error ? e.message : (lang === "ar" ? "حدث خطأ غير متوقع" : "Something went wrong");
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
