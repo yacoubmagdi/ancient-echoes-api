@@ -332,35 +332,30 @@ export async function extractDescriptor(
     { inputSize: 512, scoreThreshold: 0.2, timeoutMs: 20_000 },
   ];
 
-  const runPass = async (
-    target: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
-    opts: { inputSize: number; scoreThreshold: number; timeoutMs: number },
-  ) => {
-    const detectorOpts = new faceapi.TinyFaceDetectorOptions({
-      inputSize: opts.inputSize,
-      scoreThreshold: opts.scoreThreshold,
-    });
-    return Promise.race([
-      faceapi
-        .detectSingleFace(target as HTMLImageElement, detectorOpts)
-        .withFaceLandmarks()
-        .withFaceDescriptor(),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("face-api detect timeout")), opts.timeoutMs),
-      ),
-    ]) as Promise<Awaited<ReturnType<typeof faceapi.detectSingleFace>> & {
-      descriptor: Float32Array;
-      landmarks: { positions: Array<{ x: number; y: number }> };
-      detection: { box: { x: number; y: number; width: number; height: number } };
-    } | undefined>;
+  type DetectResult = {
+    descriptor: Float32Array;
+    landmarks: { positions: Array<{ x: number; y: number; _x?: number; _y?: number }> };
+    detection: { box: { x: number; y: number; width: number; height: number } };
   };
 
   for (let i = 0; i < passes.length; i++) {
     const pass = passes[i];
     const tp = performance.now();
-    let result: Awaited<ReturnType<typeof runPass>> | undefined;
+    const detectorOpts = new faceapi.TinyFaceDetectorOptions({
+      inputSize: pass.inputSize,
+      scoreThreshold: pass.scoreThreshold,
+    });
+    let result: DetectResult | undefined;
     try {
-      result = await runPass(media, pass);
+      result = (await Promise.race([
+        faceapi
+          .detectSingleFace(media as HTMLImageElement, detectorOpts)
+          .withFaceLandmarks()
+          .withFaceDescriptor(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("face-api detect timeout")), pass.timeoutMs),
+        ),
+      ])) as DetectResult | undefined;
     } catch (e) {
       console.warn("[face] step=detect pass timed out", { pass: i + 1, err: String(e) });
     }
