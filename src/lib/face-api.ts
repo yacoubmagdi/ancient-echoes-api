@@ -320,23 +320,12 @@ export async function extractDescriptor(
     media = input as HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
   }
 
-  // ── Check for multiple faces first ──
-  const allFaces = await faceapi.detectAllFaces(
-    media as HTMLImageElement,
-    new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.4 }),
-  );
-  if (allFaces.length > 1) {
-    bitmapToClose?.close?.();
-    return "multiple_faces";
-  }
-
-  // Multi-pass: try different input sizes and thresholds (from strict to lenient)
+  // Lighter pipeline for mobile / in-app browsers: fewer passes, no separate
+  // detectAllFaces sweep, and age/gender only after we already have a hit.
   const passes: Array<{ inputSize: number; scoreThreshold: number }> = [
-    { inputSize: 416, scoreThreshold: 0.5 },
-    { inputSize: 512, scoreThreshold: 0.4 },
-    { inputSize: 320, scoreThreshold: 0.35 },
-    { inputSize: 608, scoreThreshold: 0.3 },
-    { inputSize: 416, scoreThreshold: 0.2 },
+    { inputSize: 320, scoreThreshold: 0.4 },
+    { inputSize: 416, scoreThreshold: 0.3 },
+    { inputSize: 512, scoreThreshold: 0.2 },
   ];
 
   // First try with the original input
@@ -347,8 +336,7 @@ export async function extractDescriptor(
     const result = await faceapi
       .detectSingleFace(media as HTMLImageElement, opts)
       .withFaceLandmarks()
-      .withFaceDescriptor()
-      .withAgeAndGender();
+      .withFaceDescriptor();
     console.info("[face] step=detect", {
       pass: i + 1,
       inputSize,
@@ -359,12 +347,26 @@ export async function extractDescriptor(
     if (result?.descriptor) {
       const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
       const skinTone = extractSkinToneFromRegion(media, result.detection.box, lmPts);
+      // Best-effort gender detection — don't block the main result if it fails
+      let detectedGender: "male" | "female" | undefined;
+      let genderProbability: number | undefined;
+      try {
+        const ag = await faceapi
+          .detectSingleFace(media as HTMLImageElement, opts)
+          .withAgeAndGender();
+        if (ag) {
+          detectedGender = ag.gender as "male" | "female";
+          genderProbability = ag.genderProbability;
+        }
+      } catch (e) {
+        console.warn("[face] age/gender failed, continuing without", e);
+      }
       bitmapToClose?.close?.();
       return {
         descriptor: Array.from(result.descriptor),
         skinTone,
-        detectedGender: result.gender as "male" | "female",
-        genderProbability: result.genderProbability,
+        detectedGender,
+        genderProbability,
       };
     }
   }
@@ -378,8 +380,7 @@ export async function extractDescriptor(
       const result = await faceapi
         .detectSingleFace(enhanced, opts)
         .withFaceLandmarks()
-        .withFaceDescriptor()
-        .withAgeAndGender();
+        .withFaceDescriptor();
       if (result?.descriptor) {
         // Use original input for skin tone (enhanced has altered colors)
         const lmPts = result.landmarks.positions.map((p: any) => ({ x: p.x ?? p._x, y: p.y ?? p._y }));
@@ -388,8 +389,6 @@ export async function extractDescriptor(
         return {
           descriptor: Array.from(result.descriptor),
           skinTone,
-          detectedGender: result.gender as "male" | "female",
-          genderProbability: result.genderProbability,
         };
       }
     }
