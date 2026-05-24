@@ -118,7 +118,7 @@ export async function normalizeForFaceApi(
   file: File,
   maxBytes = 1 * 1024 * 1024,
   maxDim = 1200,
-): Promise<{ file: File; image: HTMLImageElement | ImageBitmap }> {
+): Promise<{ file: File; image: HTMLCanvasElement }> {
   if (!file || file.size === 0) {
     throw new Error("Empty or unreadable image file.");
   }
@@ -177,9 +177,12 @@ export async function normalizeForFaceApi(
           { type: "image/jpeg", lastModified: Date.now() },
         );
         console.info("[upload] step=encode", { dim: d, q, outBytes: blob.size });
-        // Return the SAME decoded bitmap/img — caller uses this for face-api,
-        // avoiding a second full-resolution decode of the JPEG we just wrote.
-        return { file: outFile, image: decoded.drawable as HTMLImageElement | ImageBitmap };
+        // Return the resized canvas — face-api accepts HTMLCanvasElement
+        // (it does NOT accept ImageBitmap, which is what createImageBitmap
+        // returns on iOS/Android). The canvas already holds the resized
+        // pixels we just encoded, so no second decode is needed.
+        decoded.cleanup();
+        return { file: outFile, image: canvas };
       }
     }
   }
@@ -192,10 +195,15 @@ export async function normalizeForFaceApi(
       working.name.replace(/\.[^.]+$/, "") + ".jpg",
       { type: "image/jpeg", lastModified: Date.now() },
     );
-    return { file: outFile, image: decoded.drawable as HTMLImageElement | ImageBitmap };
+    decoded.cleanup();
+    return { file: outFile, image: canvas };
   }
-  // Could not encode at all — return the original and let face-api try anyway.
-  return { file: working, image: decoded.drawable as HTMLImageElement | ImageBitmap };
+  // Could not encode at all — draw original onto canvas and return that.
+  canvas.width = decoded.width;
+  canvas.height = decoded.height;
+  ctx.drawImage(decoded.drawable, 0, 0);
+  decoded.cleanup();
+  return { file: working, image: canvas };
 }
 
 /** Back-compat wrapper for callers that only need the compressed File. */
