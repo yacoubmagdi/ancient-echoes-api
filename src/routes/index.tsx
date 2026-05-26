@@ -737,7 +737,6 @@ function ShareButtons({
     .replace("{category}", category)
     .replace("{similarity}", String(similarity));
 
-  const [shareUrl, setShareUrl] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const savedIdRef = useRef<string | null>(null);
 
@@ -748,10 +747,8 @@ function ShareButtons({
     }
     setSaving(true);
     try {
-      // Compress user image for storage (small thumbnail)
       let userThumb: string | undefined;
       if (userImage) {
-        // Use a canvas to resize to small thumbnail for OG
         try {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -787,261 +784,39 @@ function ShareButtons({
       });
       savedIdRef.current = resp.id;
       const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const url = `${origin}/api/public/hooks/share-page?id=${resp.id}`;
-      setShareUrl(url);
-      return url;
+      return `${origin}/api/public/hooks/share-page?id=${resp.id}`;
     } catch (e) {
-      // fallback to current page
       return typeof window !== "undefined" ? window.location.href : "";
     } finally {
       setSaving(false);
     }
   }
 
-  const [campaign, setCampaign] = useState<string>(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("tiktok_campaign") ?? "";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("tiktok_campaign", campaign);
-  }, [campaign]);
-
-  const [includeLink, setIncludeLink] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return window.localStorage.getItem("tiktok_include_link") !== "0";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("tiktok_include_link", includeLink ? "1" : "0");
-  }, [includeLink]);
-
-  // Build hashtags from name + category, plus a few brand staples.
-  function toHashtag(s: string) {
-    // Keep letters/digits across scripts (incl. Arabic), strip everything else.
-    const cleaned = s.normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, "");
-    return cleaned ? `#${cleaned}` : "";
-  }
-  const baseTags = [
-    "#EchoesOfTheAncients",
-    "#AncientTwin",
-    "#FaceMatch",
-    "#History",
-    toHashtag(category),
-    toHashtag(name),
-  ];
-  const campaignTag = campaign.trim() ? toHashtag(campaign.trim()) : "";
-  const hashtags = Array.from(
-    new Set([...baseTags, campaignTag].filter(Boolean)),
-  ).join(" ");
-  function buildTiktokCaption(url: string) {
-    return includeLink
-      ? `${shareText}\n${url}\n\n${hashtags}`
-      : `${shareText}\n\n${hashtags}`;
-  }
-
-  async function handleShareClick(platform: string) {
+  async function handleShareFacebook() {
     const url = await ensureShareUrl();
     const encodedUrl = encodeURIComponent(url);
     const encodedText = encodeURIComponent(shareText);
-    const hrefs: Record<string, string> = {
-      twitter: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
-      whatsapp: `https://api.whatsapp.com/send?text=${encodedText}%20${encodedUrl}`,
-      telegram: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`,
-      linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
-    };
-    window.open(hrefs[platform], "_blank", "noopener,noreferrer");
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   }
-
-  const linkButtons = [
-    { key: "twitter", label: "X / Twitter", Icon: Twitter },
-    { key: "facebook", label: "Facebook", Icon: Facebook },
-    { key: "whatsapp", label: "WhatsApp", Icon: MessageCircle },
-    { key: "telegram", label: "Telegram", Icon: Send },
-    { key: "linkedin", label: "LinkedIn", Icon: Linkedin },
-  ];
-
-  async function copyLink() {
-    try {
-      const url = await ensureShareUrl();
-      await navigator.clipboard.writeText(`${shareText} ${url}`);
-      toast.success(t.shareCopied);
-    } catch {
-      toast.error("Copy failed");
-    }
-  }
-
-  async function copyForTiktok() {
-    try {
-      const url = await ensureShareUrl();
-      await navigator.clipboard.writeText(buildTiktokCaption(url));
-      toast.success(t.shareTiktokCopied);
-      window.open("https://www.tiktok.com/upload", "_blank", "noopener,noreferrer");
-    } catch {
-      toast.error("Copy failed");
-    }
-  }
-
-  /**
-   * Instagram has no public web share intent. Best we can do:
-   *  - Always copy the caption to the clipboard so the user can paste it.
-   *  - On mobile (where the IG app is likely installed), try the deep-link
-   *    URL schemes for Story/Post composer. These are app-only and silently
-   *    no-op if IG isn't installed, so we fall back to the web composer
-   *    after a short delay.
-   *  - On desktop, open the web Create/Home page directly.
-   */
-  async function shareToInstagram(target: "story" | "post") {
-    try {
-      const url = await ensureShareUrl();
-      await navigator.clipboard.writeText(buildTiktokCaption(url));
-    } catch {
-      toast.error("Copy failed");
-      return;
-    }
-    toast.success(t.shareInstagramCopied);
-
-    const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
-    const webFallback =
-      target === "post"
-        ? "https://www.instagram.com/create/select/"
-        : "https://www.instagram.com/";
-
-    if (isMobile) {
-      const deepLink =
-        target === "story"
-          ? "instagram://story-camera"
-          : "instagram://library?AssetPath=";
-      // Try the app first; if nothing handles it, swap to the web URL.
-      const start = Date.now();
-      window.location.href = deepLink;
-      window.setTimeout(() => {
-        // If the page is still focused after ~1.2s, the app didn't open.
-        if (Date.now() - start < 1500 && !document.hidden) {
-          window.open(webFallback, "_blank", "noopener,noreferrer");
-        }
-      }, 1200);
-      toast.message(t.shareInstagramOpening);
-    } else {
-      window.open(webFallback, "_blank", "noopener,noreferrer");
-    }
-  }
-
-  async function nativeShare() {
-    if (navigator.share) {
-      try {
-        const url = await ensureShareUrl();
-        await navigator.share({ title: name, text: shareText, url });
-      } catch {
-        /* user cancelled */
-      }
-    }
-  }
-
-  const canNativeShare = typeof navigator !== "undefined" && !!navigator.share;
 
   return (
     <div className="mt-6 border-t border-border/40 pt-5">
       <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">
         {t.shareTitle}
       </p>
-      <div className="mb-4">
-        <label
-          htmlFor="campaign-tag"
-          className="block text-xs font-medium text-muted-foreground mb-1"
-        >
-          {t.campaignLabel}
-        </label>
-        <Input
-          id="campaign-tag"
-          value={campaign}
-          onChange={(e) => setCampaign(e.target.value)}
-          placeholder={t.campaignPlaceholder}
-          maxLength={40}
-          className="h-9"
-        />
-        <p className="mt-1 text-[11px] text-muted-foreground">{t.campaignHint}</p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <label htmlFor="tiktok-include-link" className="text-xs text-muted-foreground">
-            {t.includeLinkLabel}
-          </label>
-          <Switch
-            id="tiktok-include-link"
-            checked={includeLink}
-            onCheckedChange={setIncludeLink}
-          />
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          disabled={saving}
-          onClick={() => handleShareClick("facebook")}
-          className="gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5]"
-        >
-          <Facebook className="h-4 w-4" />
-          {t.shareOnFacebook}
-        </Button>
-        {linkButtons.map(({ key, label, Icon }) => (
-          <Button
-            key={key}
-            variant="outline"
-            size="icon"
-            aria-label={label}
-            title={label}
-            disabled={saving}
-            onClick={() => handleShareClick(key)}
-          >
-            <Icon className="h-4 w-4" />
-          </Button>
-        ))}
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={copyLink}
-          aria-label={t.shareCopy}
-          title={t.shareCopy}
-        >
-          <Link2 className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={copyForTiktok}
-          aria-label={t.shareTiktok}
-          title={t.shareTiktok}
-        >
-          <Music2 className="h-4 w-4" />
-        </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label={t.shareInstagram}
-              title={t.shareInstagram}
-            >
-              <Instagram className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => shareToInstagram("story")}>
-              {t.shareInstagramStory}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => shareToInstagram("post")}>
-              {t.shareInstagramPost}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {canNativeShare && (
-          <Button variant="secondary" size="sm" onClick={nativeShare} className="gap-2">
-            <Send className="h-4 w-4" />
-            {t.shareTitle}
-          </Button>
-        )}
-      </div>
+      <Button
+        size="sm"
+        disabled={saving}
+        onClick={handleShareFacebook}
+        className="gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5]"
+      >
+        <Facebook className="h-4 w-4" />
+        {t.shareOnFacebook}
+      </Button>
     </div>
   );
 }
