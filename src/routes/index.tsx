@@ -1061,20 +1061,18 @@ function DownloadCardButton({
     }
   }
 
-  function openShare(network: "whatsapp" | "facebook" | "twitter" | "telegram") {
+  function openShareFacebook() {
     const shareText = t.shareText
       .replace("{name}", name)
       .replace("{category}", category)
       .replace("{similarity}", String(Math.round(similarity)));
     const url = window.location.href;
     const enc = encodeURIComponent;
-    const map: Record<string, string> = {
-      whatsapp: `https://wa.me/?text=${enc(shareText + " " + url)}`,
-      facebook: `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(shareText)}`,
-      twitter: `https://twitter.com/intent/tweet?text=${enc(shareText)}&url=${enc(url)}`,
-      telegram: `https://t.me/share/url?url=${enc(url)}&text=${enc(shareText)}`,
-    };
-    window.open(map[network], "_blank", "noopener,noreferrer");
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(shareText)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   }
 
   return (
@@ -1105,22 +1103,13 @@ function DownloadCardButton({
                   <Download className="h-4 w-4" />
                   {t.downloadImage}
                 </Button>
-                {typeof navigator !== "undefined" && !!navigator.share && (
-                  <Button variant="secondary" size="icon" onClick={nativeShareImage} aria-label={t.shareTitle} title={t.shareTitle}>
-                    <Send className="h-4 w-4" />
-                  </Button>
-                )}
-                <Button variant="outline" size="icon" onClick={() => openShare("whatsapp")} aria-label="WhatsApp" title="WhatsApp">
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => openShare("facebook")} aria-label="Facebook" title="Facebook">
+                <Button
+                  size="sm"
+                  onClick={openShareFacebook}
+                  className="gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5]"
+                >
                   <Facebook className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => openShare("twitter")} aria-label="X / Twitter" title="X / Twitter">
-                  <Twitter className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="icon" onClick={() => openShare("telegram")} aria-label="Telegram" title="Telegram">
-                  <Send className="h-4 w-4" />
+                  {t.shareOnFacebook}
                 </Button>
               </div>
             </div>
