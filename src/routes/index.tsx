@@ -975,6 +975,15 @@ function ShareButtons({
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={saving}
+          onClick={() => handleShareClick("facebook")}
+          className="gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5]"
+        >
+          <Facebook className="h-4 w-4" />
+          {t.shareOnFacebook}
+        </Button>
         {linkButtons.map(({ key, label, Icon }) => (
           <Button
             key={key}
