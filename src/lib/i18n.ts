@@ -87,6 +87,36 @@ export const translations = {
     privacyTitle: "Privacy Policy",
     privacyText:
       "This app does not store user photos or personal data. Images are processed for analysis only and are not retained on our servers.",
+    fbSetupNav: "Publish on Facebook",
+    fbSetupTitle: "Publish on Facebook Instant Games",
+    fbSetupIntro:
+      "Follow these steps to publish Ancient Echoes as a playable Facebook Instant Game.",
+    fbSetupDownload: "Download game files (.zip)",
+    fbSetupDownloadHint:
+      "Contains index.html, game.js, style.css and fbapp-config.json — ready to upload.",
+    fbSetupStepsTitle: "Steps",
+    fbSetupStep1Title: "Create a Facebook App",
+    fbSetupStep1:
+      "Go to developers.facebook.com → My Apps → Create App → choose the 'Instant Games' use case.",
+    fbSetupStep2Title: "Upload the ZIP",
+    fbSetupStep2:
+      "In the app dashboard, open Instant Games → Web Hosting → Upload Version, and drop the ZIP file you just downloaded.",
+    fbSetupStep3Title: "Add icon and cover art",
+    fbSetupStep3:
+      "Provide a 1024×1024 icon and a 720×720 cover image under Instant Games → Assets.",
+    fbSetupStep4Title: "Submit for review",
+    fbSetupStep4:
+      "Fill the App Review form (privacy policy URL, category, demo video) and submit. Approval usually takes a few days.",
+    fbSetupStep5Title: "Go live",
+    fbSetupStep5:
+      "Once approved, publish the version. The game will appear on Facebook and Messenger Instant Games.",
+    fbSetupRequirementsTitle: "Requirements checklist",
+    fbSetupReq1: "A Facebook developer account",
+    fbSetupReq2: "Public privacy policy URL",
+    fbSetupReq3: "App icon (1024×1024 PNG) and cover (720×720 PNG)",
+    fbSetupReq4: "Short demo video (15–30 seconds)",
+    fbSetupBack: "Back to home",
+    fbSetupDocsLink: "Open Facebook Instant Games docs",
   },
   ar: {
     badge: "مطابقة الوجه بالذكاء الاصطناعي",
@@ -171,6 +201,36 @@ export const translations = {
     privacyTitle: "سياسة الخصوصية",
     privacyText:
       "هذا التطبيق لا يقوم بحفظ صور المستخدمين أو بياناتهم. تتم معالجة الصور لأغراض التحليل فقط ولا يتم الاحتفاظ بها على خوادمنا.",
+    fbSetupNav: "النشر على فيسبوك",
+    fbSetupTitle: "نشر اللعبة على Facebook Instant Games",
+    fbSetupIntro:
+      "اتبع هذه الخطوات لنشر «أصداء القدماء» كلعبة قابلة للعب على فيسبوك.",
+    fbSetupDownload: "تحميل ملفات اللعبة (.zip)",
+    fbSetupDownloadHint:
+      "تحتوي على index.html و game.js و style.css و fbapp-config.json — جاهزة للرفع.",
+    fbSetupStepsTitle: "الخطوات",
+    fbSetupStep1Title: "أنشئ تطبيقًا على فيسبوك",
+    fbSetupStep1:
+      "ادخل إلى developers.facebook.com → My Apps → Create App ثم اختر استخدام «Instant Games».",
+    fbSetupStep2Title: "ارفع ملف ZIP",
+    fbSetupStep2:
+      "من لوحة التطبيق: Instant Games → Web Hosting → Upload Version، ثم اسحب ملف ZIP الذي حمّلته للتو.",
+    fbSetupStep3Title: "أضف الأيقونة وصورة الغلاف",
+    fbSetupStep3:
+      "ارفع أيقونة 1024×1024 وصورة غلاف 720×720 من Instant Games → Assets.",
+    fbSetupStep4Title: "أرسل للمراجعة",
+    fbSetupStep4:
+      "املأ نموذج App Review (رابط سياسة الخصوصية، الفئة، فيديو تجريبي) وأرسله. عادة تستغرق المراجعة بضعة أيام.",
+    fbSetupStep5Title: "النشر للجمهور",
+    fbSetupStep5:
+      "بعد الموافقة، انشر الإصدار. ستظهر اللعبة على فيسبوك وماسنجر Instant Games.",
+    fbSetupRequirementsTitle: "قائمة المتطلبات",
+    fbSetupReq1: "حساب مطوّر على فيسبوك",
+    fbSetupReq2: "رابط عام لسياسة الخصوصية",
+    fbSetupReq3: "أيقونة (1024×1024 PNG) وصورة غلاف (720×720 PNG)",
+    fbSetupReq4: "فيديو تجريبي قصير (15–30 ثانية)",
+    fbSetupBack: "العودة للرئيسية",
+    fbSetupDocsLink: "افتح توثيق Facebook Instant Games",
   },
 } as const;
 

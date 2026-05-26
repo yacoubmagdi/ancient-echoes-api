@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FacebookSetupRouteImport } from './routes/facebook-setup'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -23,7 +24,13 @@ import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './route
 import { Route as ApiPublicHooksGamePersonasRouteImport } from './routes/api/public/hooks/game-personas'
 import { Route as ApiPublicHooksGameAnalyzeRouteImport } from './routes/api/public/hooks/game-analyze'
 import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
+import { Route as ApiPublicFbGameZipRouteImport } from './routes/api/public/fb-game.zip'
 
+const FacebookSetupRoute = FacebookSetupRouteImport.update({
+  id: '/facebook-setup',
+  path: '/facebook-setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -100,14 +107,21 @@ const ApiPublicHooksCheckSourceUrlsRoute =
     path: '/api/public/hooks/check-source-urls',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicFbGameZipRoute = ApiPublicFbGameZipRouteImport.update({
+  id: '/api/public/fb-game/zip',
+  path: '/api/public/fb-game/zip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -121,9 +135,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -138,9 +154,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -156,9 +174,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -172,9 +192,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -188,9 +210,11 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -205,7 +229,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  FacebookSetupRoute: typeof FacebookSetupRoute
   ResultIdRoute: typeof ResultIdRoute
+  ApiPublicFbGameZipRoute: typeof ApiPublicFbGameZipRoute
   ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
   ApiPublicHooksGameAnalyzeRoute: typeof ApiPublicHooksGameAnalyzeRoute
   ApiPublicHooksGamePersonasRoute: typeof ApiPublicHooksGamePersonasRoute
@@ -218,6 +244,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/facebook-setup': {
+      id: '/facebook-setup'
+      path: '/facebook-setup'
+      fullPath: '/facebook-setup'
+      preLoaderRoute: typeof FacebookSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -316,6 +349,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksCheckSourceUrlsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/fb-game/zip': {
+      id: '/api/public/fb-game/zip'
+      path: '/api/public/fb-game/zip'
+      fullPath: '/api/public/fb-game/zip'
+      preLoaderRoute: typeof ApiPublicFbGameZipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -335,7 +375,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  FacebookSetupRoute: FacebookSetupRoute,
   ResultIdRoute: ResultIdRoute,
+  ApiPublicFbGameZipRoute: ApiPublicFbGameZipRoute,
   ApiPublicHooksCheckSourceUrlsRoute: ApiPublicHooksCheckSourceUrlsRoute,
   ApiPublicHooksGameAnalyzeRoute: ApiPublicHooksGameAnalyzeRoute,
   ApiPublicHooksGamePersonasRoute: ApiPublicHooksGamePersonasRoute,
