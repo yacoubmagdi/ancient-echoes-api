@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as FacebookSetupRouteImport } from './routes/facebook-setup'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -25,6 +26,11 @@ import { Route as ApiPublicHooksGameAnalyzeRouteImport } from './routes/api/publ
 import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
 import { Route as ApiPublicFbGameZipRouteImport } from './routes/api/public/fb-game.zip'
 
+const FacebookSetupRoute = FacebookSetupRouteImport.update({
+  id: '/facebook-setup',
+  path: '/facebook-setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
+  '/facebook-setup': typeof FacebookSetupRoute
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
@@ -165,6 +174,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/auth'
+    | '/facebook-setup'
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
@@ -217,6 +229,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
+  FacebookSetupRoute: typeof FacebookSetupRoute
   ResultIdRoute: typeof ResultIdRoute
   ApiPublicFbGameZipRoute: typeof ApiPublicFbGameZipRoute
   ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
@@ -231,6 +244,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/facebook-setup': {
+      id: '/facebook-setup'
+      path: '/facebook-setup'
+      fullPath: '/facebook-setup'
+      preLoaderRoute: typeof FacebookSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
+  FacebookSetupRoute: FacebookSetupRoute,
   ResultIdRoute: ResultIdRoute,
   ApiPublicFbGameZipRoute: ApiPublicFbGameZipRoute,
   ApiPublicHooksCheckSourceUrlsRoute: ApiPublicHooksCheckSourceUrlsRoute,
