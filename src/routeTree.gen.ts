@@ -23,6 +23,7 @@ import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './route
 import { Route as ApiPublicHooksGamePersonasRouteImport } from './routes/api/public/hooks/game-personas'
 import { Route as ApiPublicHooksGameAnalyzeRouteImport } from './routes/api/public/hooks/game-analyze'
 import { Route as ApiPublicHooksCheckSourceUrlsRouteImport } from './routes/api/public/hooks/check-source-urls'
+import { Route as ApiPublicFbGameZipRouteImport } from './routes/api/public/fb-game.zip'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -100,6 +101,11 @@ const ApiPublicHooksCheckSourceUrlsRoute =
     path: '/api/public/hooks/check-source-urls',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicFbGameZipRoute = ApiPublicFbGameZipRouteImport.update({
+  id: '/api/public/fb-game/zip',
+  path: '/api/public/fb-game/zip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/admin/enroll': typeof AdminEnrollRoute
   '/admin/source-review': typeof AdminSourceReviewRoute
   '/result/$id': typeof ResultIdRoute
+  '/api/public/fb-game/zip': typeof ApiPublicFbGameZipRoute
   '/api/public/hooks/check-source-urls': typeof ApiPublicHooksCheckSourceUrlsRoute
   '/api/public/hooks/game-analyze': typeof ApiPublicHooksGameAnalyzeRoute
   '/api/public/hooks/game-personas': typeof ApiPublicHooksGamePersonasRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/admin/enroll'
     | '/admin/source-review'
     | '/result/$id'
+    | '/api/public/fb-game/zip'
     | '/api/public/hooks/check-source-urls'
     | '/api/public/hooks/game-analyze'
     | '/api/public/hooks/game-personas'
@@ -206,6 +218,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResultIdRoute: typeof ResultIdRoute
+  ApiPublicFbGameZipRoute: typeof ApiPublicFbGameZipRoute
   ApiPublicHooksCheckSourceUrlsRoute: typeof ApiPublicHooksCheckSourceUrlsRoute
   ApiPublicHooksGameAnalyzeRoute: typeof ApiPublicHooksGameAnalyzeRoute
   ApiPublicHooksGamePersonasRoute: typeof ApiPublicHooksGamePersonasRoute
@@ -316,6 +329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksCheckSourceUrlsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/fb-game/zip': {
+      id: '/api/public/fb-game/zip'
+      path: '/api/public/fb-game/zip'
+      fullPath: '/api/public/fb-game/zip'
+      preLoaderRoute: typeof ApiPublicFbGameZipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -336,6 +356,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
   ResultIdRoute: ResultIdRoute,
+  ApiPublicFbGameZipRoute: ApiPublicFbGameZipRoute,
   ApiPublicHooksCheckSourceUrlsRoute: ApiPublicHooksCheckSourceUrlsRoute,
   ApiPublicHooksGameAnalyzeRoute: ApiPublicHooksGameAnalyzeRoute,
   ApiPublicHooksGamePersonasRoute: ApiPublicHooksGamePersonasRoute,
@@ -351,13 +372,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
