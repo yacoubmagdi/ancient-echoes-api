@@ -1039,28 +1039,6 @@ function DownloadCardButton({
     toast.success(t.downloadCardSaved);
   }
 
-  async function nativeShareImage() {
-    if (!previewSrc) return;
-    try {
-      const blob = await (await fetch(previewSrc)).blob();
-      const file = new File([blob], `echoes-${name.replace(/\s+/g, "-")}.png`, { type: "image/png" });
-      const shareText = t.shareText
-        .replace("{name}", name)
-        .replace("{category}", category)
-        .replace("{similarity}", String(Math.round(similarity)));
-      const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: name, text: shareText });
-      } else if (navigator.share) {
-        await navigator.share({ title: name, text: shareText, url: window.location.href });
-      } else {
-        downloadImage();
-      }
-    } catch {
-      /* cancelled */
-    }
-  }
-
   function openShareFacebook() {
     const shareText = t.shareText
       .replace("{name}", name)
