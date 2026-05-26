@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ar as arLocale } from "date-fns/locale";
@@ -708,6 +708,14 @@ function Index() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               {t.privacyText}
             </p>
+          </div>
+          <div className="mt-4">
+            <Link
+              to="/facebook-setup"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {t.fbSetupNav}
+            </Link>
           </div>
         </footer>
       </div>
