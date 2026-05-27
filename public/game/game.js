@@ -3,7 +3,7 @@
    -> POST to Lovable backend -> show top match. */
 
 const APP_BASE = "https://ancient-echoes-api.lovable.app";
-const MODELS_URL = APP_BASE + "/models";
+const MODELS_URL = "./models";
 const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
 
 const $ = (id) => document.getElementById(id);
