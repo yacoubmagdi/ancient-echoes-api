@@ -3,6 +3,8 @@ import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Download, ExternalLink, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { zipSync, strToU8 } from "fflate";
 
 export const Route = createFileRoute("/facebook-setup")({
   head: () => ({
@@ -27,6 +29,36 @@ export const Route = createFileRoute("/facebook-setup")({
 function FacebookSetupPage() {
   const { t, lang } = useI18n();
   const isRtl = lang === "ar";
+  const [building, setBuilding] = useState(false);
+
+  const handleDownload = async () => {
+    try {
+      setBuilding(true);
+      const files = ["index.html", "game.js", "style.css", "fbapp-config.json"];
+      const entries = await Promise.all(
+        files.map(async (f) => {
+          const res = await fetch(`/game/${f}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`Failed to fetch ${f}`);
+          return [f, strToU8(await res.text())] as const;
+        }),
+      );
+      const zipped = zipSync(Object.fromEntries(entries));
+      const blob = new Blob([zipped], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ancient-echoes-fb-instant-game.zip";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("Download failed. Please try again.");
+    } finally {
+      setBuilding(false);
+    }
+  };
 
   const steps = [
     { title: t.fbSetupStep1Title, body: t.fbSetupStep1 },
@@ -74,11 +106,14 @@ function FacebookSetupPage() {
                 {t.fbSetupDownloadHint}
               </p>
             </div>
-            <Button asChild size="lg" className="bg-[#1877F2] hover:bg-[#1666d4] text-white">
-              <a href="/api/public/fb-game/zip" download>
-                <Download className="h-4 w-4" />
-                {t.fbSetupDownload}
-              </a>
+            <Button
+              size="lg"
+              onClick={handleDownload}
+              disabled={building}
+              className="bg-[#1877F2] hover:bg-[#1666d4] text-white"
+            >
+              <Download className="h-4 w-4" />
+              {building ? "..." : t.fbSetupDownload}
             </Button>
           </div>
         </Card>
