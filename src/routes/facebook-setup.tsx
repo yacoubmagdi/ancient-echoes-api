@@ -34,11 +34,26 @@ function FacebookSetupPage() {
   const handleDownload = async () => {
     try {
       setBuilding(true);
-      const files = ["index.html", "game.js", "style.css", "fbapp-config.json"];
+      const files = [
+        "index.html",
+        "game.js",
+        "style.css",
+        "fbapp-config.json",
+        "models/tiny_face_detector_model-weights_manifest.json",
+        "models/tiny_face_detector_model.bin",
+        "models/face_landmark_68_model-weights_manifest.json",
+        "models/face_landmark_68_model.bin",
+        "models/face_recognition_model-weights_manifest.json",
+        "models/face_recognition_model.bin",
+      ];
       const entries = await Promise.all(
         files.map(async (f) => {
-          const res = await fetch(`/game/${f}`, { cache: "no-store" });
+          const source = f.startsWith("models/") ? `/${f}` : `/game/${f}`;
+          const res = await fetch(source, { cache: "no-store" });
           if (!res.ok) throw new Error(`Failed to fetch ${f}`);
+          if (f.endsWith(".bin")) {
+            return [f, new Uint8Array(await res.arrayBuffer())] as const;
+          }
           return [f, strToU8(await res.text())] as const;
         }),
       );
