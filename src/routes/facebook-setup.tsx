@@ -30,6 +30,9 @@ function FacebookSetupPage() {
   const { t, lang } = useI18n();
   const isRtl = lang === "ar";
   const [building, setBuilding] = useState(false);
+  const localRunNote = isRtl
+    ? "مهم: ملف ZIP مخصص للرفع على Facebook Instant Games أو للتشغيل عبر سيرفر/استضافة. فتح index.html مباشرة من الجهاز قد يمنع تحميل الملفات ويُظهر Failed to fetch."
+    : "Important: this ZIP is meant for Facebook Instant Games upload or for running through a server/hosting. Opening index.html directly from your device may block file loading and show Failed to fetch.";
 
   const handleDownload = async () => {
     try {
@@ -39,6 +42,7 @@ function FacebookSetupPage() {
         "game.js",
         "style.css",
         "fbapp-config.json",
+        "README.txt",
         "models/tiny_face_detector_model-weights_manifest.json",
         "models/tiny_face_detector_model.bin",
         "models/face_landmark_68_model-weights_manifest.json",
@@ -48,6 +52,17 @@ function FacebookSetupPage() {
       ];
       const entries = await Promise.all(
         files.map(async (f) => {
+          if (f === "README.txt") {
+            const readme = [
+              "Ancient Echoes — Facebook Instant Game package",
+              "",
+              "How to use:",
+              "1. Upload this ZIP to Facebook Instant Games, or host its contents on a web server.",
+              "2. Do not open index.html directly with file:// from your computer.",
+              "3. If you want to test locally, serve the extracted folder with a simple local server.",
+            ].join("\n");
+            return [f, strToU8(readme)] as const;
+          }
           const source = f.startsWith("models/") ? `/${f}` : `/game/${f}`;
           const res = await fetch(source, { cache: "no-store" });
           if (!res.ok) throw new Error(`Failed to fetch ${f}`);
@@ -120,6 +135,7 @@ function FacebookSetupPage() {
               <p className="text-sm text-muted-foreground">
                 {t.fbSetupDownloadHint}
               </p>
+              <p className="mt-2 text-sm text-muted-foreground">{localRunNote}</p>
             </div>
             <Button
               size="lg"
