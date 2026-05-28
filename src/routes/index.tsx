@@ -40,6 +40,7 @@ import { normalizeForFaceApi } from "@/lib/image-compress";
 import { loadFaceModels, extractDescriptor } from "@/lib/face-api";
 import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
+import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl } from "@/lib/share-url";
 import { supabase } from "@/integrations/supabase/client";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 import heroBg from "@/assets/egypteca-hero-bg.png";
@@ -750,8 +751,7 @@ function ShareButtons({
 
   async function ensureShareUrl(): Promise<string> {
     if (savedIdRef.current) {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      return `${origin}/api/public/hooks/share-page?id=${savedIdRef.current}`;
+      return buildPublishedSharePageUrl(savedIdRef.current);
     }
     setSaving(true);
     try {
@@ -791,10 +791,9 @@ function ShareButtons({
         },
       });
       savedIdRef.current = resp.id;
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      return `${origin}/api/public/hooks/share-page?id=${resp.id}`;
+      return buildPublishedSharePageUrl(resp.id, resp.share_image_url);
     } catch (e) {
-      return typeof window !== "undefined" ? window.location.href : "";
+      return typeof window !== "undefined" ? window.location.href : buildPublishedSharePageUrl(crypto.randomUUID());
     } finally {
       setSaving(false);
     }
@@ -802,8 +801,7 @@ function ShareButtons({
 
   async function handleShareFacebook() {
     const url = await ensureShareUrl();
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    const redirectUrl = `${origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareText)}`;
+    const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
     window.open(
       redirectUrl,
       "_blank",
@@ -849,8 +847,10 @@ function DownloadCardButton({
   isRtl: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const savedShareIdRef = useRef<string | null>(null);
 
   function loadImg(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -1047,13 +1047,45 @@ function DownloadCardButton({
     toast.success(t.downloadCardSaved);
   }
 
-  function openShareFacebook() {
+  async function ensureShareUrl() {
+    if (!previewSrc) return "";
+    if (savedShareIdRef.current) {
+      return buildPublishedSharePageUrl(savedShareIdRef.current);
+    }
+
+    setSharing(true);
+    try {
+      const resp = await saveSharedResult({
+        data: {
+          match_name: name,
+          category,
+          similarity: Math.round(similarity),
+          description,
+          match_image_url: matchImage,
+          user_image_data: userImage ?? undefined,
+          share_image_data: previewSrc,
+        },
+      });
+      savedShareIdRef.current = resp.id;
+      return buildPublishedSharePageUrl(resp.id, resp.share_image_url);
+    } catch {
+      return "";
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function openShareFacebook() {
     const shareText = t.shareText
       .replace("{name}", name)
       .replace("{category}", category)
       .replace("{similarity}", String(Math.round(similarity)));
-    const url = window.location.href;
-    const redirectUrl = `${window.location.origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareText)}`;
+    const url = await ensureShareUrl();
+    if (!url) {
+      toast.error("تعذر تجهيز رابط المشاركة");
+      return;
+    }
+    const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
     window.open(
       redirectUrl,
       "_blank",
@@ -1092,6 +1124,7 @@ function DownloadCardButton({
                 <Button
                   size="sm"
                   onClick={openShareFacebook}
+                  disabled={sharing}
                   className="gap-2 bg-[#1877F2] text-white hover:bg-[#166FE5]"
                 >
                   <Facebook className="h-4 w-4" />
