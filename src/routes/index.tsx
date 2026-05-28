@@ -40,7 +40,7 @@ import { normalizeForFaceApi } from "@/lib/image-compress";
 import { loadFaceModels, extractDescriptor } from "@/lib/face-api";
 import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
-import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl } from "@/lib/share-url";
+import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl, PUBLISHED_BASE_URL } from "@/lib/share-url";
 import { supabase } from "@/integrations/supabase/client";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 import heroBg from "@/assets/egypteca-hero-bg.png";
@@ -793,7 +793,7 @@ function ShareButtons({
       savedIdRef.current = resp.id;
       return buildPublishedSharePageUrl(resp.id, resp.share_image_url);
     } catch (e) {
-      return typeof window !== "undefined" ? window.location.href : buildPublishedSharePageUrl(crypto.randomUUID());
+      return typeof window !== "undefined" ? PUBLISHED_BASE_URL : PUBLISHED_BASE_URL;
     } finally {
       setSaving(false);
     }
