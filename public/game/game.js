@@ -33,6 +33,7 @@ let state = {
   modelsLoaded: false,
   lastResult: null,
   shareUrl: null,
+  shareImageData: null,
 };
 
 /* ---------- FB Instant Games bootstrap (optional) ---------- */
@@ -171,7 +172,7 @@ async function buildShareImage() {
   ctx.font = "28px Georgia, serif";
   ctx.fillText("ancient-echoes-api.lovable.app", W/2, 1020);
 
-  return canvas.toDataURL("image/jpeg", 0.9);
+  return canvas.toDataURL("image/png");
 }
 
 async function shareResult() {
@@ -180,7 +181,10 @@ async function shareResult() {
   const msg  = `I'm ${sim} ${name} on Ancient Echoes!`;
 
   let image;
-  try { image = await buildShareImage(); }
+  try {
+    image = await buildShareImage();
+    state.shareImageData = image;
+  }
   catch (e) { console.warn("share image build failed", e); image = state.fileDataUrl; }
 
   if (window.FBInstant && FBInstant.shareAsync) {
@@ -311,7 +315,14 @@ function renderResult(data) {
     $("sim-fill").style.width = similarity + "%";
   });
 
-  state.lastResult = { match_name: name, category, similarity, description: desc, match_image_url: matchImg };
+  state.lastResult = {
+    match_name: name,
+    category,
+    similarity,
+    description: desc,
+    match_image_url: matchImg,
+    share_image_data: state.shareImageData || undefined,
+  };
   state.shareUrl = null;
   // Fire-and-forget: save to backend so the share URL unfurls with OG image
   saveAndGetShareUrl().catch((e) => console.warn("save failed", e));
