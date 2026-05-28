@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -58,9 +59,9 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
               })
             : null;
 
-          return new Response(JSON.stringify({ id }), {
+          return new Response(JSON.stringify({ id, share_image_url: shareImageUrl }), {
             status: 200,
-            headers: { "Content-Type": "application/json", ...CORS, ...(shareImageUrl ? { "X-Share-Image": shareImageUrl } : {}) },
+            headers: { "Content-Type": "application/json", ...CORS },
           });
         } catch (e: any) {
           return new Response(`Bad request: ${e?.message ?? "unknown"}`, { status: 400, headers: CORS });
