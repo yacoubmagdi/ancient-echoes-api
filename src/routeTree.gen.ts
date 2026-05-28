@@ -18,6 +18,7 @@ import { Route as AdminSourceReviewRouteImport } from './routes/admin.source-rev
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
 import { Route as ApiPublicHooksVerifySourceRelevanceRouteImport } from './routes/api/public/hooks/verify-source-relevance'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
+import { Route as ApiPublicHooksSaveResultRouteImport } from './routes/api/public/hooks/save-result'
 import { Route as ApiPublicHooksRegeneratePersonaImageRouteImport } from './routes/api/public/hooks/regenerate-persona-image'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
 import { Route as ApiPublicHooksGeneratePersonaImagesRouteImport } from './routes/api/public/hooks/generate-persona-images'
@@ -72,6 +73,12 @@ const ApiPublicHooksSharePageRoute = ApiPublicHooksSharePageRouteImport.update({
   path: '/api/public/hooks/share-page',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSaveResultRoute =
+  ApiPublicHooksSaveResultRouteImport.update({
+    id: '/api/public/hooks/save-result',
+    path: '/api/public/hooks/save-result',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRegeneratePersonaImageRoute =
   ApiPublicHooksRegeneratePersonaImageRouteImport.update({
     id: '/api/public/hooks/regenerate-persona-image',
@@ -128,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
+  '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -146,6 +154,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
+  '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -165,6 +174,7 @@ export interface FileRoutesById {
   '/api/public/hooks/generate-persona-images': typeof ApiPublicHooksGeneratePersonaImagesRoute
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
+  '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
+    | '/api/public/hooks/save-result'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesByTo: FileRoutesByTo
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
+    | '/api/public/hooks/save-result'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   id:
@@ -221,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/generate-persona-images'
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
+    | '/api/public/hooks/save-result'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesById: FileRoutesById
@@ -238,6 +251,7 @@ export interface RootRouteChildren {
   ApiPublicHooksGeneratePersonaImagesRoute: typeof ApiPublicHooksGeneratePersonaImagesRoute
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
   ApiPublicHooksRegeneratePersonaImageRoute: typeof ApiPublicHooksRegeneratePersonaImageRoute
+  ApiPublicHooksSaveResultRoute: typeof ApiPublicHooksSaveResultRoute
   ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
   ApiPublicHooksVerifySourceRelevanceRoute: typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -305,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/share-page'
       fullPath: '/api/public/hooks/share-page'
       preLoaderRoute: typeof ApiPublicHooksSharePageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/save-result': {
+      id: '/api/public/hooks/save-result'
+      path: '/api/public/hooks/save-result'
+      fullPath: '/api/public/hooks/save-result'
+      preLoaderRoute: typeof ApiPublicHooksSaveResultRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/regenerate-persona-image': {
@@ -386,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksOgImageRoute: ApiPublicHooksOgImageRoute,
   ApiPublicHooksRegeneratePersonaImageRoute:
     ApiPublicHooksRegeneratePersonaImageRoute,
+  ApiPublicHooksSaveResultRoute: ApiPublicHooksSaveResultRoute,
   ApiPublicHooksSharePageRoute: ApiPublicHooksSharePageRoute,
   ApiPublicHooksVerifySourceRelevanceRoute:
     ApiPublicHooksVerifySourceRelevanceRoute,
@@ -393,13 +415,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

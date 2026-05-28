@@ -5,6 +5,7 @@
 const APP_BASE = "https://ancient-echoes-api.lovable.app";
 const MODELS_URL = "./models";
 const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
+const SAVE_URL = APP_BASE + "/api/public/hooks/save-result";
 
 const $ = (id) => document.getElementById(id);
 const screens = {
@@ -23,6 +24,8 @@ let state = {
   name: "",
   fileDataUrl: null,
   modelsLoaded: false,
+  lastResult: null,
+  shareUrl: null,
 };
 
 /* ---------- FB Instant Games bootstrap (optional) ---------- */
@@ -178,17 +181,37 @@ async function shareResult() {
     return;
   }
 
-  // Web fallback: try Web Share with file, else download
+  // Make sure we have a shareable URL that unfurls with the result image on Facebook/WhatsApp/etc.
+  const shareUrl = await saveAndGetShareUrl();
+
+  // 1) Try Web Share with the actual image file (best on mobile)
   try {
     const blob = await (await fetch(image)).blob();
     const file = new File([blob], "ancient-echoes.jpg", { type: "image/jpeg" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: "Ancient Echoes", text: msg });
+      await navigator.share({
+        files: [file],
+        title: "Ancient Echoes",
+        text: msg,
+        url: shareUrl || undefined,
+      });
       return;
     }
   } catch (_) {}
 
-  // Download fallback
+  // 2) Web Share with URL only — Facebook/WhatsApp will unfurl the OG image
+  if (shareUrl && navigator.share) {
+    try {
+      await navigator.share({ title: "Ancient Echoes", text: msg, url: shareUrl });
+      return;
+    } catch (_) {}
+  }
+
+  // 3) Desktop fallback: copy URL to clipboard + download the image
+  if (shareUrl) {
+    try { await navigator.clipboard.writeText(shareUrl); alert("Share link copied! Paste it on Facebook — it will show your result image.\n\n" + shareUrl); }
+    catch { window.prompt("Copy this share link:", shareUrl); }
+  }
   const a = document.createElement("a");
   a.href = image;
   a.download = "ancient-echoes.jpg";
@@ -266,6 +289,28 @@ function renderResult(data) {
   requestAnimationFrame(() => {
     $("sim-fill").style.width = similarity + "%";
   });
+
+  state.lastResult = { match_name: name, category, similarity, description: desc, match_image_url: matchImg };
+  state.shareUrl = null;
+  // Fire-and-forget: save to backend so the share URL unfurls with OG image
+  saveAndGetShareUrl().catch((e) => console.warn("save failed", e));
+}
+
+async function saveAndGetShareUrl() {
+  if (!state.lastResult || !state.lastResult.match_image_url) return null;
+  if (state.shareUrl) return state.shareUrl;
+  try {
+    const r = await fetch(SAVE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.lastResult),
+    });
+    if (!r.ok) return null;
+    const { id } = await r.json();
+    if (!id) return null;
+    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}`;
+    return state.shareUrl;
+  } catch { return null; }
 }
 
 /* ---------- Boot ---------- */
