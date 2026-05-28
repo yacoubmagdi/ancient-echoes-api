@@ -181,17 +181,37 @@ async function shareResult() {
     return;
   }
 
-  // Web fallback: try Web Share with file, else download
+  // Make sure we have a shareable URL that unfurls with the result image on Facebook/WhatsApp/etc.
+  const shareUrl = await saveAndGetShareUrl();
+
+  // 1) Try Web Share with the actual image file (best on mobile)
   try {
     const blob = await (await fetch(image)).blob();
     const file = new File([blob], "ancient-echoes.jpg", { type: "image/jpeg" });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: "Ancient Echoes", text: msg });
+      await navigator.share({
+        files: [file],
+        title: "Ancient Echoes",
+        text: msg,
+        url: shareUrl || undefined,
+      });
       return;
     }
   } catch (_) {}
 
-  // Download fallback
+  // 2) Web Share with URL only — Facebook/WhatsApp will unfurl the OG image
+  if (shareUrl && navigator.share) {
+    try {
+      await navigator.share({ title: "Ancient Echoes", text: msg, url: shareUrl });
+      return;
+    } catch (_) {}
+  }
+
+  // 3) Desktop fallback: copy URL to clipboard + download the image
+  if (shareUrl) {
+    try { await navigator.clipboard.writeText(shareUrl); alert("Share link copied! Paste it on Facebook — it will show your result image.\n\n" + shareUrl); }
+    catch { window.prompt("Copy this share link:", shareUrl); }
+  }
   const a = document.createElement("a");
   a.href = image;
   a.download = "ancient-echoes.jpg";
