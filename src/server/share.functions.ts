@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -12,6 +13,7 @@ export const saveSharedResult = createServerFn({ method: "POST" })
         description: z.string().min(1).max(5000),
         match_image_url: z.string().url().max(2000),
         user_image_data: z.string().max(2_000_000).optional(),
+        share_image_data: z.string().max(8_000_000).optional(),
       })
       .parse(data)
   )
@@ -32,7 +34,12 @@ export const saveSharedResult = createServerFn({ method: "POST" })
     if (error || !rows || rows.length === 0) {
       throw new Error(`Failed to save: ${error?.message ?? "no row"}`);
     }
-    return { id: rows[0].id };
+
+    const share_image_url = data.share_image_data
+      ? await uploadShareCard(rows[0].id, data.share_image_data)
+      : null;
+
+    return { id: rows[0].id, share_image_url };
   });
 
 export const getSharedResult = createServerFn({ method: "GET" })
@@ -46,3 +53,21 @@ export const getSharedResult = createServerFn({ method: "GET" })
     if (error) return null;
     return row;
   });
+
+async function uploadShareCard(id: string, dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  const [, contentType, base64] = match;
+  const bytes = Buffer.from(base64, "base64");
+  const path = `og-cache/${id}_share.png`;
+
+  const { error } = await supabaseAdmin.storage
+    .from("personas")
+    .upload(path, bytes, { contentType, upsert: true });
+
+  if (error) return null;
+
+  const { data } = supabaseAdmin.storage.from("personas").getPublicUrl(path);
+  return data.publicUrl;
+}
