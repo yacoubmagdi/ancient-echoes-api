@@ -843,6 +843,12 @@ function ShareButtons({
       return;
     }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("تم نسخ النص — الصقه في منشور فيسبوك");
+    } catch {
+      // ignore clipboard failure
+    }
     openPendingShareWindow().navigate(redirectUrl);
   }
 
@@ -983,6 +989,12 @@ function DownloadCardButton({
       return;
     }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success("تم نسخ النص — الصقه في منشور فيسبوك");
+    } catch {
+      // ignore clipboard failure
+    }
     openPendingShareWindow().navigate(redirectUrl);
   }
 
