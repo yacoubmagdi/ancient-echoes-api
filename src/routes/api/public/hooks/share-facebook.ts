@@ -7,6 +7,10 @@ const QuerySchema = z.object({
   quote: z.string().max(500).optional(),
 });
 
+// Public Facebook App ID. Replace with your own from https://developers.facebook.com/apps/
+// once your app is reviewed. The default below is Facebook's generic share app ID.
+const FACEBOOK_APP_ID = "966242223397117";
+
 export const Route = createFileRoute("/api/public/hooks/share-facebook")({
   server: {
     handlers: {
@@ -25,8 +29,13 @@ export const Route = createFileRoute("/api/public/hooks/share-facebook")({
             return new Response("Invalid share url", { status: 400 });
           }
 
-          const facebookUrl = new URL("https://www.facebook.com/sharer/sharer.php");
-          facebookUrl.searchParams.set("u", shareUrl.toString());
+          // Use Facebook's Share Dialog (requires app_id). This is the modern
+          // replacement for sharer.php and renders a richer share UI.
+          const facebookUrl = new URL("https://www.facebook.com/dialog/share");
+          facebookUrl.searchParams.set("app_id", FACEBOOK_APP_ID);
+          facebookUrl.searchParams.set("display", "popup");
+          facebookUrl.searchParams.set("href", shareUrl.toString());
+          facebookUrl.searchParams.set("redirect_uri", shareUrl.toString());
           if (parsed.quote) {
             facebookUrl.searchParams.set("quote", parsed.quote);
           }
