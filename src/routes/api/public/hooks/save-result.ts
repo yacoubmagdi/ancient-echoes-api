@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -7,6 +8,7 @@ const Schema = z.object({
   similarity: z.number().min(0).max(100),
   description: z.string().min(1).max(5000),
   match_image_url: z.string().url().max(2000),
+  share_image_data: z.string().max(8_000_000).optional(),
 });
 
 const CORS = {
@@ -30,6 +32,14 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
             return new Response("Server misconfigured", { status: 500, headers: CORS });
           }
 
+          const insertPayload = {
+            match_name: data.match_name,
+            category: data.category,
+            similarity: data.similarity,
+            description: data.description,
+            match_image_url: data.match_image_url,
+          };
+
           const resp = await fetch(`${supabaseUrl}/rest/v1/shared_results`, {
             method: "POST",
             headers: {
@@ -38,7 +48,7 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
               "Content-Type": "application/json",
               Prefer: "return=representation",
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify(insertPayload),
           });
           if (!resp.ok) {
             const txt = await resp.text().catch(() => "");
@@ -47,7 +57,17 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
           const rows = await resp.json();
           const id = Array.isArray(rows) && rows[0]?.id;
           if (!id) return new Response("No id", { status: 500, headers: CORS });
-          return new Response(JSON.stringify({ id }), {
+
+          const shareImageUrl = data.share_image_data
+            ? await uploadShareCard({
+                supabaseUrl,
+                serviceKey,
+                id,
+                dataUrl: data.share_image_data,
+              })
+            : null;
+
+          return new Response(JSON.stringify({ id, share_image_url: shareImageUrl }), {
             status: 200,
             headers: { "Content-Type": "application/json", ...CORS },
           });
@@ -58,3 +78,39 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
     },
   },
 });
+
+async function uploadShareCard({
+  supabaseUrl,
+  serviceKey,
+  id,
+  dataUrl,
+}: {
+  supabaseUrl: string;
+  serviceKey: string;
+  id: string;
+  dataUrl: string;
+}) {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return null;
+
+  const [, contentType, base64] = match;
+  const bytes = Buffer.from(base64, "base64");
+  const path = `og-cache/${id}_share.png`;
+
+  const uploadResp = await fetch(`${supabaseUrl}/storage/v1/object/personas/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": contentType,
+      "x-upsert": "true",
+    },
+    body: bytes,
+  });
+
+  if (!uploadResp.ok) {
+    return null;
+  }
+
+  return `${supabaseUrl}/storage/v1/object/public/personas/${path}`;
+}

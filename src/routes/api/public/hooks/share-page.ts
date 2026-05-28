@@ -44,10 +44,25 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
           // too slow for Facebook's scraper (~10s timeout) and often returns a
           // redirect to the same persona image anyway. Direct image = reliable
           // unfurl every time.
-          const matchImage: string = data.match_image_url || "";
-          const ogImageUrl = matchImage.startsWith("http")
-            ? matchImage
-            : `${baseUrl}${matchImage}`;
+          const cachedShareCardUrl = `${supabaseUrl}/storage/v1/object/public/personas/og-cache/${id}_share.png`;
+          let ogImageUrl = data.match_image_url || "";
+          try {
+            const headResp = await fetch(cachedShareCardUrl, { method: "HEAD" });
+            if (headResp.ok) {
+              ogImageUrl = cachedShareCardUrl;
+            }
+          } catch {
+            // fall back to match image
+          }
+
+          if (!ogImageUrl.startsWith("http")) {
+            ogImageUrl = `${baseUrl}${ogImageUrl}`;
+          }
+
+          if (url.searchParams.get("image") === "1") {
+            return Response.redirect(ogImageUrl, 302);
+          }
+
           const resultUrl = `${baseUrl}/result/${id}`;
 
           const title = `أنا أشبه ${data.match_name} بنسبة ${similarity}% — أصداء القدماء`;
@@ -72,6 +87,9 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   <meta property="og:description" content="${esc(desc)}"/>
   <meta property="og:image" content="${esc(ogImageUrl)}"/>
   <meta property="og:image:secure_url" content="${esc(ogImageUrl)}"/>
+  <meta property="og:image:type" content="image/png"/>
+  <meta property="og:image:width" content="1080"/>
+  <meta property="og:image:height" content="1350"/>
   <meta property="og:url" content="${esc(baseUrl)}/api/public/hooks/share-page?id=${esc(id)}"/>
   <meta property="og:type" content="website"/>
   <meta property="og:site_name" content="أصداء القدماء"/>
@@ -101,7 +119,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
 </head>
 <body>
   <div class="card">
-    <img src="${esc(data.match_image_url)}" alt="${esc(data.match_name)}"/>
+    <img src="${esc(ogImageUrl)}" alt="${esc(data.match_name)}"/>
     <h1>${esc(data.match_name)}</h1>
     <p>${esc(data.category)}</p>
     <div class="similarity">${similarity}%</div>
