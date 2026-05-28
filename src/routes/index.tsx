@@ -750,6 +750,31 @@ function ShareButtons({
   const [saving, setSaving] = useState(false);
   const savedIdRef = useRef<string | null>(null);
 
+  function openPendingShareWindow() {
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+
+    return {
+      navigate(url: string) {
+        if (popup && !popup.closed) {
+          popup.location.href = url;
+          return;
+        }
+
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = url;
+          return;
+        }
+
+        window.location.href = url;
+      },
+      close() {
+        if (popup && !popup.closed) {
+          popup.close();
+        }
+      },
+    };
+  }
+
   async function ensureShareUrl(): Promise<string> {
     if (savedIdRef.current) {
       return buildPublishedSharePageUrl(savedIdRef.current);
@@ -822,17 +847,15 @@ function ShareButtons({
   }
 
   async function handleShareFacebook() {
+    const shareWindow = openPendingShareWindow();
     const url = await ensureShareUrl();
     if (!url) {
+      shareWindow.close();
       toast.error("تعذر تجهيز رابط المشاركة");
       return;
     }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
-    window.open(
-      redirectUrl,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    shareWindow.navigate(redirectUrl);
   }
 
   return (
@@ -877,6 +900,31 @@ function DownloadCardButton({
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const savedShareIdRef = useRef<string | null>(null);
+
+  function openPendingShareWindow() {
+    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
+
+    return {
+      navigate(url: string) {
+        if (popup && !popup.closed) {
+          popup.location.href = url;
+          return;
+        }
+
+        if (window.top && window.top !== window.self) {
+          window.top.location.href = url;
+          return;
+        }
+
+        window.location.href = url;
+      },
+      close() {
+        if (popup && !popup.closed) {
+          popup.close();
+        }
+      },
+    };
+  }
 
   async function generate() {
     if (!userImage) {
@@ -947,21 +995,19 @@ function DownloadCardButton({
   }
 
   async function openShareFacebook() {
+    const shareWindow = openPendingShareWindow();
     const shareText = t.shareText
       .replace("{name}", name)
       .replace("{category}", category)
       .replace("{similarity}", String(Math.round(similarity)));
     const url = await ensureShareUrl();
     if (!url) {
+      shareWindow.close();
       toast.error("تعذر تجهيز رابط المشاركة");
       return;
     }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
-    window.open(
-      redirectUrl,
-      "_blank",
-      "noopener,noreferrer",
-    );
+    shareWindow.navigate(redirectUrl);
   }
 
   return (
