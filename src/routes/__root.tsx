@@ -77,6 +77,11 @@ function RootComponent() {
     <>
       <Outlet />
       {showContact && <ContactButton />}
+      <footer className="border-t border-border bg-background py-4 text-center text-xs text-muted-foreground">
+        <Link to="/privacy" className="hover:text-foreground hover:underline">
+          سياسة الخصوصية
+        </Link>
+      </footer>
       <Toaster />
     </>
   );
