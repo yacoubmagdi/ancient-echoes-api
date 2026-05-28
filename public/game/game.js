@@ -2,14 +2,7 @@
    Same flow as the React app: name + photo -> 128d face descriptor
    -> POST to Lovable backend -> show top match. */
 
-const APP_BASE = (() => {
-  try {
-    if (window.location && /^https?:$/.test(window.location.protocol)) {
-      return window.location.origin;
-    }
-  } catch (_) {}
-  return "https://ancient-echoes-api.lovable.app";
-})();
+const APP_BASE = "https://ancient-echoes-api.lovable.app";
 const MODELS_URL = "./models";
 const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
 const SAVE_URL = APP_BASE + "/api/public/hooks/save-result";
@@ -404,9 +397,9 @@ async function saveAndGetShareUrl() {
       body: JSON.stringify(state.lastResult),
     });
     if (!r.ok) return null;
-    const { id } = await r.json();
+    const { id, share_image_url } = await r.json();
     if (!id) return null;
-    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}`;
+    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}${share_image_url ? `&img=${encodeURIComponent(share_image_url)}` : ""}`;
     state.shareUrlHasCard = !!state.shareImageData;
     return state.shareUrl;
   } catch { return null; }

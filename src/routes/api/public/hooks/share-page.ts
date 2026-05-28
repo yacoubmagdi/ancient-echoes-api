@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { buildPublishedResultUrl, buildPublishedSharePageUrl } from "@/lib/share-url";
 
 export const Route = createFileRoute("/api/public/hooks/share-page")({
   server: {
@@ -7,6 +8,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
         try {
           const url = new URL(request.url);
           const id = url.searchParams.get("id");
+          const forcedImageUrl = url.searchParams.get("img");
           if (!id) {
             return new Response("Missing id", { status: 400 });
           }
@@ -38,32 +40,34 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
           }
 
           const similarity = Math.round(Number(data.similarity));
-          const baseUrl = url.origin;
-          // Use the persona image directly as OG image — it's already on Supabase
-          // CDN (fast, always available). The AI-generated card via /og-image is
-          // too slow for Facebook's scraper (~10s timeout) and often returns a
-          // redirect to the same persona image anyway. Direct image = reliable
-          // unfurl every time.
           const cachedShareCardUrl = `${supabaseUrl}/storage/v1/object/public/personas/og-cache/${id}_share.png`;
-          let ogImageUrl = data.match_image_url || "";
-          try {
-            const headResp = await fetch(cachedShareCardUrl, { method: "HEAD" });
-            if (headResp.ok) {
-              ogImageUrl = cachedShareCardUrl;
+          let ogImageUrl = forcedImageUrl || "";
+
+          if (!ogImageUrl) {
+            try {
+              const headResp = await fetch(cachedShareCardUrl, { method: "HEAD" });
+              if (headResp.ok) {
+                ogImageUrl = cachedShareCardUrl;
+              }
+            } catch {
+              // ignore
             }
-          } catch {
-            // fall back to match image
+          }
+
+          if (!ogImageUrl) {
+            ogImageUrl = data.match_image_url || "";
           }
 
           if (!ogImageUrl.startsWith("http")) {
-            ogImageUrl = `${baseUrl}${ogImageUrl}`;
+            ogImageUrl = new URL(ogImageUrl, request.url).toString();
           }
 
           if (url.searchParams.get("image") === "1") {
             return Response.redirect(ogImageUrl, 302);
           }
 
-          const resultUrl = `${baseUrl}/result/${id}`;
+          const sharePageUrl = buildPublishedSharePageUrl(id, forcedImageUrl);
+          const resultUrl = buildPublishedResultUrl(id);
 
           const title = `أنا أشبه ${data.match_name} بنسبة ${similarity}% — أصداء القدماء`;
           const desc = `تطابق ${similarity}% مع ${data.match_name} من ${data.category}. اكتشف شبيهك التاريخي أنت أيضًا!`;
@@ -90,7 +94,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   <meta property="og:image:type" content="image/png"/>
   <meta property="og:image:width" content="1080"/>
   <meta property="og:image:height" content="1350"/>
-  <meta property="og:url" content="${esc(baseUrl)}/api/public/hooks/share-page?id=${esc(id)}"/>
+  <meta property="og:url" content="${esc(sharePageUrl)}"/>
   <meta property="og:type" content="website"/>
   <meta property="og:site_name" content="أصداء القدماء"/>
   

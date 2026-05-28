@@ -5,15 +5,12 @@ import { Sparkles, Share2, Copy, Check } from "lucide-react";
 import { getSharedResult } from "@/server/share.functions";
 import { useState } from "react";
 import { toast } from "sonner";
+import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl, buildPublishedResultUrl } from "@/lib/share-url";
 
 export const Route = createFileRoute("/result/$id")({
   head: ({ params, loaderData }) => {
-    const baseUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://id-preview--3ba98fd0-2790-4f3a-b6a4-70b788197bd3.lovable.app";
-    const ogImageUrl = `${baseUrl}/api/public/hooks/share-page?id=${params.id}&image=1`;
-    const pageUrl = `${baseUrl}/result/${params.id}`;
+    const ogImageUrl = `${buildPublishedSharePageUrl(params.id)}&image=1`;
+    const pageUrl = buildPublishedResultUrl(params.id);
 
     const result = loaderData as any;
     const title = result
@@ -73,13 +70,10 @@ export const Route = createFileRoute("/result/$id")({
 function ShareButtons({ id, matchName, similarity, category }: { id: string; matchName: string; similarity: number; category: string }) {
   const [copied, setCopied] = useState(false);
   const [supportsShare] = useState(() => typeof navigator !== "undefined" && !!navigator.share);
-  const origin = typeof window !== "undefined"
-    ? window.location.origin
-    : "https://ancient-echoes-api.lovable.app";
-  const shareUrl = `${origin}/api/public/hooks/share-page?id=${id}`;
+  const shareUrl = buildPublishedSharePageUrl(id);
   const text = `أنا أشبه ${matchName} بنسبة ${similarity}% من ${category}! اكتشف شبيهك التاريخي 🏛️`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
-  const facebookUrl = `${origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`;
+  const facebookUrl = buildPublishedFacebookRedirect(shareUrl, text);
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + "\n" + shareUrl)}`;
   const handleCopy = async () => {
     try {
