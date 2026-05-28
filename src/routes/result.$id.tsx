@@ -12,7 +12,7 @@ export const Route = createFileRoute("/result/$id")({
       typeof window !== "undefined"
         ? window.location.origin
         : "https://id-preview--3ba98fd0-2790-4f3a-b6a4-70b788197bd3.lovable.app";
-    const ogImageUrl = `${baseUrl}/api/public/hooks/og-image?id=${params.id}`;
+    const ogImageUrl = `${baseUrl}/api/public/hooks/share-page?id=${params.id}&image=1`;
     const pageUrl = `${baseUrl}/result/${params.id}`;
 
     const result = loaderData as any;
