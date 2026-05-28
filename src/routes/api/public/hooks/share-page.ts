@@ -39,11 +39,25 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
 
           const similarity = Math.round(Number(data.similarity));
           const baseUrl = url.origin;
-          const ogImageUrl = `${baseUrl}/api/public/hooks/og-image?id=${id}`;
+          // Use the persona image directly as OG image — it's already on Supabase
+          // CDN (fast, always available). The AI-generated card via /og-image is
+          // too slow for Facebook's scraper (~10s timeout) and often returns a
+          // redirect to the same persona image anyway. Direct image = reliable
+          // unfurl every time.
+          const matchImage: string = data.match_image_url || "";
+          const ogImageUrl = matchImage.startsWith("http")
+            ? matchImage
+            : `${baseUrl}${matchImage}`;
           const resultUrl = `${baseUrl}/result/${id}`;
 
-          const title = `أنا أشبه ${data.match_name} — أصداء القدماء`;
+          const title = `أنا أشبه ${data.match_name} بنسبة ${similarity}% — أصداء القدماء`;
           const desc = `تطابق ${similarity}% مع ${data.match_name} من ${data.category}. اكتشف شبيهك التاريخي أنت أيضًا!`;
+
+          // Detect social media crawlers — don't redirect them, let them read OG tags.
+          const ua = (request.headers.get("user-agent") || "").toLowerCase();
+          const isBot = /facebookexternalhit|facebot|twitterbot|whatsapp|telegrambot|slackbot|linkedinbot|discordbot|pinterest|skypeuripreview|googlebot|bingbot|embedly|redditbot|vkshare/.test(
+            ua
+          );
 
           const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -58,10 +72,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   <meta property="og:description" content="${esc(desc)}"/>
   <meta property="og:image" content="${esc(ogImageUrl)}"/>
   <meta property="og:image:secure_url" content="${esc(ogImageUrl)}"/>
-  <meta property="og:image:width" content="1200"/>
-  <meta property="og:image:height" content="630"/>
-  <meta property="og:image:type" content="image/png"/>
-  <meta property="og:url" content="${esc(resultUrl)}"/>
+  <meta property="og:url" content="${esc(baseUrl)}/api/public/hooks/share-page?id=${esc(id)}"/>
   <meta property="og:type" content="website"/>
   <meta property="og:site_name" content="أصداء القدماء"/>
   
@@ -74,9 +85,9 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
   
   <!-- WhatsApp / Telegram -->
   <meta property="og:image:alt" content="${esc(`${data.match_name} - ${similarity}% تطابق`)}"/>
-  
-  <meta http-equiv="refresh" content="0;url=${esc(resultUrl)}"/>
+
   <link rel="canonical" href="${esc(resultUrl)}"/>
+  ${isBot ? "" : `<meta http-equiv="refresh" content="2;url=${esc(resultUrl)}"/>`}
   
   <style>
     body { background: #0b0a1f; color: #e8d27a; font-family: serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; direction: rtl; }
