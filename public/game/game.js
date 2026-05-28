@@ -278,15 +278,21 @@ async function shareResult() {
   // 2.5) Browser fallback for desktop/embedded previews: open our own redirect route
   if (shareUrl) {
     const redirectUrl = `${APP_BASE}/api/public/hooks/share-facebook?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(msg)}`;
+    // Open in a NEW tab — Facebook refuses to load inside any iframe (X-Frame-Options),
+    // so navigating window.top inside the Lovable preview shows ERR_BLOCKED_BY_RESPONSE.
     try {
-      window.top.location.href = redirectUrl;
+      const w = window.open(redirectUrl, "_blank", "noopener,noreferrer");
+      if (w) return;
+    } catch (_) {}
+    // Last resort: try top-level navigation (works only when not iframed)
+    try {
+      if (window.top && window.top !== window.self) {
+        window.top.location.href = redirectUrl;
+      } else {
+        window.location.href = redirectUrl;
+      }
       return;
-    } catch (_) {
-      try {
-        window.open(redirectUrl, "_blank", "noopener,noreferrer");
-        return;
-      } catch (_) {}
-    }
+    } catch (_) {}
   }
 
   // 3) Desktop fallback: copy URL to clipboard + download the image
