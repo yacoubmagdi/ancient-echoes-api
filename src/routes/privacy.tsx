@@ -98,7 +98,6 @@ function PrivacyPage() {
           <ul className="list-disc space-y-2 pr-6">
             <li>طلب حذف نتيجتك المحفوظة في أي وقت.</li>
             <li>طلب نسخة من بياناتك المخزّنة.</li>
-            <li>الاعتراض على معالجة بياناتك.</li>
           </ul>
         </section>
 
