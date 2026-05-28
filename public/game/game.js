@@ -109,30 +109,63 @@ async function buildShareImage() {
   const name     = $("result-name").textContent;
   const category = $("result-category").textContent;
   const sim      = $("sim-value").textContent;
+  const description = $("result-description").textContent || "";
 
-  const W = 1080, H = 1080;
+  const W = 1080, H = 1350;
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
-  const grad = ctx.createRadialGradient(W/2, 200, 100, W/2, H/2, W);
-  grad.addColorStop(0, "#3a2410");
-  grad.addColorStop(1, "#1a120a");
+  const drawCover = (img, x, y, w, h) => {
+    const ir = img.width / img.height;
+    const tr = w / h;
+    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+    if (ir > tr) {
+      sw = img.height * tr;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / tr;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+  };
+
+  const wrapText = (text, maxWidth) => {
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
+
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, "#0b0a1f");
+  grad.addColorStop(1, "#1a1430");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Title
-  ctx.fillStyle = "#d4a84c";
+  ctx.strokeStyle = "#c9a84c";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  ctx.fillStyle = "#e8d27a";
   ctx.font = "bold 56px Georgia, serif";
   ctx.textAlign = "center";
-  ctx.fillText("Ancient Echoes", W/2, 110);
+  ctx.fillText("Echoes of the Ancients", W/2, 100);
 
-  // Two portraits
-  const size = 360;
-  const y = 200;
-  const xLeft  = W/2 - size - 40;
-  const xRight = W/2 + 40;
+  const size = 380;
+  const y = 170;
+  const xLeft  = 110;
+  const xRight = W - 110 - size;
 
   const drawPortrait = (img, x, label) => {
     ctx.save();
@@ -140,38 +173,61 @@ async function buildShareImage() {
     ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI*2);
     ctx.closePath();
     ctx.clip();
-    ctx.drawImage(img, x, y, size, size);
+    drawCover(img, x, y, size, size);
     ctx.restore();
-    ctx.strokeStyle = "#d4a84c";
+    ctx.strokeStyle = "#c9a84c";
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI*2);
     ctx.stroke();
-    ctx.fillStyle = "#f5ecd6";
-    ctx.font = "32px Georgia, serif";
+    ctx.fillStyle = "#cfcfe0";
+    ctx.font = "28px Arial";
     ctx.textAlign = "center";
     ctx.fillText(label, x + size/2, y + size + 50);
   };
   drawPortrait(userImg, xLeft, "You");
-  drawPortrait(matchImg, xRight, name);
+  drawPortrait(matchImg, xRight, "Your Echo");
 
-  // Match name + similarity
-  ctx.fillStyle = "#f0d78c";
-  ctx.font = "bold 64px Georgia, serif";
+  ctx.fillStyle = "#c9a84c";
+  ctx.font = "bold 70px Georgia, serif";
+  ctx.fillText("≈", W/2, y + size/2 + 25);
+
+  ctx.fillStyle = "#f5e9b8";
+  ctx.font = "bold 48px Georgia, serif";
   ctx.textAlign = "center";
-  ctx.fillText(name, W/2, 720);
+  ctx.fillText(name, W/2, 705);
 
-  ctx.fillStyle = "#b6a486";
-  ctx.font = "italic 36px Georgia, serif";
-  ctx.fillText(category, W/2, 770);
+  ctx.fillStyle = "#a89cc6";
+  ctx.font = "italic 32px Georgia, serif";
+  ctx.fillText(category, W/2, 748);
 
-  ctx.fillStyle = "#c44a2a";
-  ctx.font = "bold 96px Georgia, serif";
-  ctx.fillText(sim + " match", W/2, 900);
+  const similarity = Number.parseInt(sim, 10) || 0;
+  const barX = 180;
+  const barY = 820;
+  const barW = W - 360;
+  const barH = 22;
+  ctx.fillStyle = "#2a2440";
+  ctx.fillRect(barX, barY, barW, barH);
+  const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  barGrad.addColorStop(0, "#c9a84c");
+  barGrad.addColorStop(1, "#f5e9b8");
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(barX, barY, (barW * similarity) / 100, barH);
 
-  ctx.fillStyle = "#b6a486";
-  ctx.font = "28px Georgia, serif";
-  ctx.fillText("ancient-echoes-api.lovable.app", W/2, 1020);
+  ctx.fillStyle = "#e8d27a";
+  ctx.font = "bold 44px Arial";
+  ctx.fillText(`${similarity}% Resemblance`, W/2, barY + 80);
+
+  ctx.fillStyle = "#d8d4e8";
+  ctx.font = "28px Arial";
+  const lines = wrapText(description, W - 200).slice(0, 6);
+  lines.forEach((line, index) => {
+    ctx.fillText(line, W / 2, 970 + index * 38);
+  });
+
+  ctx.fillStyle = "#8a82a8";
+  ctx.font = "24px Arial";
+  ctx.fillText("Discover your historical echo", W/2, H - 60);
 
   return canvas.toDataURL("image/png");
 }
