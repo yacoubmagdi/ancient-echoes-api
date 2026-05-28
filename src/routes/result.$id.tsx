@@ -5,7 +5,7 @@ import { Sparkles, Share2, Copy, Check } from "lucide-react";
 import { getSharedResult } from "@/server/share.functions";
 import { useState } from "react";
 import { toast } from "sonner";
-import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl, buildPublishedResultUrl, PUBLISHED_BASE_URL } from "@/lib/share-url";
+import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl, buildPublishedResultUrl } from "@/lib/share-url";
 
 export const Route = createFileRoute("/result/$id")({
   head: ({ params, loaderData }) => {

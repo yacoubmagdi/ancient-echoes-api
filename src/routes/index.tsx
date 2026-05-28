@@ -793,7 +793,7 @@ function ShareButtons({
       savedIdRef.current = resp.id;
       return buildPublishedSharePageUrl(resp.id, resp.share_image_url);
     } catch (e) {
-      return typeof window !== "undefined" ? PUBLISHED_BASE_URL : PUBLISHED_BASE_URL;
+      return "";
     } finally {
       setSaving(false);
     }
@@ -801,6 +801,10 @@ function ShareButtons({
 
   async function handleShareFacebook() {
     const url = await ensureShareUrl();
+    if (!url) {
+      toast.error("تعذر تجهيز رابط المشاركة");
+      return;
+    }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
     window.open(
       redirectUrl,

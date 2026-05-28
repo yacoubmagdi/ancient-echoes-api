@@ -397,9 +397,9 @@ async function saveAndGetShareUrl() {
       body: JSON.stringify(state.lastResult),
     });
     if (!r.ok) return null;
-    const { id } = await r.json();
+    const { id, share_image_url } = await r.json();
     if (!id) return null;
-    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}`;
+    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}${share_image_url ? `&img=${encodeURIComponent(share_image_url)}` : ""}`;
     state.shareUrlHasCard = !!state.shareImageData;
     return state.shareUrl;
   } catch { return null; }
