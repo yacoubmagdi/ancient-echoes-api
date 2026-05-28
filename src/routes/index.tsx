@@ -751,27 +751,17 @@ function ShareButtons({
   const savedIdRef = useRef<string | null>(null);
 
   function openPendingShareWindow() {
-    const popup = window.open("about:blank", "_blank", "noopener,noreferrer");
-
     return {
       navigate(url: string) {
-        if (popup && !popup.closed) {
-          popup.location.href = url;
-          return;
-        }
-
-        if (window.top && window.top !== window.self) {
-          window.top.location.href = url;
-          return;
-        }
-
-        window.location.href = url;
+        const a = document.createElement("a");
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener,noreferrer";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
       },
-      close() {
-        if (popup && !popup.closed) {
-          popup.close();
-        }
-      },
+      close() {},
     };
   }
 
@@ -847,15 +837,13 @@ function ShareButtons({
   }
 
   async function handleShareFacebook() {
-    const shareWindow = openPendingShareWindow();
     const url = await ensureShareUrl();
     if (!url) {
-      shareWindow.close();
       toast.error("تعذر تجهيز رابط المشاركة");
       return;
     }
     const redirectUrl = buildPublishedFacebookRedirect(url, shareText);
-    shareWindow.navigate(redirectUrl);
+    openPendingShareWindow().navigate(redirectUrl);
   }
 
   return (
