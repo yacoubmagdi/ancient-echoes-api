@@ -207,6 +207,20 @@ async function shareResult() {
     } catch (_) {}
   }
 
+  // 2.5) Browser fallback for desktop/embedded previews: open our own redirect route
+  if (shareUrl) {
+    const redirectUrl = `${APP_BASE}/api/public/hooks/share-facebook?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(msg)}`;
+    try {
+      window.top.location.href = redirectUrl;
+      return;
+    } catch (_) {
+      try {
+        window.open(redirectUrl, "_blank", "noopener,noreferrer");
+        return;
+      } catch (_) {}
+    }
+  }
+
   // 3) Desktop fallback: copy URL to clipboard + download the image
   if (shareUrl) {
     try { await navigator.clipboard.writeText(shareUrl); alert("Share link copied! Paste it on Facebook — it will show your result image.\n\n" + shareUrl); }
