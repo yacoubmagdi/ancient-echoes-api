@@ -58,6 +58,11 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
           if (!ogImageUrl.startsWith("http")) {
             ogImageUrl = `${baseUrl}${ogImageUrl}`;
           }
+
+          if (url.searchParams.get("image") === "1") {
+            return Response.redirect(ogImageUrl, 302);
+          }
+
           const resultUrl = `${baseUrl}/result/${id}`;
 
           const title = `أنا أشبه ${data.match_name} بنسبة ${similarity}% — أصداء القدماء`;
@@ -114,7 +119,7 @@ export const Route = createFileRoute("/api/public/hooks/share-page")({
 </head>
 <body>
   <div class="card">
-    <img src="${esc(data.match_image_url)}" alt="${esc(data.match_name)}"/>
+    <img src="${esc(ogImageUrl)}" alt="${esc(data.match_name)}"/>
     <h1>${esc(data.match_name)}</h1>
     <p>${esc(data.category)}</p>
     <div class="similarity">${similarity}%</div>
