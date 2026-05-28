@@ -73,12 +73,13 @@ export const Route = createFileRoute("/result/$id")({
 function ShareButtons({ id, matchName, similarity, category }: { id: string; matchName: string; similarity: number; category: string }) {
   const [copied, setCopied] = useState(false);
   const [supportsShare] = useState(() => typeof navigator !== "undefined" && !!navigator.share);
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/api/public/hooks/share-page?id=${id}`
-    : `https://ancient-echoes-api.lovable.app/api/public/hooks/share-page?id=${id}`;
+  const origin = typeof window !== "undefined"
+    ? window.location.origin
+    : "https://ancient-echoes-api.lovable.app";
+  const shareUrl = `${origin}/api/public/hooks/share-page?id=${id}`;
   const text = `أنا أشبه ${matchName} بنسبة ${similarity}% من ${category}! اكتشف شبيهك التاريخي 🏛️`;
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
-  const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+  const facebookUrl = `${origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(text)}`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text + "\n" + shareUrl)}`;
   const handleCopy = async () => {
     try {

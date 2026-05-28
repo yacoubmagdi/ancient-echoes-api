@@ -802,10 +802,10 @@ function ShareButtons({
 
   async function handleShareFacebook() {
     const url = await ensureShareUrl();
-    const encodedUrl = encodeURIComponent(url);
-    const encodedText = encodeURIComponent(shareText);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const redirectUrl = `${origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareText)}`;
     window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`,
+      redirectUrl,
       "_blank",
       "noopener,noreferrer",
     );
@@ -1053,9 +1053,9 @@ function DownloadCardButton({
       .replace("{category}", category)
       .replace("{similarity}", String(Math.round(similarity)));
     const url = window.location.href;
-    const enc = encodeURIComponent;
+    const redirectUrl = `${window.location.origin}/api/public/hooks/share-facebook?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareText)}`;
     window.open(
-      `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(shareText)}`,
+      redirectUrl,
       "_blank",
       "noopener,noreferrer",
     );
