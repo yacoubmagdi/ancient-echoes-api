@@ -18,6 +18,7 @@ import { Route as AdminSourceReviewRouteImport } from './routes/admin.source-rev
 import { Route as AdminEnrollRouteImport } from './routes/admin.enroll'
 import { Route as ApiPublicHooksVerifySourceRelevanceRouteImport } from './routes/api/public/hooks/verify-source-relevance'
 import { Route as ApiPublicHooksSharePageRouteImport } from './routes/api/public/hooks/share-page'
+import { Route as ApiPublicHooksShareFacebookRouteImport } from './routes/api/public/hooks/share-facebook'
 import { Route as ApiPublicHooksSaveResultRouteImport } from './routes/api/public/hooks/save-result'
 import { Route as ApiPublicHooksRegeneratePersonaImageRouteImport } from './routes/api/public/hooks/regenerate-persona-image'
 import { Route as ApiPublicHooksOgImageRouteImport } from './routes/api/public/hooks/og-image'
@@ -73,6 +74,12 @@ const ApiPublicHooksSharePageRoute = ApiPublicHooksSharePageRouteImport.update({
   path: '/api/public/hooks/share-page',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksShareFacebookRoute =
+  ApiPublicHooksShareFacebookRouteImport.update({
+    id: '/api/public/hooks/share-facebook',
+    path: '/api/public/hooks/share-facebook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSaveResultRoute =
   ApiPublicHooksSaveResultRouteImport.update({
     id: '/api/public/hooks/save-result',
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
+  '/api/public/hooks/share-facebook': typeof ApiPublicHooksShareFacebookRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -155,6 +163,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
+  '/api/public/hooks/share-facebook': typeof ApiPublicHooksShareFacebookRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -175,6 +184,7 @@ export interface FileRoutesById {
   '/api/public/hooks/og-image': typeof ApiPublicHooksOgImageRoute
   '/api/public/hooks/regenerate-persona-image': typeof ApiPublicHooksRegeneratePersonaImageRoute
   '/api/public/hooks/save-result': typeof ApiPublicHooksSaveResultRoute
+  '/api/public/hooks/share-facebook': typeof ApiPublicHooksShareFacebookRoute
   '/api/public/hooks/share-page': typeof ApiPublicHooksSharePageRoute
   '/api/public/hooks/verify-source-relevance': typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/save-result'
+    | '/api/public/hooks/share-facebook'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesByTo: FileRoutesByTo
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/save-result'
+    | '/api/public/hooks/share-facebook'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   id:
@@ -234,6 +246,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/og-image'
     | '/api/public/hooks/regenerate-persona-image'
     | '/api/public/hooks/save-result'
+    | '/api/public/hooks/share-facebook'
     | '/api/public/hooks/share-page'
     | '/api/public/hooks/verify-source-relevance'
   fileRoutesById: FileRoutesById
@@ -252,6 +265,7 @@ export interface RootRouteChildren {
   ApiPublicHooksOgImageRoute: typeof ApiPublicHooksOgImageRoute
   ApiPublicHooksRegeneratePersonaImageRoute: typeof ApiPublicHooksRegeneratePersonaImageRoute
   ApiPublicHooksSaveResultRoute: typeof ApiPublicHooksSaveResultRoute
+  ApiPublicHooksShareFacebookRoute: typeof ApiPublicHooksShareFacebookRoute
   ApiPublicHooksSharePageRoute: typeof ApiPublicHooksSharePageRoute
   ApiPublicHooksVerifySourceRelevanceRoute: typeof ApiPublicHooksVerifySourceRelevanceRoute
 }
@@ -319,6 +333,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/share-page'
       fullPath: '/api/public/hooks/share-page'
       preLoaderRoute: typeof ApiPublicHooksSharePageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/share-facebook': {
+      id: '/api/public/hooks/share-facebook'
+      path: '/api/public/hooks/share-facebook'
+      fullPath: '/api/public/hooks/share-facebook'
+      preLoaderRoute: typeof ApiPublicHooksShareFacebookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/save-result': {
@@ -408,6 +429,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksRegeneratePersonaImageRoute:
     ApiPublicHooksRegeneratePersonaImageRoute,
   ApiPublicHooksSaveResultRoute: ApiPublicHooksSaveResultRoute,
+  ApiPublicHooksShareFacebookRoute: ApiPublicHooksShareFacebookRoute,
   ApiPublicHooksSharePageRoute: ApiPublicHooksSharePageRoute,
   ApiPublicHooksVerifySourceRelevanceRoute:
     ApiPublicHooksVerifySourceRelevanceRoute,

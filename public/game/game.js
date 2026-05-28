@@ -2,7 +2,14 @@
    Same flow as the React app: name + photo -> 128d face descriptor
    -> POST to Lovable backend -> show top match. */
 
-const APP_BASE = "https://ancient-echoes-api.lovable.app";
+const APP_BASE = (() => {
+  try {
+    if (window.location && /^https?:$/.test(window.location.protocol)) {
+      return window.location.origin;
+    }
+  } catch (_) {}
+  return "https://ancient-echoes-api.lovable.app";
+})();
 const MODELS_URL = "./models";
 const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
 const SAVE_URL = APP_BASE + "/api/public/hooks/save-result";
@@ -205,6 +212,20 @@ async function shareResult() {
       await navigator.share({ title: "Ancient Echoes", text: msg, url: shareUrl });
       return;
     } catch (_) {}
+  }
+
+  // 2.5) Browser fallback for desktop/embedded previews: open our own redirect route
+  if (shareUrl) {
+    const redirectUrl = `${APP_BASE}/api/public/hooks/share-facebook?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(msg)}`;
+    try {
+      window.top.location.href = redirectUrl;
+      return;
+    } catch (_) {
+      try {
+        window.open(redirectUrl, "_blank", "noopener,noreferrer");
+        return;
+      } catch (_) {}
+    }
   }
 
   // 3) Desktop fallback: copy URL to clipboard + download the image
