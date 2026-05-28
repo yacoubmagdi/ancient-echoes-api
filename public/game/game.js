@@ -5,6 +5,7 @@
 const APP_BASE = "https://ancient-echoes-api.lovable.app";
 const MODELS_URL = "./models";
 const ANALYZE_URL = APP_BASE + "/api/public/hooks/game-analyze";
+const SAVE_URL = APP_BASE + "/api/public/hooks/save-result";
 
 const $ = (id) => document.getElementById(id);
 const screens = {
@@ -23,6 +24,8 @@ let state = {
   name: "",
   fileDataUrl: null,
   modelsLoaded: false,
+  lastResult: null,
+  shareUrl: null,
 };
 
 /* ---------- FB Instant Games bootstrap (optional) ---------- */
@@ -266,6 +269,28 @@ function renderResult(data) {
   requestAnimationFrame(() => {
     $("sim-fill").style.width = similarity + "%";
   });
+
+  state.lastResult = { match_name: name, category, similarity, description: desc, match_image_url: matchImg };
+  state.shareUrl = null;
+  // Fire-and-forget: save to backend so the share URL unfurls with OG image
+  saveAndGetShareUrl().catch((e) => console.warn("save failed", e));
+}
+
+async function saveAndGetShareUrl() {
+  if (!state.lastResult || !state.lastResult.match_image_url) return null;
+  if (state.shareUrl) return state.shareUrl;
+  try {
+    const r = await fetch(SAVE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.lastResult),
+    });
+    if (!r.ok) return null;
+    const { id } = await r.json();
+    if (!id) return null;
+    state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}`;
+    return state.shareUrl;
+  } catch { return null; }
 }
 
 /* ---------- Boot ---------- */
