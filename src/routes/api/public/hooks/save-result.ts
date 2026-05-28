@@ -32,6 +32,14 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
             return new Response("Server misconfigured", { status: 500, headers: CORS });
           }
 
+          const insertPayload = {
+            match_name: data.match_name,
+            category: data.category,
+            similarity: data.similarity,
+            description: data.description,
+            match_image_url: data.match_image_url,
+          };
+
           const resp = await fetch(`${supabaseUrl}/rest/v1/shared_results`, {
             method: "POST",
             headers: {
@@ -40,7 +48,7 @@ export const Route = createFileRoute("/api/public/hooks/save-result")({
               "Content-Type": "application/json",
               Prefer: "return=representation",
             },
-            body: JSON.stringify(data),
+            body: JSON.stringify(insertPayload),
           });
           if (!resp.ok) {
             const txt = await resp.text().catch(() => "");
