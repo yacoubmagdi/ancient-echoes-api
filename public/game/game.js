@@ -34,6 +34,7 @@ let state = {
   lastResult: null,
   shareUrl: null,
   shareImageData: null,
+  shareUrlHasCard: false,
 };
 
 /* ---------- FB Instant Games bootstrap (optional) ---------- */
@@ -324,13 +325,16 @@ function renderResult(data) {
     share_image_data: state.shareImageData || undefined,
   };
   state.shareUrl = null;
-  // Fire-and-forget: save to backend so the share URL unfurls with OG image
-  saveAndGetShareUrl().catch((e) => console.warn("save failed", e));
+  state.shareImageData = null;
+  state.shareUrlHasCard = false;
 }
 
 async function saveAndGetShareUrl() {
   if (!state.lastResult || !state.lastResult.match_image_url) return null;
-  if (state.shareUrl) return state.shareUrl;
+  if (state.shareImageData) {
+    state.lastResult.share_image_data = state.shareImageData;
+  }
+  if (state.shareUrl && (!state.shareImageData || state.shareUrlHasCard)) return state.shareUrl;
   try {
     const r = await fetch(SAVE_URL, {
       method: "POST",
@@ -341,6 +345,7 @@ async function saveAndGetShareUrl() {
     const { id } = await r.json();
     if (!id) return null;
     state.shareUrl = `${APP_BASE}/api/public/hooks/share-page?id=${id}`;
+    state.shareUrlHasCard = !!state.shareImageData;
     return state.shareUrl;
   } catch { return null; }
 }
