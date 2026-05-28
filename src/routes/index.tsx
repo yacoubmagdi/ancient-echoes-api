@@ -40,7 +40,8 @@ import { normalizeForFaceApi } from "@/lib/image-compress";
 import { loadFaceModels, extractDescriptor } from "@/lib/face-api";
 import { analyzeFace } from "@/server/analyze-face.functions";
 import { saveSharedResult } from "@/server/share.functions";
-import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl, PUBLISHED_BASE_URL } from "@/lib/share-url";
+import { buildPublishedFacebookRedirect, buildPublishedSharePageUrl } from "@/lib/share-url";
+import { buildShareCardDataUrl } from "@/lib/share-card";
 import { supabase } from "@/integrations/supabase/client";
 import { translateName, translateCategory, translateDescription } from "@/lib/persona-i18n";
 import heroBg from "@/assets/egypteca-hero-bg.png";
@@ -788,6 +789,27 @@ function ShareButtons({
           description,
           match_image_url: matchImageUrl,
           user_image_data: userThumb,
+          share_image_data: userImage
+            ? await buildShareCardDataUrl({
+                userImage,
+                matchImage: matchImageUrl,
+                name,
+                category,
+                similarity,
+                description,
+                title:
+                  typeof document !== "undefined" && document.documentElement.dir === "rtl"
+                    ? "أصداء القدماء"
+                    : "Echoes of the Ancients",
+                youLabel: t.cardYou,
+                matchLabel: t.cardMatch,
+                resemblanceLabel: t.resemblance,
+                footerLabel:
+                  typeof document !== "undefined" && document.documentElement.dir === "rtl"
+                    ? "اكتشف صداك التاريخي"
+                    : "Discover your historical echo",
+              })
+            : undefined,
         },
       });
       savedIdRef.current = resp.id;
@@ -856,58 +878,6 @@ function DownloadCardButton({
   const [open, setOpen] = useState(false);
   const savedShareIdRef = useRef<string | null>(null);
 
-  function loadImg(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = src;
-    });
-  }
-
-  function drawCover(
-    ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-  ) {
-    const ir = img.width / img.height;
-    const tr = w / h;
-    let sx = 0, sy = 0, sw = img.width, sh = img.height;
-    if (ir > tr) {
-      sw = img.height * tr;
-      sx = (img.width - sw) / 2;
-    } else {
-      sh = img.width / tr;
-      sy = (img.height - sh) / 2;
-    }
-    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
-  }
-
-  function wrapText(
-    ctx: CanvasRenderingContext2D,
-    text: string,
-    maxWidth: number,
-  ): string[] {
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let line = "";
-    for (const w of words) {
-      const test = line ? line + " " + w : w;
-      if (ctx.measureText(test).width > maxWidth && line) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = test;
-      }
-    }
-    if (line) lines.push(line);
-    return lines;
-  }
-
   async function generate() {
     if (!userImage) {
       toast.error(t.uploadCta);
@@ -915,122 +885,19 @@ function DownloadCardButton({
     }
     setBusy(true);
     try {
-      const W = 1080;
-      const H = 1350;
-      const canvas = document.createElement("canvas");
-      canvas.width = W;
-      canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
-
-      // Background gradient (dark navy → deep purple)
-      const bg = ctx.createLinearGradient(0, 0, W, H);
-      bg.addColorStop(0, "#0b0a1f");
-      bg.addColorStop(1, "#1a1430");
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, W, H);
-
-      // Subtle gold border
-      ctx.strokeStyle = "#c9a84c";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(20, 20, W - 40, H - 40);
-
-      // Title
-      ctx.fillStyle = "#e8d27a";
-      ctx.textAlign = "center";
-      ctx.font = "bold 56px serif";
-      ctx.fillText(isRtl ? "أصداء القدماء" : "Echoes of the Ancients", W / 2, 100);
-
-      // Load images in parallel
-      const [uImg, mImg] = await Promise.all([loadImg(userImage), loadImg(matchImage)]);
-
-      // Two side-by-side circular portraits
-      const portraitSize = 380;
-      const portraitY = 170;
-      const leftX = 110;
-      const rightX = W - 110 - portraitSize;
-
-      function drawCircle(img: HTMLImageElement, x: number, y: number, label: string) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x + portraitSize / 2, y + portraitSize / 2, portraitSize / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        drawCover(ctx, img, x, y, portraitSize, portraitSize);
-        ctx.restore();
-        // Gold ring
-        ctx.beginPath();
-        ctx.arc(x + portraitSize / 2, y + portraitSize / 2, portraitSize / 2, 0, Math.PI * 2);
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = "#c9a84c";
-        ctx.stroke();
-        // Label
-        ctx.fillStyle = "#cfcfe0";
-        ctx.font = "28px sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 50);
-      }
-
-      drawCircle(uImg, leftX, portraitY, t.cardYou);
-      drawCircle(mImg, rightX, portraitY, t.cardMatch);
-
-      // Equals/echo symbol between
-      ctx.fillStyle = "#c9a84c";
-      ctx.font = "bold 70px serif";
-      ctx.textAlign = "center";
-      ctx.fillText("≈", W / 2, portraitY + portraitSize / 2 + 25);
-
-      // Match name
-      ctx.fillStyle = "#f5e9b8";
-      ctx.font = "bold 48px serif";
-      ctx.textAlign = "center";
-      ctx.fillText(name, W / 2, 705);
-
-      // Category
-      ctx.fillStyle = "#a89cc6";
-      ctx.font = "italic 32px serif";
-      ctx.fillText(category, W / 2, 748);
-
-      // Similarity bar
-      const barX = 180;
-      const barY = 820;
-      const barW = W - 360;
-      const barH = 22;
-      ctx.fillStyle = "#2a2440";
-      ctx.fillRect(barX, barY, barW, barH);
-      const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
-      grad.addColorStop(0, "#c9a84c");
-      grad.addColorStop(1, "#f5e9b8");
-      ctx.fillStyle = grad;
-      ctx.fillRect(barX, barY, (barW * similarity) / 100, barH);
-
-      ctx.fillStyle = "#e8d27a";
-      ctx.font = "bold 44px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(`${similarity}% ${t.resemblance}`, W / 2, barY + 80);
-
-      // Description (wrapped)
-      ctx.fillStyle = "#d8d4e8";
-      ctx.font = "28px sans-serif";
-      ctx.textAlign = "center";
-      const lines = wrapText(ctx, description, W - 200);
-      const maxLines = 6;
-      const shown = lines.slice(0, maxLines);
-      shown.forEach((ln, i) => {
-        ctx.fillText(ln, W / 2, 970 + i * 38);
+      const dataUrl = await buildShareCardDataUrl({
+        userImage,
+        matchImage,
+        name,
+        category,
+        similarity,
+        description,
+        title: isRtl ? "أصداء القدماء" : "Echoes of the Ancients",
+        youLabel: t.cardYou,
+        matchLabel: t.cardMatch,
+        resemblanceLabel: t.resemblance,
+        footerLabel: isRtl ? "اكتشف صداك التاريخي" : "Discover your historical echo",
       });
-
-      // Footer brand
-      ctx.fillStyle = "#8a82a8";
-      ctx.font = "24px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(
-        isRtl ? "اكتشف صداك التاريخي" : "Discover your historical echo",
-        W / 2,
-        H - 60,
-      );
-
-      // Show in dialog
-      const dataUrl = canvas.toDataURL("image/png");
       setPreviewSrc(dataUrl);
       setOpen(true);
     } catch (e) {
