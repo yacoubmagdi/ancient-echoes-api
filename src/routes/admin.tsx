@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pencil, Trash2, Plus, RefreshCw, LogOut, Sparkles, ImageIcon, BookOpen, ChevronRight, ExternalLink, Settings } from "lucide-react";
-import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye } from "lucide-react";
+import { ShieldCheck, AlertTriangle, Link2, Wand2, Eye, Facebook } from "lucide-react";
 import { PaintbrushVertical } from "lucide-react";
 import { Languages } from "lucide-react";
 import { extractDescriptor, imageFromUrl } from "@/lib/face-api";
@@ -644,6 +644,12 @@ function AdminPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">{a.home}</Link>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/facebook-setup">
+                <Facebook className="h-4 w-4 mr-1" />
+                {lang === "ar" ? "نشر على فيسبوك" : "Publish on Facebook"}
+              </Link>
+            </Button>
             <Button variant="ghost" size="sm" onClick={toggleLang} aria-label="Toggle language">
               <Languages className="h-4 w-4 mr-1" />
               {lang === "ar" ? "English" : "العربية"}
