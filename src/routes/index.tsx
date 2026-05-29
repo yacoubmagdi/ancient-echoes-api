@@ -702,24 +702,6 @@ function Index() {
           </div>
         )}
 
-        <footer className="mt-20 text-center text-xs text-muted-foreground">
-          <div className="mx-auto max-w-2xl rounded-lg border border-border/50 bg-card/30 p-6">
-            <h2 className="mb-2 text-sm font-semibold text-foreground">
-              {t.privacyTitle}
-            </h2>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t.privacyText}
-            </p>
-          </div>
-          <div className="mt-4">
-            <Link
-              to="/facebook-setup"
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-            >
-              {t.fbSetupNav}
-            </Link>
-          </div>
-        </footer>
       </div>
     </main>
   );
