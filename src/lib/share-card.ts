@@ -101,10 +101,10 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.font = "bold 56px serif";
   ctx.fillText(input.title, W / 2, 100);
 
-  const portraitSize = 380;
-  const portraitY = 170;
-  const leftX = 110;
-  const rightX = W - 110 - portraitSize;
+  const portraitSize = 320;
+  const portraitY = 150;
+  const leftX = 130;
+  const rightX = W - 130 - portraitSize;
 
   const drawCircle = (img: HTMLImageElement, x: number, y: number, label: string) => {
     ctx.save();
@@ -122,29 +122,29 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
     ctx.stroke();
 
     ctx.fillStyle = "#cfcfe0";
-    ctx.font = "28px sans-serif";
-    ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 50);
+    ctx.font = "26px sans-serif";
+    ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 42);
   };
 
   drawCircle(uImg, leftX, portraitY, input.youLabel);
   drawCircle(mImg, rightX, portraitY, input.matchLabel);
 
   ctx.fillStyle = "#c9a84c";
-  ctx.font = "bold 70px serif";
-  ctx.fillText("≈", W / 2, portraitY + portraitSize / 2 + 25);
+  ctx.font = "bold 64px serif";
+  ctx.fillText("≈", W / 2, portraitY + portraitSize / 2 + 22);
 
   ctx.fillStyle = "#f5e9b8";
-  ctx.font = "bold 48px serif";
-  ctx.fillText(input.name, W / 2, 705);
+  ctx.font = "bold 38px serif";
+  ctx.fillText(input.name, W / 2, 605);
 
   ctx.fillStyle = "#a89cc6";
-  ctx.font = "italic 32px serif";
-  ctx.fillText(input.category, W / 2, 748);
+  ctx.font = "italic 26px serif";
+  ctx.fillText(input.category, W / 2, 642);
 
-  const barX = 180;
-  const barY = 820;
-  const barW = W - 360;
-  const barH = 22;
+  const barX = 200;
+  const barY = 700;
+  const barW = W - 400;
+  const barH = 18;
   ctx.fillStyle = "#2a2440";
   ctx.fillRect(barX, barY, barW, barH);
   const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
@@ -154,14 +154,14 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.fillRect(barX, barY, (barW * input.similarity) / 100, barH);
 
   ctx.fillStyle = "#e8d27a";
-  ctx.font = "bold 44px sans-serif";
-  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 80);
+  ctx.font = "bold 32px sans-serif";
+  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 62);
 
   ctx.fillStyle = "#d8d4e8";
-  ctx.font = "28px sans-serif";
-  const lines = wrapText(ctx, input.description, W - 200).slice(0, 6);
+  ctx.font = "26px sans-serif";
+  const lines = wrapText(ctx, input.description, W - 200).slice(0, 8);
   lines.forEach((line, index) => {
-    ctx.fillText(line, W / 2, 970 + index * 38);
+    ctx.fillText(line, W / 2, 830 + index * 36);
   });
 
   ctx.fillStyle = "#8a82a8";
