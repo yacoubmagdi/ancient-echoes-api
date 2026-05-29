@@ -102,9 +102,9 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.fillText(input.title, W / 2, 100);
 
   const portraitSize = 320;
-  const portraitY = 150;
-  const leftX = 130;
-  const rightX = W - 130 - portraitSize;
+  const portraitY = 540;
+  const leftX = 60;
+  const rightX = W - 60 - portraitSize;
 
   const drawCircle = (img: HTMLImageElement, x: number, y: number, label: string) => {
     ctx.save();
@@ -129,21 +129,17 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   drawCircle(uImg, leftX, portraitY, input.youLabel);
   drawCircle(mImg, rightX, portraitY, input.matchLabel);
 
-  ctx.fillStyle = "#c9a84c";
-  ctx.font = "bold 64px serif";
-  ctx.fillText("≈", W / 2, portraitY + portraitSize / 2 + 22);
-
   ctx.fillStyle = "#f5e9b8";
   ctx.font = "bold 38px serif";
-  ctx.fillText(input.name, W / 2, 605);
+  ctx.fillText(input.name, W / 2, 220);
 
   ctx.fillStyle = "#a89cc6";
   ctx.font = "italic 26px serif";
-  ctx.fillText(input.category, W / 2, 642);
+  ctx.fillText(input.category, W / 2, 262);
 
-  const barX = 200;
-  const barY = 700;
-  const barW = W - 400;
+  const barX = 60 + portraitSize + 20;
+  const barY = portraitY + portraitSize / 2 - 9;
+  const barW = W - 2 * (60 + portraitSize + 20);
   const barH = 18;
   ctx.fillStyle = "#2a2440";
   ctx.fillRect(barX, barY, barW, barH);
@@ -155,13 +151,13 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
 
   ctx.fillStyle = "#e8d27a";
   ctx.font = "bold 32px sans-serif";
-  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 62);
+  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 56);
 
   ctx.fillStyle = "#d8d4e8";
   ctx.font = "26px sans-serif";
   const lines = wrapText(ctx, input.description, W - 200).slice(0, 8);
   lines.forEach((line, index) => {
-    ctx.fillText(line, W / 2, 830 + index * 36);
+    ctx.fillText(line, W / 2, 960 + index * 36);
   });
 
   ctx.fillStyle = "#8a82a8";
