@@ -129,10 +129,11 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   drawCircle(uImg, leftX, portraitY, input.youLabel);
   drawCircle(mImg, rightX, portraitY, input.matchLabel);
 
-  const barX = 40 + portraitSize + 10;
-  const barY = portraitY + portraitSize / 2 - 9;
-  const barW = W - 2 * (40 + portraitSize + 10);
+  const barGap = 24;
+  const barX = leftX + portraitSize + barGap;
+  const barW = rightX - barX - barGap;
   const barH = 16;
+  const barY = portraitY + portraitSize / 2 - barH / 2;
   ctx.fillStyle = "#2a2440";
   ctx.fillRect(barX, barY, barW, barH);
   const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
@@ -141,17 +142,23 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.fillStyle = grad;
   ctx.fillRect(barX, barY, (barW * input.similarity) / 100, barH);
 
+  const centerX = W / 2;
+  const barBottom = barY + barH;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
   ctx.fillStyle = "#e8d27a";
   ctx.font = "bold 26px sans-serif";
-  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 40);
+  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, centerX, barBottom + 36);
 
   ctx.fillStyle = "#f5e9b8";
   ctx.font = "bold 32px serif";
-  ctx.fillText(input.name, W / 2, barY + 74);
+  ctx.fillText(input.name, centerX, barBottom + 78);
 
   ctx.fillStyle = "#a89cc6";
   ctx.font = "italic 22px serif";
-  ctx.fillText(input.category, W / 2, barY + 102);
+  ctx.fillText(input.category, centerX, barBottom + 108);
 
   ctx.fillStyle = "#d8d4e8";
   ctx.font = "22px sans-serif";
