@@ -73,7 +73,7 @@ function wrapText(
 
 export async function buildShareCardDataUrl(input: ShareCardInput) {
   const W = 1080;
-  const H = 1100;
+  const H = 980;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -93,18 +93,18 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.fillRect(0, 0, W, H);
 
   ctx.strokeStyle = "#c9a84c";
-  ctx.lineWidth = 4;
-  ctx.strokeRect(20, 20, W - 40, H - 40);
+  ctx.lineWidth = 3;
+  ctx.strokeRect(12, 12, W - 24, H - 24);
 
   ctx.fillStyle = "#e8d27a";
   ctx.textAlign = "center";
-  ctx.font = "bold 52px serif";
-  ctx.fillText(input.title, W / 2, 90);
+  ctx.font = "bold 48px serif";
+  ctx.fillText(input.title, W / 2, 72);
 
   const portraitSize = 300;
-  const portraitY = 260;
-  const leftX = 60;
-  const rightX = W - 60 - portraitSize;
+  const portraitY = 170;
+  const leftX = 40;
+  const rightX = W - 40 - portraitSize;
 
   const drawCircle = (img: HTMLImageElement, x: number, y: number, label: string) => {
     ctx.save();
@@ -117,22 +117,22 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
 
     ctx.beginPath();
     ctx.arc(x + portraitSize / 2, y + portraitSize / 2, portraitSize / 2, 0, Math.PI * 2);
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 5;
     ctx.strokeStyle = "#c9a84c";
     ctx.stroke();
 
     ctx.fillStyle = "#cfcfe0";
-    ctx.font = "26px sans-serif";
-    ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 38);
+    ctx.font = "24px sans-serif";
+    ctx.fillText(label, x + portraitSize / 2, y + portraitSize + 34);
   };
 
   drawCircle(uImg, leftX, portraitY, input.youLabel);
   drawCircle(mImg, rightX, portraitY, input.matchLabel);
 
-  const barX = 60 + portraitSize + 20;
+  const barX = 40 + portraitSize + 10;
   const barY = portraitY + portraitSize / 2 - 9;
-  const barW = W - 2 * (60 + portraitSize + 20);
-  const barH = 18;
+  const barW = W - 2 * (40 + portraitSize + 10);
+  const barH = 16;
   ctx.fillStyle = "#2a2440";
   ctx.fillRect(barX, barY, barW, barH);
   const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
@@ -142,28 +142,28 @@ export async function buildShareCardDataUrl(input: ShareCardInput) {
   ctx.fillRect(barX, barY, (barW * input.similarity) / 100, barH);
 
   ctx.fillStyle = "#e8d27a";
-  ctx.font = "bold 28px sans-serif";
-  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 50);
+  ctx.font = "bold 26px sans-serif";
+  ctx.fillText(`${input.similarity}% ${input.resemblanceLabel}`, W / 2, barY + 40);
 
   ctx.fillStyle = "#f5e9b8";
-  ctx.font = "bold 36px serif";
-  ctx.fillText(input.name, W / 2, barY + 95);
+  ctx.font = "bold 32px serif";
+  ctx.fillText(input.name, W / 2, barY + 74);
 
   ctx.fillStyle = "#a89cc6";
-  ctx.font = "italic 24px serif";
-  ctx.fillText(input.category, W / 2, barY + 128);
+  ctx.font = "italic 22px serif";
+  ctx.fillText(input.category, W / 2, barY + 102);
 
   ctx.fillStyle = "#d8d4e8";
-  ctx.font = "24px sans-serif";
-  const descStartY = portraitY + portraitSize + 90;
-  const lines = wrapText(ctx, input.description, W - 200).slice(0, 6);
+  ctx.font = "22px sans-serif";
+  const descStartY = portraitY + portraitSize + 50;
+  const lines = wrapText(ctx, input.description, W - 160).slice(0, 7);
   lines.forEach((line, index) => {
-    ctx.fillText(line, W / 2, descStartY + index * 34);
+    ctx.fillText(line, W / 2, descStartY + index * 30);
   });
 
   ctx.fillStyle = "#8a82a8";
-  ctx.font = "22px sans-serif";
-  ctx.fillText(input.footerLabel, W / 2, H - 40);
+  ctx.font = "20px sans-serif";
+  ctx.fillText(input.footerLabel, W / 2, H - 28);
 
   return canvas.toDataURL("image/png");
 }
